@@ -2,12 +2,24 @@ const { google } = require('googleapis');
 const path = require('path');
 const sheetsConfig = require('../config/sheetsConfig');
 
-const auth = new google.auth.GoogleAuth({
-  keyFile: path.join(__dirname, '../../credentials/google-service-account.json'),
-  scopes: ['https://www.googleapis.com/auth/spreadsheets']
-});
+function getGoogleAuth() {
+  if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
+    const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
+
+    return new google.auth.GoogleAuth({
+      credentials,
+      scopes: ['https://www.googleapis.com/auth/spreadsheets']
+    });
+  }
+
+  return new google.auth.GoogleAuth({
+    keyFile: path.join(__dirname, '../../credentials/google-service-account.json'),
+    scopes: ['https://www.googleapis.com/auth/spreadsheets']
+  });
+}
 
 async function getSheetsClient() {
+  const auth = getGoogleAuth();
   const client = await auth.getClient();
   return google.sheets({ version: 'v4', auth: client });
 }
