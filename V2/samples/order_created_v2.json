@@ -1,0 +1,108 @@
+{
+  "event_type": "order_created",
+  "event_id": "7573920b-5558-4455-ae73-d8628aba6609",
+  "merchant_id": "777",
+  "data": {
+    "client": {
+      "country_calling_code": "51",
+      "email": null,
+      "name": "Aldo Perez",
+      "phone_number": "123456",
+      "longitude": -70.02314926295166,
+      "latitude": -15.841847854130933,
+      "address": "Av. Italia 1234"
+    },
+    "comment": "Sin cebolla y cambiar papas por nuggets",
+    "cost_details": {
+      "coupon_discount": 0,
+      "currency": "PEN",
+      "delivery_price": 7,
+      "packaging_price": 6,
+      "products_discount": 10,
+      "products_price": 50,
+      "tip": 7,
+      "toppings_discount": 0,
+      "toppings_price": 20,
+      "total": 80,
+      "amount_received": 0
+    },
+    "created_at": "2022-03-02 22:41:00",
+    "order_id": "PE-7222853393",
+    "order_details": [
+      {
+        "comment": "sin pepino",
+        "quantity": 1,
+        "total": 40,
+        "product": {
+          "name": "Hamburguesa Big Otto Doble",
+          "sku": "123456",
+          "toppings": [
+            {
+              "discount": 0,
+              "name": "Bien cocida",
+              "quantity": 1,
+              "sku": "456",
+              "unit_price": 5,
+              "unit_regular_price": 5
+            },
+            {
+              "discount": 0,
+              "name": "Ketchup",
+              "quantity": 2,
+              "sku": "567",
+              "unit_price": 2,
+              "unit_regular_price": 2
+            }
+          ]
+        },
+        "unit_discount": 5,
+        "unit_price": 25,
+        "unit_regular_price": 30,
+        "toppings_price": 15
+      },
+      {
+        "comment": null,
+        "quantity": 1,
+        "total": 20,
+        "product": {
+          "name": "Papas Fritas",
+          "sku": null,
+          "toppings": [
+            {
+              "discount": 0,
+              "name": "Cheddar",
+              "quantity": 1,
+              "sku": "789",
+              "unit_price": 3,
+              "unit_regular_price": 3
+            }
+          ]
+        },
+        "unit_discount": 5,
+        "unit_price": 15,
+        "unit_regular_price": 20,
+        "toppings_price": 5
+      },
+      {
+        "comment": null,
+        "quantity": 2,
+        "total": 20,
+        "product": {
+          "name": "Coca Cola 600",
+          "sku": "999",
+          "toppings": []
+        },
+        "unit_discount": 0,
+        "unit_price": 10,
+        "unit_regular_price": 10,
+        "toppings_price": 0
+      }
+    ],
+    "order_type": "delivery",
+    "payment_method": "card",
+    "payment_status": "payment_pending",
+    "source": "inbound",
+    "status": "pending",
+    "table_number": null
+  }
+}
