@@ -11,7 +11,11 @@ app.get('/', (req, res) => {
 });
 
 app.get('/health', (req, res) => {
-  res.status(200).json({ ok: true });
+  res.status(200).json({
+    ok: true,
+    service: 'lector-valores-pedido',
+    timestamp: new Date().toISOString()
+  });
 });
 
 app.use('/webhook', webhookRoutes);
@@ -19,7 +23,9 @@ app.use('/webhook', webhookRoutes);
 app.use((req, res) => {
   res.status(404).json({
     ok: false,
-    error: 'Ruta no encontrada.'
+    error: 'Ruta no encontrada.',
+    method: req.method,
+    path: req.originalUrl
   });
 });
 
@@ -27,8 +33,18 @@ app.use((error, req, res, next) => {
   const statusCode = error.statusCode || 500;
   const message = error.message || 'Error interno del servidor.';
 
+  const errorLog = {
+    timestamp: new Date().toISOString(),
+    method: req.method,
+    path: req.originalUrl,
+    statusCode,
+    message
+  };
+
   if (statusCode >= 500) {
-    console.error('Error procesando la solicitud:', error);
+    console.error('[ERROR 500+]', errorLog, error);
+  } else {
+    console.warn('[ERROR CONTROLADO]', errorLog);
   }
 
   res.status(statusCode).json({
@@ -39,7 +55,7 @@ app.use((error, req, res, next) => {
 
 if (require.main === module) {
   app.listen(port, () => {
-    console.log(`Servidor corriendo en puerto ${port}`);
+    console.log(`[BOOT] Servidor corriendo en puerto ${port}`);
   });
 }
 
