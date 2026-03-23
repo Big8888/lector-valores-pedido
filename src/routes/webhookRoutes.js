@@ -1,4 +1,4 @@
-const express = require('express');
+﻿const express = require('express');
 const { interpretOrder } = require('../services/orderInterpreter');
 const { assignCourier } = require('../services/courierAssigner');
 const { mapOrderToSheetRow } = require('../services/orderToSheetMapper');
@@ -10,33 +10,6 @@ function maskSecret(secret) {
   if (!secret) return '(vacio)';
   if (secret.length <= 6) return '***';
   return `${secret.slice(0, 3)}***${secret.slice(-3)}`;
-}
-
-function validateWebhookSecret(req) {
-  const expectedSecret = process.env.WEBHOOK_SECRET;
-
-  if (!expectedSecret) {
-    const error = new Error('WEBHOOK_SECRET no esta configurado en el servidor.');
-    error.statusCode = 500;
-    throw error;
-  }
-
-  const receivedSecret =
-    req.header('x-webhook-secret') ||
-    req.header('X-Webhook-Secret') ||
-    req.query.secret;
-
-  if (!receivedSecret) {
-    const error = new Error('Falta el header x-webhook-secret.');
-    error.statusCode = 401;
-    throw error;
-  }
-
-  if (receivedSecret !== expectedSecret) {
-    const error = new Error('Webhook secret invalido.');
-    error.statusCode = 401;
-    throw error;
-  }
 }
 
 router.get('/', (req, res) => {
@@ -51,26 +24,33 @@ router.post('/', async (req, res, next) => {
   const startedAt = Date.now();
 
   try {
-    validateWebhookSecret(req);
-
     const payload = req.body || {};
+    const receivedSecret =
+      req.header('x-webhook-secret') ||
+      req.header('X-Webhook-Secret') ||
+      req.query.secret ||
+      '';
 
     console.log('[WEBHOOK] Pedido recibido', {
       timestamp: new Date().toISOString(),
       hasBody: !!req.body,
       bodyKeys: Object.keys(payload),
-      secretReceived: maskSecret(req.header('x-webhook-secret') || req.query.secret || '')
+      secretReceived: maskSecret(receivedSecret),
+      secretPresent: !!receivedSecret
     });
 
     const order = interpretOrder(payload);
 
     console.log('[WEBHOOK] Pedido interpretado', {
       pedido: order.pedido || null,
-      rawText: order.rawText || null
+      rawText: order.rawText || null,
+      itemsCount: Array.isArray(order.items) ? order.items.length : 0,
+      papas: order.kitchenCounts?.papas || 0,
+      medallones: order.kitchenCounts?.medallones || 0
     });
 
-    if (!order.pedido && !order.rawText) {
-      const error = new Error('No se pudo interpretar ningun dato del pedido.');
+    if (!order.pedido && !order.rawText && (!order.items || !order.items.length)) {
+      const error = new Error('No se pudo interpretar ningun dato util del pedido.');
       error.statusCode = 400;
       throw error;
     }
