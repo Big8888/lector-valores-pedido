@@ -45,6 +45,12 @@ function normalizeCell(value) {
   return String(value || '').trim().replace(/^'/, '');
 }
 
+function toNumber(value) {
+  const normalized = normalizeCell(value).replace(/\./g, '').replace(',', '.');
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 function getLookupKeys(orderOrId) {
   if (!orderOrId) return [];
 
@@ -166,6 +172,33 @@ async function writeOrderToSheet(sheetName, row, data) {
   });
 }
 
+async function getOrderRowSnapshot(sheetName, row) {
+  const sheets = await getSheetsClient();
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId: sheetsConfig.spreadsheetId,
+    range: `${sheetName}!A${row}:R${row}`
+  });
+
+  const values = res.data.values?.[0] || [];
+
+  const getValueByColumn = (column) => {
+    const columnIndex = column.charCodeAt(0) - 'A'.charCodeAt(0);
+    return values[columnIndex] ?? '';
+  };
+
+  return {
+    numeroPedidoInterno: normalizeCell(getValueByColumn(sheetsConfig.columns.numeroPedidoInterno)),
+    total: toNumber(getValueByColumn(sheetsConfig.columns.total)),
+    tarjeta: toNumber(getValueByColumn(sheetsConfig.columns.tarjeta)),
+    efectivo: toNumber(getValueByColumn(sheetsConfig.columns.efectivo)),
+    transferencia: toNumber(getValueByColumn(sheetsConfig.columns.transferencia)),
+    enviosLejanos: toNumber(getValueByColumn(sheetsConfig.columns.enviosLejanos)),
+    propinaWeb: toNumber(getValueByColumn(sheetsConfig.columns.propinaWeb)),
+    telefono: normalizeCell(getValueByColumn(sheetsConfig.columns.telefono)),
+    fecha: normalizeCell(getValueByColumn(sheetsConfig.columns.fecha))
+  };
+}
+
 async function clearOrderRow(sheetName, row) {
   const sheets = await getSheetsClient();
   const startColumn = 'A';
@@ -186,5 +219,6 @@ module.exports = {
   getNextEmptyRow,
   writeOrderToSheet,
   findOrderAcrossSheets,
-  clearOrderRow
+  clearOrderRow,
+  getOrderRowSnapshot
 };

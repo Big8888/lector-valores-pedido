@@ -6,7 +6,8 @@ const {
   getNextEmptyRow,
   writeOrderToSheet,
   findOrderAcrossSheets,
-  clearOrderRow
+  clearOrderRow,
+  getOrderRowSnapshot
 } = require('../services/googleSheetsService');
 
 const router = express.Router();
@@ -145,8 +146,6 @@ router.post('/', async (req, res, next) => {
       });
     }
 
-    const mappedRow = mapOrderToSheetRow(order, assignment);
-
     console.log('[WEBHOOK] Courier asignado', {
       courier: assignment.courier,
       sheetName: assignment.sheetName
@@ -161,6 +160,8 @@ router.post('/', async (req, res, next) => {
     );
 
     let rowNumber;
+    let existingSnapshot = null;
+    let mappedRow;
 
     for (const duplicate of existingInOtherSheets) {
       console.log('[WEBHOOK] Pedido encontrado en otra hoja, se limpia fila anterior', {
@@ -175,11 +176,13 @@ router.post('/', async (req, res, next) => {
 
     if (existingInTargetSheet.length > 0) {
       rowNumber = existingInTargetSheet[0].rowNumber;
+      existingSnapshot = await getOrderRowSnapshot(assignment.sheetName, rowNumber);
 
       console.log('[WEBHOOK] Pedido ya existe en la misma hoja, se actualiza', {
         nroPedido: order.nroPedido,
         sheetName: assignment.sheetName,
-        rowNumber
+        rowNumber,
+        existingSnapshot
       });
 
       for (const duplicate of existingInTargetSheet.slice(1)) {
@@ -192,9 +195,11 @@ router.post('/', async (req, res, next) => {
         await clearOrderRow(duplicate.sheetName, duplicate.rowNumber);
       }
 
+      mappedRow = mapOrderToSheetRow(order, existingSnapshot);
       await writeOrderToSheet(assignment.sheetName, rowNumber, mappedRow);
     } else {
       rowNumber = await getNextEmptyRow(assignment.sheetName);
+      mappedRow = mapOrderToSheetRow(order);
       await writeOrderToSheet(assignment.sheetName, rowNumber, mappedRow);
     }
 
