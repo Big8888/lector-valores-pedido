@@ -4,11 +4,15 @@
     MAURO: 'Mauro',
     MAURICIO: 'Mauro',
     DIOGO: 'Diogo',
-    GIAN: 'GIAN'
+    GIAN: 'GIAN',
+    LIBRE1: 'LIBRE1',
+    LIBRE: 'LIBRE1'
   },
   columns: {
     numeroPedidoInterno: 'A',
-    total: 'D',
+    tarjeta: 'D',
+    efectivo: 'E',
+    transferencia: 'F',
     enviosLejanos: 'H',
     propinaWeb: 'I',
     nroPedido: 'N',

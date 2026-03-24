@@ -23,6 +23,27 @@ function toNumber(value) {
   return Number.isNaN(parsed) ? 0 : parsed;
 }
 
+function getNestedValue(source, path) {
+  return path.reduce((current, key) => {
+    if (current && typeof current === 'object' && key in current) {
+      return current[key];
+    }
+
+    return undefined;
+  }, source);
+}
+
+function findFirstValue(source, paths) {
+  for (const path of paths) {
+    const value = getNestedValue(source, path);
+    if (value !== undefined && value !== null && value !== '') {
+      return value;
+    }
+  }
+
+  return undefined;
+}
+
 function getOrderData(payload = {}) {
   if (payload && typeof payload.data === 'object' && payload.data !== null) {
     return payload.data;
@@ -87,6 +108,77 @@ function detectPaymentStatus(data) {
   return status;
 }
 
+function detectPaymentMethod(data) {
+  const rawCandidates = [
+    findFirstValue(data, [['payment_method']]),
+    findFirstValue(data, [['payment_method_name']]),
+    findFirstValue(data, [['payment_type']]),
+    findFirstValue(data, [['payment', 'method']]),
+    findFirstValue(data, [['payment', 'name']]),
+    findFirstValue(data, [['checkout', 'payment_method']]),
+    findFirstValue(data, [['checkout', 'payment_method_name']]),
+    findFirstValue(data, [['payments', 0, 'method']]),
+    findFirstValue(data, [['payments', 0, 'name']]),
+    findFirstValue(data, [['payments', 0, 'type']])
+  ];
+
+  const normalized = rawCandidates
+    .map((value) => asString(value).toLowerCase())
+    .find(Boolean) || '';
+
+  if (!normalized) {
+    return 'tarjeta';
+  }
+
+  if (normalized.includes('transf')) return 'transferencia';
+  if (normalized.includes('efect')) return 'efectivo';
+  if (normalized.includes('cash')) return 'efectivo';
+  if (normalized.includes('card')) return 'tarjeta';
+  if (normalized.includes('tarjeta')) return 'tarjeta';
+  if (normalized.includes('debito')) return 'tarjeta';
+  if (normalized.includes('credito')) return 'tarjeta';
+
+  return 'tarjeta';
+}
+
+function detectPropinaWeb(data) {
+  const directValue = findFirstValue(data, [
+    ['total_tips'],
+    ['tip'],
+    ['tips'],
+    ['payment', 'tip'],
+    ['payment', 'tips'],
+    ['payments', 0, 'tip'],
+    ['payments', 0, 'tips']
+  ]);
+
+  const directAmount = toNumber(directValue);
+  if (directAmount > 0) {
+    return directAmount;
+  }
+
+  const textCandidates = [
+    asString(findFirstValue(data, [['payment_method_name']])),
+    asString(findFirstValue(data, [['payment_description']])),
+    asString(findFirstValue(data, [['payment', 'description']])),
+    asString(findFirstValue(data, [['payments', 0, 'description']])),
+    asString(findFirstValue(data, [['payments', 0, 'name']])),
+    asString(findFirstValue(data, [['payments', 0, 'detail']]))
+  ].filter(Boolean);
+
+  for (const text of textCandidates) {
+    const match = text.match(/propina\s*([0-9.,]+)/i);
+    if (match) {
+      const amount = toNumber(match[1]);
+      if (amount > 0) {
+        return amount;
+      }
+    }
+  }
+
+  return 0;
+}
+
 function buildNotas(data) {
   const notes = [];
 
@@ -119,16 +211,31 @@ function interpretOrder(payload = {}) {
   const delivery = toNumber(data.delivery_price ?? data.delivery_cost ?? 0);
   const total = toNumber(data.total);
   const paymentStatus = detectPaymentStatus(data);
+  const paymentMethod = detectPaymentMethod(data);
   const notas = buildNotas(data);
 
   const pedido = [cliente, productos].filter(Boolean).join(' - ') || asString(data.id) || asString(payload.event_id);
   const nroPedido = asString(data.public_id) || asString(data.id) || asString(payload.event_id);
   const fecha = asString(data.created_at) || new Date().toISOString();
   const numeroPedidoInterno = asString(data.daily_id ?? '');
+  const riderCancelled =
+    !repartidor &&
+    [
+      asString(data.rider_status),
+      asString(data.status),
+      asString(payload.event),
+      asString(payload.type),
+      asString(payload.action)
+    ]
+      .map((value) => value.toLowerCase())
+      .some((value) => value.includes('cancel'));
 
   const enviosLejanos = delivery > 0 ? delivery : 0;
-  const propinaWeb = toNumber(data.total_tips ?? 0);
+  const propinaWeb = detectPropinaWeb(data);
   const importe = toNumber(data.amount ?? data.total ?? 0);
+  const tarjeta = paymentMethod === 'tarjeta' ? total : 0;
+  const efectivo = paymentMethod === 'efectivo' ? total : 0;
+  const transferencia = paymentMethod === 'transferencia' ? total : 0;
 
   const rawText = [
     `Cliente: ${cliente}`,
@@ -139,6 +246,7 @@ function interpretOrder(payload = {}) {
     `Subtotal: ${subtotal}`,
     `Delivery: ${delivery}`,
     `Total: ${total}`,
+    `Metodo: ${paymentMethod}`,
     `Pago: ${paymentStatus}`,
     notas ? `Notas: ${notas}` : ''
   ].filter(Boolean).join(' | ');
@@ -150,6 +258,7 @@ function interpretOrder(payload = {}) {
     telefono,
     fecha,
     repartidor,
+    riderCancelled,
     riderHint: repartidor,
     cliente,
     direccion,
@@ -157,9 +266,13 @@ function interpretOrder(payload = {}) {
     subtotal,
     delivery,
     total,
+    tarjeta,
+    efectivo,
+    transferencia,
     importe,
     enviosLejanos,
     propinaWeb,
+    paymentMethod,
     paymentStatus,
     notas,
     rawText,

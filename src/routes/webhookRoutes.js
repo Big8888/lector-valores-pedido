@@ -29,6 +29,23 @@ function hasAssignedRider(order = {}) {
   return candidates.some((value) => value && String(value).trim());
 }
 
+async function clearExistingOrders(order) {
+  const existingOrders = await findOrderAcrossSheets(order);
+
+  for (const duplicate of existingOrders) {
+    console.log('[WEBHOOK] Se elimina pedido existente de Sheets', {
+      numeroPedidoInterno: order.numeroPedidoInterno || null,
+      nroPedido: order.nroPedido || null,
+      sheetName: duplicate.sheetName,
+      rowNumber: duplicate.rowNumber
+    });
+
+    await clearOrderRow(duplicate.sheetName, duplicate.rowNumber);
+  }
+
+  return existingOrders.length;
+}
+
 router.get('/', (req, res) => {
   res.status(200).json({
     ok: true,
@@ -67,20 +84,42 @@ router.post('/', async (req, res, next) => {
       repartidor: order.repartidor || null
     });
 
-    if (!order.nroPedido) {
-      const error = new Error('No se pudo obtener nroPedido para identificar el pedido.');
+    if (!order.numeroPedidoInterno && !order.nroPedido) {
+      const error = new Error('No se pudo obtener un identificador para el pedido.');
       error.statusCode = 400;
       throw error;
     }
 
+    if (order.riderCancelled) {
+      const clearedRows = await clearExistingOrders(order);
+
+      console.log('[WEBHOOK] Rider cancelado, pedido eliminado de Sheets', {
+        numeroPedidoInterno: order.numeroPedidoInterno || null,
+        nroPedido: order.nroPedido || null,
+        clearedRows
+      });
+
+      return res.status(200).json({
+        ok: true,
+        removed: true,
+        clearedRows,
+        reason: 'Rider cancelado. Pedido eliminado de Google Sheets.'
+      });
+    }
+
     if (!hasAssignedRider(order)) {
+      const clearedRows = await clearExistingOrders(order);
+
       console.log('[WEBHOOK] Pedido omitido por no tener repartidor asignado aun', {
-        nroPedido: order.nroPedido
+        numeroPedidoInterno: order.numeroPedidoInterno || null,
+        nroPedido: order.nroPedido,
+        clearedRows
       });
 
       return res.status(202).json({
         ok: true,
         skipped: true,
+        clearedRows,
         reason: 'Pedido sin repartidor asignado aun.'
       });
     }
@@ -106,7 +145,7 @@ router.post('/', async (req, res, next) => {
       sheetName: assignment.sheetName
     });
 
-    const existingOrders = await findOrderAcrossSheets(order.nroPedido);
+    const existingOrders = await findOrderAcrossSheets(order);
     const existingInTargetSheet = existingOrders.filter(
       (entry) => entry.sheetName === assignment.sheetName
     );

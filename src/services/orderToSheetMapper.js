@@ -26,16 +26,15 @@ function asNumber(value) {
 }
 
 function mapOrderToSheetRow(order) {
-  const total = asNumber(order.total);
-  const importe = asNumber(order.importe);
-
   return {
     numeroPedidoInterno: order.numeroPedidoInterno || '',
-    total,
+    tarjeta: asNumber(order.tarjeta),
+    efectivo: asNumber(order.efectivo),
+    transferencia: asNumber(order.transferencia),
     enviosLejanos: asNumber(order.enviosLejanos),
     propinaWeb: asNumber(order.propinaWeb),
-    nroPedido: asPlainText(order.nroPedido),
-    importe,
+    nroPedido: '',
+    importe: '',
     telefono: asPlainText(order.telefono),
     fecha: formatFecha(order.fecha)
   };

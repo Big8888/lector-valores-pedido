@@ -45,6 +45,24 @@ function normalizeCell(value) {
   return String(value || '').trim().replace(/^'/, '');
 }
 
+function getLookupKeys(orderOrId) {
+  if (!orderOrId) return [];
+
+  if (typeof orderOrId === 'string') {
+    const key = normalizeCell(orderOrId);
+    return key ? [key] : [];
+  }
+
+  const keys = [
+    orderOrId.numeroPedidoInterno,
+    orderOrId.nroPedido
+  ]
+    .map((value) => normalizeCell(value))
+    .filter(Boolean);
+
+  return [...new Set(keys)];
+}
+
 async function getNextEmptyRow(sheetName) {
   const sheets = await getSheetsClient();
   const startRow = sheetsConfig.dataStartRow;
@@ -72,40 +90,53 @@ async function getNextEmptyRow(sheetName) {
   return nextRow;
 }
 
-async function findOrderRowsInSheet(sheetName, nroPedido) {
-  const cleanOrderId = normalizeCell(nroPedido);
-  if (!cleanOrderId) return [];
+async function findOrderRowsInSheet(sheetName, orderOrId) {
+  const lookupKeys = getLookupKeys(orderOrId);
+  if (lookupKeys.length === 0) return [];
 
   const sheets = await getSheetsClient();
-  const orderColumn = sheetsConfig.columns.nroPedido;
+  const primaryColumn = sheetsConfig.columns.numeroPedidoInterno;
+  const legacyColumn = sheetsConfig.columns.nroPedido;
 
-  const res = await sheets.spreadsheets.values.get({
+  const primaryRes = await sheets.spreadsheets.values.get({
     spreadsheetId: sheetsConfig.spreadsheetId,
-    range: `${sheetName}!${orderColumn}${sheetsConfig.dataStartRow}:${orderColumn}`
+    range: `${sheetName}!${primaryColumn}${sheetsConfig.dataStartRow}:${primaryColumn}`
   });
 
-  const values = res.data.values || [];
-  const matches = [];
+  const legacyRes = legacyColumn
+    ? await sheets.spreadsheets.values.get({
+        spreadsheetId: sheetsConfig.spreadsheetId,
+        range: `${sheetName}!${legacyColumn}${sheetsConfig.dataStartRow}:${legacyColumn}`
+      })
+    : { data: { values: [] } };
 
-  for (let index = 0; index < values.length; index += 1) {
-    const cellValue = normalizeCell(values[index]?.[0]);
-    if (cellValue && cellValue === cleanOrderId) {
-      matches.push({
-        sheetName,
-        rowNumber: sheetsConfig.dataStartRow + index
-      });
+  const primaryValues = primaryRes.data.values || [];
+  const legacyValues = legacyRes.data.values || [];
+  const matchedRows = new Set();
+
+  const maxLength = Math.max(primaryValues.length, legacyValues.length);
+
+  for (let index = 0; index < maxLength; index += 1) {
+    const primaryValue = normalizeCell(primaryValues[index]?.[0]);
+    const legacyValue = normalizeCell(legacyValues[index]?.[0]);
+
+    if (lookupKeys.includes(primaryValue) || lookupKeys.includes(legacyValue)) {
+      matchedRows.add(sheetsConfig.dataStartRow + index);
     }
   }
 
-  return matches;
+  return [...matchedRows].map((rowNumber) => ({
+    sheetName,
+    rowNumber
+  }));
 }
 
-async function findOrderAcrossSheets(nroPedido) {
+async function findOrderAcrossSheets(orderOrId) {
   const uniqueSheets = getUniqueSheetNames();
   const matches = [];
 
   for (const sheetName of uniqueSheets) {
-    const rows = await findOrderRowsInSheet(sheetName, nroPedido);
+    const rows = await findOrderRowsInSheet(sheetName, orderOrId);
     matches.push(...rows);
   }
 
