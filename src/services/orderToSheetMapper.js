@@ -1,38 +1,52 @@
-function formatFecha(value) {
-  const date = value ? new Date(value) : new Date();
-  if (Number.isNaN(date.getTime())) {
-    return String(value || '');
+﻿function stringifyFlags(flags = {}) {
+  const active = [];
+
+  if (flags.hasReplacement) active.push('REEMPLAZO');
+  if (flags.hasNotes) active.push('NOTAS');
+  if (flags.hasFries) active.push('PAPAS');
+  if (flags.hasMeat) active.push('CARNE');
+
+  return active.join(' | ');
+}
+
+function buildAnnotations(order, assignment) {
+  const parts = [];
+
+  if (assignment?.courier) {
+    parts.push(`Repartidor asignado: ${assignment.courier}`);
   }
 
-  return new Intl.DateTimeFormat('es-UY', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false
-  }).format(date);
+  const alerts = stringifyFlags(order.flags);
+  if (alerts) {
+    parts.push(`Alertas: ${alerts}`);
+  }
+
+  if (order.rawText) {
+    parts.push(`Notas: ${order.rawText}`);
+  }
+
+  if (order.itemsText) {
+    parts.push(`Items: ${order.itemsText}`);
+  }
+
+  return parts.join(' | ');
 }
 
 function mapOrderToSheetRow(order, assignment) {
-  const notes = [
-    order.anotaciones,
-    order.rawText && order.rawText !== order.pedido ? `Texto original: ${order.rawText}` : '',
-    assignment && assignment.courier ? `Repartidor asignado: ${assignment.courier}` : ''
-  ].filter(Boolean).join(' | ');
-
   return {
-    pedido: order.pedido,
-    tarjeta: order.tarjeta,
-    efectivo: order.efectivo,
-    transferencia: order.transferencia,
-    enviosLejanos: order.enviosLejanos ? 'SI' : '',
-    propinaWeb: order.propinaWeb,
-    anotaciones: notes,
-    nroPedido: order.nroPedido,
-    importe: order.importe,
-    telefono: order.telefono,
-    fecha: formatFecha(order.fecha)
+    pedido: order.pedido || '',
+    tarjeta: '',
+    efectivo: '',
+    transferencia: '',
+    enviosLejanos: '',
+    propinaWeb: '',
+    anotaciones: buildAnnotations(order, assignment),
+    nroPedido: order.pedido || '',
+    importe: order.total || '',
+    telefono: order.telefono || '',
+    fecha: new Date().toLocaleString('es-UY'),
+    repartidor: assignment?.courier || '',
+    hojaDestino: assignment?.sheetName || ''
   };
 }
 

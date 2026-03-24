@@ -1,12 +1,6 @@
-module.exports = {
+﻿module.exports = {
   spreadsheetId: '1b6thcjNOAbUPKRWSSvqhog2vp6TOk-wbo5GqokPH2hg',
-  riderSheets: {
-    Mauro: 'Mauro',
-    Diogo: 'Diogo',
-    GIAN: 'GIAN',
-    Brisa: 'Brisa',
-    Dario: 'LIBRE1'
-  },
+  dataStartRow: 19,
   columns: {
     pedido: 'A',
     tarjeta: 'D',
@@ -15,10 +9,11 @@ module.exports = {
     enviosLejanos: 'G',
     propinaWeb: 'H',
     anotaciones: 'K',
-    nroPedido: 'N',
-    importe: 'O',
-    telefono: 'P',
-    fecha: 'Q'
-  },
-  dataStartRow: 8
+    nroPedido: 'M',
+    importe: 'N',
+    telefono: 'O',
+    fecha: 'P',
+    repartidor: 'Q',
+    hojaDestino: 'R'
+  }
 };
