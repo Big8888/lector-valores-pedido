@@ -6,6 +6,24 @@ const { getNextEmptyRow, writeOrderToSheet } = require('../services/googleSheets
 
 const router = express.Router();
 
+function maskSecret(secret) {
+  if (!secret) return '(vacio)';
+  if (secret.length <= 6) return '***';
+  return `${secret.slice(0, 3)}***${secret.slice(-3)}`;
+}
+
+function hasAssignedRider(order = {}) {
+  const candidates = [
+    order.repartidor,
+    order.riderHint,
+    order.orderData && order.orderData.rider && order.orderData.rider.name,
+    order.originalPayload && order.originalPayload.data && order.originalPayload.data.rider && order.originalPayload.data.rider.name,
+    order.originalPayload && order.originalPayload.datos && order.originalPayload.datos.rider && order.originalPayload.datos.rider.name
+  ];
+
+  return candidates.some((value) => value && String(value).trim());
+}
+
 router.get('/', (req, res) => {
   res.status(200).json({
     ok: true,
@@ -19,32 +37,41 @@ router.post('/', async (req, res, next) => {
 
   try {
     const payload = req.body || {};
-    const rawOrder = payload.datos || payload.data || null;
+    const receivedSecret =
+      req.header('x-webhook-secret') ||
+      req.header('X-Webhook-Secret') ||
+      req.query.secret ||
+      '';
 
     console.log('[WEBHOOK] Pedido recibido', {
       timestamp: new Date().toISOString(),
       hasBody: !!req.body,
-      bodyKeys: Object.keys(payload)
+      bodyKeys: Object.keys(payload),
+      secretReceived: maskSecret(receivedSecret),
+      secretPresent: !!receivedSecret
     });
-
-    if (rawOrder) {
-      console.log('[WEBHOOK] rawOrder = ' + JSON.stringify(rawOrder));
-    }
 
     const order = interpretOrder(payload);
 
     console.log('[WEBHOOK] Pedido interpretado', {
-      pedido: order.pedido || null,
-      rawText: order.rawText || null,
-      itemsCount: Array.isArray(order.items) ? order.items.length : 0,
-      papas: order.kitchenCounts?.papas || 0,
-      medallones: order.kitchenCounts?.medallones || 0
+      numeroPedidoInterno: order.numeroPedidoInterno || null,
+      total: order.total || 0,
+      enviosLejanos: order.enviosLejanos || 0,
+      telefono: order.telefono || null,
+      repartidor: order.repartidor || null
     });
 
-    if (!order.pedido && !order.rawText && (!order.items || !order.items.length)) {
-      const error = new Error('No se pudo interpretar ningun dato util del pedido.');
-      error.statusCode = 400;
-      throw error;
+    if (!hasAssignedRider(order)) {
+      console.log('[WEBHOOK] Pedido omitido por no tener repartidor asignado aun', {
+        nroPedido: order.nroPedido || null,
+        pedido: order.pedido || null
+      });
+
+      return res.status(202).json({
+        ok: true,
+        skipped: true,
+        reason: 'Pedido sin repartidor asignado aun.'
+      });
     }
 
     const assignment = assignCourier(order);

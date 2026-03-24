@@ -5,7 +5,7 @@
   return '';
 }
 
-function normalizeMoney(value) {
+function toNumber(value) {
   if (value === null || value === undefined || value === '') return 0;
 
   if (typeof value === 'number') {
@@ -115,9 +115,9 @@ function interpretOrder(payload = {}) {
   const repartidor = asString(data.rider && data.rider.name);
 
   const productos = extractProductos(data);
-  const subtotal = normalizeMoney(data.combos_price ?? data.subtotal ?? '');
-  const delivery = normalizeMoney(data.delivery_price ?? data.delivery_cost ?? '');
-  const total = normalizeMoney(data.total);
+  const subtotal = toNumber(data.combos_price ?? data.subtotal ?? 0);
+  const delivery = toNumber(data.delivery_price ?? data.delivery_cost ?? 0);
+  const total = toNumber(data.total);
   const paymentStatus = detectPaymentStatus(data);
   const notas = buildNotas(data);
 
@@ -125,6 +125,9 @@ function interpretOrder(payload = {}) {
   const nroPedido = asString(data.public_id) || asString(data.id) || asString(payload.event_id);
   const fecha = asString(data.created_at) || new Date().toISOString();
   const numeroPedidoInterno = data.daily_id ?? '';
+
+  const enviosLejanos = delivery > 0 ? delivery : 0;
+  const propinaWeb = toNumber(data.total_tips ?? 0);
 
   const rawText = [
     `Cliente: ${cliente}`,
@@ -144,19 +147,18 @@ function interpretOrder(payload = {}) {
     nroPedido,
     numeroPedidoInterno,
     telefono,
-    importe: total,
-    paymentStatus,
-    enviosLejanos: 0,
-    propinaWeb: 0,
     fecha,
+    repartidor,
     riderHint: repartidor,
     cliente,
     direccion,
-    repartidor,
     productos,
     subtotal,
     delivery,
     total,
+    enviosLejanos,
+    propinaWeb,
+    paymentStatus,
     notas,
     rawText,
     originalPayload: payload,

@@ -14,12 +14,19 @@
   }).format(date);
 }
 
+function asPlainText(value) {
+  const text = String(value || '').trim();
+  if (!text) return '';
+  return `'${text}`;
+}
+
 function mapOrderToSheetRow(order, assignment) {
   return {
     numeroPedidoInterno: order.numeroPedidoInterno || '',
     total: order.total || 0,
     enviosLejanos: order.enviosLejanos || 0,
     propinaWeb: order.propinaWeb || 0,
+    telefono: asPlainText(order.telefono),
     fecha: formatFecha(order.fecha),
     repartidor: assignment?.courier || order.repartidor || ''
   };

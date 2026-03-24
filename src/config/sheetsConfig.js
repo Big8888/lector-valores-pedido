@@ -9,8 +9,9 @@
   columns: {
     numeroPedidoInterno: 'A',
     total: 'D',
-    enviosLejanos: 'H',
-    propinaWeb: 'I',
+    enviosLejanos: 'G',
+    propinaWeb: 'H',
+    telefono: 'P',
     fecha: 'Q',
     repartidor: 'R'
   },
