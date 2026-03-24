@@ -44,6 +44,37 @@ function findFirstValue(source, paths) {
   return undefined;
 }
 
+function flattenStringValues(value, result = []) {
+  if (value === null || value === undefined) {
+    return result;
+  }
+
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    const text = asString(value);
+    if (text) {
+      result.push(text);
+    }
+
+    return result;
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      flattenStringValues(item, result);
+    }
+
+    return result;
+  }
+
+  if (typeof value === 'object') {
+    for (const nestedValue of Object.values(value)) {
+      flattenStringValues(nestedValue, result);
+    }
+  }
+
+  return result;
+}
+
 function getOrderData(payload = {}) {
   if (payload && typeof payload.data === 'object' && payload.data !== null) {
     return payload.data;
@@ -119,12 +150,32 @@ function detectPaymentMethod(data) {
     findFirstValue(data, [['checkout', 'payment_method_name']]),
     findFirstValue(data, [['payments', 0, 'method']]),
     findFirstValue(data, [['payments', 0, 'name']]),
-    findFirstValue(data, [['payments', 0, 'type']])
+    findFirstValue(data, [['payments', 0, 'type']]),
+    findFirstValue(data, [['last_payment_method']]),
+    findFirstValue(data, [['payment_option']]),
+    findFirstValue(data, [['payment_channel']])
   ];
 
-  const normalized = rawCandidates
+  const allCandidates = [
+    ...rawCandidates.map((value) => asString(value)),
+    ...flattenStringValues(data.payment),
+    ...flattenStringValues(data.payments)
+  ];
+
+  const normalized = allCandidates
     .map((value) => asString(value).toLowerCase())
-    .find(Boolean) || '';
+    .find((value) =>
+      value &&
+      (
+        value.includes('transf') ||
+        value.includes('efect') ||
+        value.includes('cash') ||
+        value.includes('card') ||
+        value.includes('tarjeta') ||
+        value.includes('debito') ||
+        value.includes('credito')
+      )
+    ) || '';
 
   if (!normalized) {
     return 'tarjeta';
@@ -163,7 +214,9 @@ function detectPropinaWeb(data) {
     asString(findFirstValue(data, [['payment', 'description']])),
     asString(findFirstValue(data, [['payments', 0, 'description']])),
     asString(findFirstValue(data, [['payments', 0, 'name']])),
-    asString(findFirstValue(data, [['payments', 0, 'detail']]))
+    asString(findFirstValue(data, [['payments', 0, 'detail']])),
+    ...flattenStringValues(data.payment),
+    ...flattenStringValues(data.payments)
   ].filter(Boolean);
 
   for (const text of textCandidates) {
@@ -177,6 +230,35 @@ function detectPropinaWeb(data) {
   }
 
   return 0;
+}
+
+function detectRiderCancelled(data, payload, repartidor) {
+  const statusTexts = [
+    asString(data.rider_status),
+    asString(data.status),
+    asString(payload.event),
+    asString(payload.type),
+    asString(payload.action),
+    asString(payload.event_type),
+    asString(payload.topic)
+  ]
+    .map((value) => value.toLowerCase())
+    .filter(Boolean);
+
+  const cancellationKeywords = [
+    'cancel',
+    'unassign',
+    'remove_rider',
+    'rider_removed',
+    'rider_cancelled',
+    'rider_canceled'
+  ];
+
+  if (statusTexts.some((value) => cancellationKeywords.some((keyword) => value.includes(keyword)))) {
+    return true;
+  }
+
+  return !repartidor && statusTexts.some((value) => value.includes('rider'));
 }
 
 function buildNotas(data) {
@@ -218,17 +300,7 @@ function interpretOrder(payload = {}) {
   const nroPedido = asString(data.public_id) || asString(data.id) || asString(payload.event_id);
   const fecha = asString(data.created_at) || new Date().toISOString();
   const numeroPedidoInterno = asString(data.daily_id ?? '');
-  const riderCancelled =
-    !repartidor &&
-    [
-      asString(data.rider_status),
-      asString(data.status),
-      asString(payload.event),
-      asString(payload.type),
-      asString(payload.action)
-    ]
-      .map((value) => value.toLowerCase())
-      .some((value) => value.includes('cancel'));
+  const riderCancelled = detectRiderCancelled(data, payload, repartidor);
 
   const enviosLejanos = delivery > 0 ? delivery : 0;
   const propinaWeb = detectPropinaWeb(data);
