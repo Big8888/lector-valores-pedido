@@ -92,6 +92,16 @@ router.post('/', async (req, res, next) => {
       repartidor: order.repartidor || null
     });
 
+    if ((order.propinaWeb || 0) === 0) {
+      console.log('[WEBHOOK] Debug de pago/propina', {
+        numeroPedidoInterno: order.numeroPedidoInterno || null,
+        nroPedido: order.nroPedido || null,
+        paymentMethod: order.paymentMethod || null,
+        paymentDebugTexts: order.paymentDebugTexts || [],
+        paymentDebugFields: order.paymentDebugFields || []
+      });
+    }
+
     if (!order.numeroPedidoInterno && !order.nroPedido) {
       const error = new Error('No se pudo obtener un identificador para el pedido.');
       error.statusCode = 400;

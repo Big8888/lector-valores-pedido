@@ -84,6 +84,40 @@ function getAllPayloadTexts(data, payload) {
     .filter(Boolean);
 }
 
+function collectPaymentDebugFields(value, path = [], result = []) {
+  if (value === null || value === undefined) {
+    return result;
+  }
+
+  const currentPath = path.join('.');
+  const matcher = /payment|pay|tip|propina|amount|total|subtotal|delivery|cash|card|transf|transfer|method|checkout/i;
+
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    const textValue = asString(value);
+    if (textValue && (matcher.test(currentPath) || matcher.test(textValue))) {
+      result.push({
+        path: currentPath || '(root)',
+        value: textValue
+      });
+    }
+
+    return result;
+  }
+
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => collectPaymentDebugFields(item, [...path, String(index)], result));
+    return result;
+  }
+
+  if (typeof value === 'object') {
+    Object.entries(value).forEach(([key, nestedValue]) => {
+      collectPaymentDebugFields(nestedValue, [...path, key], result);
+    });
+  }
+
+  return result;
+}
+
 function getOrderData(payload = {}) {
   if (payload && typeof payload.data === 'object' && payload.data !== null) {
     return payload.data;
@@ -402,6 +436,7 @@ function interpretOrder(payload = {}) {
   const paymentDebugTexts = getAllPayloadTexts(data, payload)
     .filter((value) => /transf|efect|cash|card|tarjeta|debito|credito|propina|tip/i.test(value))
     .slice(0, 20);
+  const paymentDebugFields = collectPaymentDebugFields(payload).slice(0, 80);
 
   const rawText = [
     `Cliente: ${cliente}`,
@@ -442,6 +477,7 @@ function interpretOrder(payload = {}) {
     paymentMethod,
     paymentStatus,
     paymentDebugTexts,
+    paymentDebugFields,
     notas,
     rawText,
     originalPayload: payload,
