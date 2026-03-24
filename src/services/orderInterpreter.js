@@ -75,6 +75,15 @@ function flattenStringValues(value, result = []) {
   return result;
 }
 
+function getAllPayloadTexts(data, payload) {
+  return [
+    ...flattenStringValues(data),
+    ...flattenStringValues(payload)
+  ]
+    .map((value) => asString(value))
+    .filter(Boolean);
+}
+
 function getOrderData(payload = {}) {
   if (payload && typeof payload.data === 'object' && payload.data !== null) {
     return payload.data;
@@ -139,7 +148,7 @@ function detectPaymentStatus(data) {
   return status;
 }
 
-function detectPaymentMethod(data) {
+function detectPaymentMethod(data, payload) {
   const rawCandidates = [
     findFirstValue(data, [['payment_method']]),
     findFirstValue(data, [['payment_method_name']]),
@@ -158,6 +167,7 @@ function detectPaymentMethod(data) {
 
   const allCandidates = [
     ...rawCandidates.map((value) => asString(value)),
+    ...getAllPayloadTexts(data, payload),
     ...flattenStringValues(data.payment),
     ...flattenStringValues(data.payments)
   ];
@@ -192,7 +202,7 @@ function detectPaymentMethod(data) {
   return 'no_especificado';
 }
 
-function detectPropinaWeb(data) {
+function detectPropinaWeb(data, payload) {
   const directValue = findFirstValue(data, [
     ['total_tips'],
     ['tip'],
@@ -215,6 +225,7 @@ function detectPropinaWeb(data) {
     asString(findFirstValue(data, [['payments', 0, 'description']])),
     asString(findFirstValue(data, [['payments', 0, 'name']])),
     asString(findFirstValue(data, [['payments', 0, 'detail']])),
+    ...getAllPayloadTexts(data, payload),
     ...flattenStringValues(data.payment),
     ...flattenStringValues(data.payments)
   ].filter(Boolean);
@@ -293,7 +304,7 @@ function interpretOrder(payload = {}) {
   const delivery = toNumber(data.delivery_price ?? data.delivery_cost ?? 0);
   const total = toNumber(data.total);
   const paymentStatus = detectPaymentStatus(data);
-  const paymentMethod = detectPaymentMethod(data);
+  const paymentMethod = detectPaymentMethod(data, payload);
   const notas = buildNotas(data);
 
   const pedido = [cliente, productos].filter(Boolean).join(' - ') || asString(data.id) || asString(payload.event_id);
@@ -303,12 +314,15 @@ function interpretOrder(payload = {}) {
   const riderCancelled = detectRiderCancelled(data, payload, repartidor);
 
   const enviosLejanos = delivery > 0 ? delivery : 0;
-  const propinaWeb = detectPropinaWeb(data);
+  const propinaWeb = detectPropinaWeb(data, payload);
   const importe = toNumber(data.amount ?? data.total ?? 0);
   const totalSinMetodo = paymentMethod === 'no_especificado' ? total : 0;
   const tarjeta = paymentMethod === 'tarjeta' ? total : 0;
   const efectivo = paymentMethod === 'efectivo' ? total : 0;
   const transferencia = paymentMethod === 'transferencia' ? total : 0;
+  const paymentDebugTexts = getAllPayloadTexts(data, payload)
+    .filter((value) => /transf|efect|cash|card|tarjeta|debito|credito|propina|tip/i.test(value))
+    .slice(0, 20);
 
   const rawText = [
     `Cliente: ${cliente}`,
@@ -348,6 +362,7 @@ function interpretOrder(payload = {}) {
     propinaWeb,
     paymentMethod,
     paymentStatus,
+    paymentDebugTexts,
     notas,
     rawText,
     originalPayload: payload,

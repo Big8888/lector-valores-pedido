@@ -79,7 +79,14 @@ router.post('/', async (req, res, next) => {
       numeroPedidoInterno: order.numeroPedidoInterno || null,
       nroPedido: order.nroPedido || null,
       total: order.total || 0,
+      totalSinMetodo: order.totalSinMetodo || 0,
+      tarjeta: order.tarjeta || 0,
+      efectivo: order.efectivo || 0,
+      transferencia: order.transferencia || 0,
       enviosLejanos: order.enviosLejanos || 0,
+      propinaWeb: order.propinaWeb || 0,
+      paymentMethod: order.paymentMethod || null,
+      paymentDebugTexts: order.paymentDebugTexts || [],
       telefono: order.telefono || null,
       repartidor: order.repartidor || null
     });
