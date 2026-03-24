@@ -156,6 +156,7 @@ function interpretOrder(payload = {}) {
     subtotal,
     delivery,
     total,
+    importe: total,
     enviosLejanos,
     propinaWeb,
     paymentStatus,
