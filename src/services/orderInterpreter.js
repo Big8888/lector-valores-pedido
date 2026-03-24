@@ -1,229 +1,209 @@
-﻿function toNumber(value) {
-  if (value === null || value === undefined || value === '') return null;
-
-  const normalized = String(value)
-    .replace(/\$/g, '')
-    .replace(/\s/g, '')
-    .replace(/\./g, '')
-    .replace(',', '.');
-
-  const number = Number(normalized);
-  return Number.isNaN(number) ? null : number;
+﻿function asString(value) {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'string') return value.trim();
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value).trim();
+  return '';
 }
 
-function pickFirst(...values) {
-  for (const value of values) {
-    if (value !== undefined && value !== null && value !== '') {
-      return value;
-    }
+function normalizeMoney(value) {
+  if (value === null || value === undefined || value === '') return '';
+
+  if (typeof value === 'number') {
+    return value.toFixed(2).replace('.', ',');
   }
-  return null;
+
+  const sanitized = String(value).replace(/[^\d.,-]/g, '').trim();
+  if (!sanitized) return '';
+
+  const normalized = sanitized.includes(',')
+    ? sanitized.replace(/\./g, '').replace(',', '.')
+    : sanitized;
+
+  const parsed = Number(normalized);
+  if (Number.isNaN(parsed)) return sanitized;
+
+  return parsed.toFixed(2).replace('.', ',');
 }
 
-function safeArray(value) {
-  return Array.isArray(value) ? value : [];
+function getOrderData(payload = {}) {
+  if (payload && typeof payload.data === 'object' && payload.data !== null) {
+    return payload.data;
+  }
+
+  if (payload && typeof payload.datos === 'object' && payload.datos !== null) {
+    return payload.datos;
+  }
+
+  return payload || {};
 }
 
-function getSource(payload = {}) {
-  return payload?.datos || payload?.data || payload?.order || payload;
-}
+function extractCombos(data) {
+  if (!Array.isArray(data.combos)) return [];
 
-function extractTextFromPayload(payload, source) {
-  const candidates = [
-    payload?.mensaje,
-    payload?.message,
-    payload?.text,
-    payload?.notes,
-    payload?.description,
-    payload?.observaciones,
-    payload?.comments,
+  return data.combos.map((combo) => {
+    const quantity = combo.quantity || 1;
+    const baseName =
+      asString(combo.product_name) ||
+      asString(combo.variant_name) ||
+      'Producto';
 
-    source?.notes,
-    source?.note,
-    source?.description,
-    source?.observaciones,
-    source?.comments,
-    source?.instructions,
-    source?.special_instructions,
-    source?.customer_notes,
-    source?.delivery_notes
-  ].filter(Boolean);
+    const modifiers = Array.isArray(combo.modifiers)
+      ? combo.modifiers
+          .map((m) => {
+            const qty = m.quantity || 1;
+            const name = asString(m.name);
+            if (!name) return '';
+            return `${qty} x ${name}`;
+          })
+          .filter(Boolean)
+      : [];
 
-  return candidates.join(' | ');
-}
+    const comment = asString(combo.comment);
 
-function extractItems(source) {
-  const rawItems = [
-    ...safeArray(source?.items),
-    ...safeArray(source?.products),
-    ...safeArray(source?.productos),
-    ...safeArray(source?.details),
-    ...safeArray(source?.detalle),
-    ...safeArray(source?.order_items),
-    ...safeArray(source?.line_items)
-  ];
+    let line = `${quantity} x ${baseName}`;
 
-  return rawItems.map((item, index) => {
-    const nombre = pickFirst(
-      item?.name,
-      item?.nombre,
-      item?.productName,
-      item?.product_name,
-      item?.title,
-      item?.descripcion,
-      `ITEM_${index + 1}`
-    );
+    if (modifiers.length) {
+      line += ` (${modifiers.join(', ')})`;
+    }
 
-    const cantidad = pickFirst(
-      toNumber(item?.quantity),
-      toNumber(item?.cantidad),
-      toNumber(item?.qty),
-      1
-    );
+    if (comment) {
+      line += ` [${comment}]`;
+    }
 
-    const notas = pickFirst(
-      item?.notes,
-      item?.note,
-      item?.observaciones,
-      item?.comments,
-      item?.instructions,
-      ''
-    );
-
-    const reemplazo = pickFirst(
-      item?.replacement,
-      item?.reemplazo,
-      item?.substitution,
-      ''
-    );
-
-    return {
-      nombre: String(nombre),
-      cantidad: cantidad || 1,
-      notas: notas ? String(notas) : '',
-      reemplazo: reemplazo ? String(reemplazo) : ''
-    };
+    return line;
   });
 }
 
-function buildItemsText(items) {
-  if (!items.length) return '';
-
-  return items
-    .map((item) => {
-      const extras = [];
-
-      if (item.notas) extras.push(`notas: ${item.notas}`);
-      if (item.reemplazo) extras.push(`reemplazo: ${item.reemplazo}`);
-
-      return extras.length
-        ? `${item.cantidad}x ${item.nombre} (${extras.join(' | ')})`
-        : `${item.cantidad}x ${item.nombre}`;
-    })
-    .join(' ; ');
+function extractProductos(data) {
+  const combos = extractCombos(data);
+  return combos.join(' | ');
 }
 
-function detectFlags(rawText, items) {
-  const text = `${rawText} ${buildItemsText(items)}`.toLowerCase();
+function detectPaymentMethod(data) {
+  const payments = Array.isArray(data.payments) ? data.payments : [];
 
-  return {
-    hasReplacement:
-      text.includes('reemplazo') ||
-      text.includes('sin ') ||
-      text.includes('cambiar') ||
-      items.some((item) => item.reemplazo),
-    hasNotes:
-      text.includes('nota') ||
-      text.includes('observ') ||
-      items.some((item) => item.notas),
-    hasFries:
-      text.includes('papas') ||
-      text.includes('fritas'),
-    hasMeat:
-      text.includes('medallon') ||
-      text.includes('medallón') ||
-      text.includes('carne') ||
-      text.includes('burger') ||
-      text.includes('hamburguesa')
-  };
+  const joined = payments
+    .map((p) =>
+      [
+        asString(p.method),
+        asString(p.type),
+        asString(p.payment_method),
+        asString(p.provider)
+      ].join(' ')
+    )
+    .join(' ')
+    .toLowerCase();
+
+  if (!joined) return '';
+
+  if (joined.includes('transfer')) return 'transferencia';
+  if (
+    joined.includes('card') ||
+    joined.includes('tarjeta') ||
+    joined.includes('credito') ||
+    joined.includes('debito')
+  ) {
+    return 'tarjeta';
+  }
+  if (joined.includes('cash') || joined.includes('efectivo')) return 'efectivo';
+
+  return joined;
 }
 
-function countKeywordUnits(items, keywords) {
-  return items.reduce((total, item) => {
-    const name = item.nombre.toLowerCase();
-    const matched = keywords.some((keyword) => name.includes(keyword));
-    return matched ? total + (item.cantidad || 0) : total;
-  }, 0);
+function detectPaymentStatus(data) {
+  const status = asString(data.payment_status).toUpperCase();
+
+  if (!status) return '';
+  if (status === 'UNPAID') return 'NO PAGADO';
+  if (status === 'PAID') return 'PAGADO';
+  if (status === 'PENDING') return 'PENDIENTE';
+
+  return status;
+}
+
+function buildNotas(data) {
+  const notes = [];
+
+  const generalComment = asString(data.comment);
+  const deliveryComment = asString(data.delivery_comment);
+  const reference = asString(data.address && data.address.reference);
+  const complement = asString(data.address && data.address.complement);
+
+  if (generalComment) notes.push(`Pedido: ${generalComment}`);
+  if (deliveryComment) notes.push(`Delivery: ${deliveryComment}`);
+  if (reference) notes.push(`Referencia: ${reference}`);
+  if (complement) notes.push(`Complemento: ${complement}`);
+
+  return notes.join(' | ');
 }
 
 function interpretOrder(payload = {}) {
-  const source = getSource(payload);
+  const data = getOrderData(payload);
 
-  const orderId = pickFirst(
-    source?.pedido,
-    source?.pedido_id,
-    source?.pedidoId,
-    source?.order_id,
-    source?.orderId,
-    source?.id,
-    source?.number,
-    source?.order_number,
-    source?.codigo,
-    source?.code
-  );
+  const cliente = asString(data.client && data.client.name);
+  const countryCode = asString(data.client && data.client.country_calling_code);
+  const phoneNumber = asString(data.client && data.client.phone_number);
+  const telefono = countryCode && phoneNumber ? `+${countryCode} ${phoneNumber}` : phoneNumber;
 
-  const total = pickFirst(
-    toNumber(source?.total),
-    toNumber(source?.amount),
-    toNumber(source?.subtotal),
-    toNumber(source?.total_amount),
-    toNumber(source?.order_total),
-    toNumber(source?.importe_total)
-  );
+  const direccion = asString(data.address && data.address.address);
+  const repartidor = asString(data.rider && data.rider.name);
 
-  const customerName = pickFirst(
-    source?.cliente,
-    source?.customer,
-    source?.customer_name,
-    source?.customerName,
-    source?.nombre_cliente,
-    source?.name,
-    source?.full_name,
-    source?.client_name
-  );
+  const productos = extractProductos(data);
+  const subtotal = normalizeMoney(data.combos_price ?? data.subtotal ?? '');
+  const delivery = normalizeMoney(data.delivery_price ?? data.delivery_cost ?? '');
+  const total = normalizeMoney(data.total);
+  const paymentStatus = detectPaymentStatus(data);
+  const paymentMethod = detectPaymentMethod(data);
+  const notas = buildNotas(data);
 
-  const customerPhone = pickFirst(
-    source?.telefono,
-    source?.phone,
-    source?.customer_phone,
-    source?.customerPhone,
-    source?.telefono_cliente,
-    source?.mobile,
-    source?.celular
-  );
+  const importe = total;
+  const transferencia = paymentMethod === 'transferencia' ? total : '';
+  const tarjeta = paymentMethod === 'tarjeta' ? total : '';
+  const efectivo = paymentMethod === 'efectivo' ? total : '';
 
-  const rawText = extractTextFromPayload(payload, source);
-  const items = extractItems(source);
-  const itemsText = buildItemsText(items);
-  const flags = detectFlags(rawText, items);
+  const pedido = [cliente, productos].filter(Boolean).join(' - ') || asString(data.id) || asString(payload.event_id);
+  const nroPedido = asString(data.public_id) || asString(data.id) || asString(payload.event_id);
+  const fecha = asString(data.created_at) || new Date().toISOString();
 
-  const papasCount = countKeywordUnits(items, ['papas', 'fritas']);
-  const meatCount = countKeywordUnits(items, ['burger', 'hamburguesa', 'medallon', 'medallón', 'carne']);
+  const rawText = [
+    `Cliente: ${cliente}`,
+    `Teléfono: ${telefono}`,
+    `Dirección: ${direccion}`,
+    `Repartidor: ${repartidor}`,
+    `Productos: ${productos}`,
+    `Subtotal: ${subtotal}`,
+    `Delivery: ${delivery}`,
+    `Total: ${total}`,
+    `Pago: ${paymentStatus}`,
+    notas ? `Notas: ${notas}` : ''
+  ].filter(Boolean).join(' | ');
 
   return {
-    pedido: orderId,
+    pedido,
+    nroPedido,
+    telefono,
+    importe,
+    paymentMethod,
+    paymentStatus,
+    transferencia,
+    tarjeta,
+    efectivo,
+    enviosLejanos: '',
+    propinaWeb: '',
+    anotaciones: notas,
+    fecha,
+    riderHint: repartidor,
+    cliente,
+    direccion,
+    repartidor,
+    productos,
+    subtotal,
+    delivery,
     total,
-    cliente: customerName,
-    telefono: customerPhone,
+    notas,
     rawText,
-    items,
-    itemsText,
-    flags,
-    kitchenCounts: {
-      papas: papasCount,
-      medallones: meatCount
-    },
-    originalPayload: payload
+    originalPayload: payload,
+    orderData: data
   };
 }
 
