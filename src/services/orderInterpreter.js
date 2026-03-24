@@ -178,7 +178,7 @@ function detectPaymentMethod(data) {
     ) || '';
 
   if (!normalized) {
-    return 'tarjeta';
+    return 'no_especificado';
   }
 
   if (normalized.includes('transf')) return 'transferencia';
@@ -189,7 +189,7 @@ function detectPaymentMethod(data) {
   if (normalized.includes('debito')) return 'tarjeta';
   if (normalized.includes('credito')) return 'tarjeta';
 
-  return 'tarjeta';
+  return 'no_especificado';
 }
 
 function detectPropinaWeb(data) {
@@ -305,6 +305,7 @@ function interpretOrder(payload = {}) {
   const enviosLejanos = delivery > 0 ? delivery : 0;
   const propinaWeb = detectPropinaWeb(data);
   const importe = toNumber(data.amount ?? data.total ?? 0);
+  const totalSinMetodo = paymentMethod === 'no_especificado' ? total : 0;
   const tarjeta = paymentMethod === 'tarjeta' ? total : 0;
   const efectivo = paymentMethod === 'efectivo' ? total : 0;
   const transferencia = paymentMethod === 'transferencia' ? total : 0;
@@ -338,6 +339,7 @@ function interpretOrder(payload = {}) {
     subtotal,
     delivery,
     total,
+    totalSinMetodo,
     tarjeta,
     efectivo,
     transferencia,

@@ -10,9 +10,10 @@
   },
   columns: {
     numeroPedidoInterno: 'A',
-    tarjeta: 'D',
-    efectivo: 'E',
-    transferencia: 'F',
+    total: 'D',
+    tarjeta: 'E',
+    efectivo: 'F',
+    transferencia: 'G',
     enviosLejanos: 'H',
     propinaWeb: 'I',
     nroPedido: 'N',

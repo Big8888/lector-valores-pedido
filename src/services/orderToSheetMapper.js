@@ -28,6 +28,7 @@ function asNumber(value) {
 function mapOrderToSheetRow(order) {
   return {
     numeroPedidoInterno: order.numeroPedidoInterno || '',
+    total: asNumber(order.totalSinMetodo),
     tarjeta: asNumber(order.tarjeta),
     efectivo: asNumber(order.efectivo),
     transferencia: asNumber(order.transferencia),
