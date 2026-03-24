@@ -6,12 +6,6 @@ const { getNextEmptyRow, writeOrderToSheet } = require('../services/googleSheets
 
 const router = express.Router();
 
-function maskSecret(secret) {
-  if (!secret) return '(vacio)';
-  if (secret.length <= 6) return '***';
-  return `${secret.slice(0, 3)}***${secret.slice(-3)}`;
-}
-
 router.get('/', (req, res) => {
   res.status(200).json({
     ok: true,
@@ -25,22 +19,15 @@ router.post('/', async (req, res, next) => {
 
   try {
     const payload = req.body || {};
-    const receivedSecret =
-      req.header('x-webhook-secret') ||
-      req.header('X-Webhook-Secret') ||
-      req.query.secret ||
-      '';
 
     console.log('[WEBHOOK] Pedido recibido', {
       timestamp: new Date().toISOString(),
       hasBody: !!req.body,
-      bodyKeys: Object.keys(payload),
-      secretReceived: maskSecret(receivedSecret),
-      secretPresent: !!receivedSecret
+      bodyKeys: Object.keys(payload)
     });
 
     if (payload.data) {
-      console.log('[WEBHOOK] payload.data =', JSON.stringify(payload.data, null, 2));
+      console.log('[WEBHOOK] payload.data.raw = ' + JSON.stringify(payload.data));
     }
 
     const order = interpretOrder(payload);
