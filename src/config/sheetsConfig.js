@@ -7,17 +7,12 @@
     GIAN: 'GIAN'
   },
   columns: {
-    pedido: 'A',
-    tarjeta: 'D',
-    efectivo: 'E',
-    transferencia: 'F',
-    enviosLejanos: 'G',
-    propinaWeb: 'H',
-    anotaciones: 'K',
-    nroPedido: 'N',
-    importe: 'O',
-    telefono: 'P',
-    fecha: 'Q'
+    numeroPedidoInterno: 'A',
+    total: 'D',
+    enviosLejanos: 'H',
+    propinaWeb: 'I',
+    fecha: 'Q',
+    repartidor: 'R'
   },
   dataStartRow: 8
 };

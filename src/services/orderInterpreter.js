@@ -6,23 +6,21 @@
 }
 
 function normalizeMoney(value) {
-  if (value === null || value === undefined || value === '') return '';
+  if (value === null || value === undefined || value === '') return 0;
 
   if (typeof value === 'number') {
-    return value.toFixed(2).replace('.', ',');
+    return value;
   }
 
   const sanitized = String(value).replace(/[^\d.,-]/g, '').trim();
-  if (!sanitized) return '';
+  if (!sanitized) return 0;
 
   const normalized = sanitized.includes(',')
     ? sanitized.replace(/\./g, '').replace(',', '.')
     : sanitized;
 
   const parsed = Number(normalized);
-  if (Number.isNaN(parsed)) return sanitized;
-
-  return parsed.toFixed(2).replace('.', ',');
+  return Number.isNaN(parsed) ? 0 : parsed;
 }
 
 function getOrderData(payload = {}) {
@@ -75,39 +73,7 @@ function extractCombos(data) {
 }
 
 function extractProductos(data) {
-  const combos = extractCombos(data);
-  return combos.join(' | ');
-}
-
-function detectPaymentMethod(data) {
-  const payments = Array.isArray(data.payments) ? data.payments : [];
-
-  const joined = payments
-    .map((p) =>
-      [
-        asString(p.method),
-        asString(p.type),
-        asString(p.payment_method),
-        asString(p.provider)
-      ].join(' ')
-    )
-    .join(' ')
-    .toLowerCase();
-
-  if (!joined) return '';
-
-  if (joined.includes('transfer')) return 'transferencia';
-  if (
-    joined.includes('card') ||
-    joined.includes('tarjeta') ||
-    joined.includes('credito') ||
-    joined.includes('debito')
-  ) {
-    return 'tarjeta';
-  }
-  if (joined.includes('cash') || joined.includes('efectivo')) return 'efectivo';
-
-  return joined;
+  return extractCombos(data).join(' | ');
 }
 
 function detectPaymentStatus(data) {
@@ -153,17 +119,12 @@ function interpretOrder(payload = {}) {
   const delivery = normalizeMoney(data.delivery_price ?? data.delivery_cost ?? '');
   const total = normalizeMoney(data.total);
   const paymentStatus = detectPaymentStatus(data);
-  const paymentMethod = detectPaymentMethod(data);
   const notas = buildNotas(data);
-
-  const importe = total;
-  const transferencia = paymentMethod === 'transferencia' ? total : '';
-  const tarjeta = paymentMethod === 'tarjeta' ? total : '';
-  const efectivo = paymentMethod === 'efectivo' ? total : '';
 
   const pedido = [cliente, productos].filter(Boolean).join(' - ') || asString(data.id) || asString(payload.event_id);
   const nroPedido = asString(data.public_id) || asString(data.id) || asString(payload.event_id);
   const fecha = asString(data.created_at) || new Date().toISOString();
+  const numeroPedidoInterno = data.daily_id ?? '';
 
   const rawText = [
     `Cliente: ${cliente}`,
@@ -181,16 +142,12 @@ function interpretOrder(payload = {}) {
   return {
     pedido,
     nroPedido,
+    numeroPedidoInterno,
     telefono,
-    importe,
-    paymentMethod,
+    importe: total,
     paymentStatus,
-    transferencia,
-    tarjeta,
-    efectivo,
-    enviosLejanos: '',
-    propinaWeb: '',
-    anotaciones: notas,
+    enviosLejanos: 0,
+    propinaWeb: 0,
     fecha,
     riderHint: repartidor,
     cliente,

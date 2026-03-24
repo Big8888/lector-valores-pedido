@@ -5,7 +5,7 @@
   }
 
   return new Intl.DateTimeFormat('es-UY', {
-    year: '2-digit',
+    year: 'numeric',
     month: '2-digit',
     day: '2-digit',
     hour: '2-digit',
@@ -14,39 +14,14 @@
   }).format(date);
 }
 
-function asPlainText(value) {
-  const text = String(value || '').trim();
-  if (!text) return '';
-  return `'${text}`;
-}
-
-function truncate(value, max = 120) {
-  const text = String(value || '').trim();
-  if (!text) return '';
-  if (text.length <= max) return text;
-  return `${text.slice(0, max - 3)}...`;
-}
-
 function mapOrderToSheetRow(order, assignment) {
-  const notes = [
-    order.notas ? `Notas: ${order.notas}` : '',
-    order.direccion ? `Dirección: ${order.direccion}` : '',
-    order.repartidor ? `Repartidor webhook: ${order.repartidor}` : '',
-    assignment && assignment.courier ? `Repartidor final: ${assignment.courier}` : ''
-  ].filter(Boolean).join(' | ');
-
   return {
-    pedido: truncate(order.pedido, 80),
-    tarjeta: order.tarjeta || '',
-    efectivo: order.efectivo || '',
-    transferencia: order.transferencia || '',
-    enviosLejanos: order.enviosLejanos ? 'SI' : '',
-    propinaWeb: order.propinaWeb || '',
-    anotaciones: truncate(notes, 220),
-    nroPedido: asPlainText(order.nroPedido),
-    importe: order.importe || '',
-    telefono: asPlainText(order.telefono),
-    fecha: formatFecha(order.fecha)
+    numeroPedidoInterno: order.numeroPedidoInterno || '',
+    total: order.total || 0,
+    enviosLejanos: order.enviosLejanos || 0,
+    propinaWeb: order.propinaWeb || 0,
+    fecha: formatFecha(order.fecha),
+    repartidor: assignment?.courier || order.repartidor || ''
   };
 }
 
