@@ -86,6 +86,19 @@ router.post('/', async (req, res, next) => {
     }
 
     const assignment = assignCourier(order);
+    if (!assignment.sheetName) {
+      console.log('[WEBHOOK] Pedido omitido por rider no mapeado', {
+        nroPedido: order.nroPedido,
+        rider: order.repartidor || order.riderHint || null
+      });
+
+      return res.status(202).json({
+        ok: true,
+        skipped: true,
+        reason: 'Pedido con rider asignado pero no mapeado a una hoja.'
+      });
+    }
+
     const mappedRow = mapOrderToSheetRow(order, assignment);
 
     console.log('[WEBHOOK] Courier asignado', {
@@ -93,12 +106,29 @@ router.post('/', async (req, res, next) => {
       sheetName: assignment.sheetName
     });
 
-    const existingOrder = await findOrderAcrossSheets(order.nroPedido);
+    const existingOrders = await findOrderAcrossSheets(order.nroPedido);
+    const existingInTargetSheet = existingOrders.filter(
+      (entry) => entry.sheetName === assignment.sheetName
+    );
+    const existingInOtherSheets = existingOrders.filter(
+      (entry) => entry.sheetName !== assignment.sheetName
+    );
 
     let rowNumber;
 
-    if (existingOrder && existingOrder.sheetName === assignment.sheetName) {
-      rowNumber = existingOrder.rowNumber;
+    for (const duplicate of existingInOtherSheets) {
+      console.log('[WEBHOOK] Pedido encontrado en otra hoja, se limpia fila anterior', {
+        nroPedido: order.nroPedido,
+        fromSheet: duplicate.sheetName,
+        fromRow: duplicate.rowNumber,
+        toSheet: assignment.sheetName
+      });
+
+      await clearOrderRow(duplicate.sheetName, duplicate.rowNumber);
+    }
+
+    if (existingInTargetSheet.length > 0) {
+      rowNumber = existingInTargetSheet[0].rowNumber;
 
       console.log('[WEBHOOK] Pedido ya existe en la misma hoja, se actualiza', {
         nroPedido: order.nroPedido,
@@ -106,19 +136,18 @@ router.post('/', async (req, res, next) => {
         rowNumber
       });
 
-      await writeOrderToSheet(assignment.sheetName, rowNumber, mappedRow);
-    } else {
-      if (existingOrder && existingOrder.sheetName !== assignment.sheetName) {
-        console.log('[WEBHOOK] Pedido cambia de hoja, se limpia fila anterior', {
+      for (const duplicate of existingInTargetSheet.slice(1)) {
+        console.log('[WEBHOOK] Duplicado extra encontrado en misma hoja, se limpia', {
           nroPedido: order.nroPedido,
-          fromSheet: existingOrder.sheetName,
-          fromRow: existingOrder.rowNumber,
-          toSheet: assignment.sheetName
+          sheetName: duplicate.sheetName,
+          rowNumber: duplicate.rowNumber
         });
 
-        await clearOrderRow(existingOrder.sheetName, existingOrder.rowNumber);
+        await clearOrderRow(duplicate.sheetName, duplicate.rowNumber);
       }
 
+      await writeOrderToSheet(assignment.sheetName, rowNumber, mappedRow);
+    } else {
       rowNumber = await getNextEmptyRow(assignment.sheetName);
       await writeOrderToSheet(assignment.sheetName, rowNumber, mappedRow);
     }

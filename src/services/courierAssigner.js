@@ -43,8 +43,8 @@ function assignCourier(order = {}) {
   }
 
   return {
-    courier: 'GIAN',
-    sheetName: riderSheets.GIAN || 'GIAN'
+    courier: riderName || null,
+    sheetName: null
   };
 }
 

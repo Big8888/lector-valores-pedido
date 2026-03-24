@@ -20,16 +20,22 @@ function asPlainText(value) {
   return `'${text}`;
 }
 
+function asNumber(value) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 function mapOrderToSheetRow(order) {
-  const total = Number(order.total || order.importe || 0);
+  const total = asNumber(order.total);
+  const importe = asNumber(order.importe);
 
   return {
     numeroPedidoInterno: order.numeroPedidoInterno || '',
     total,
-    enviosLejanos: Number(order.enviosLejanos || 0),
-    propinaWeb: Number(order.propinaWeb || 0),
+    enviosLejanos: asNumber(order.enviosLejanos),
+    propinaWeb: asNumber(order.propinaWeb),
     nroPedido: asPlainText(order.nroPedido),
-    importe: total,
+    importe,
     telefono: asPlainText(order.telefono),
     fecha: formatFecha(order.fecha)
   };

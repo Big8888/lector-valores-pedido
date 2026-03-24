@@ -47,22 +47,34 @@ function normalizeCell(value) {
 
 async function getNextEmptyRow(sheetName) {
   const sheets = await getSheetsClient();
+  const startRow = sheetsConfig.dataStartRow;
 
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: sheetsConfig.spreadsheetId,
-    range: `${sheetName}!A:A`
+    range: `${sheetName}!A${startRow}:A`
   });
 
   const values = res.data.values || [];
-  const nextRow = Math.max(values.length + 1, sheetsConfig.dataStartRow);
+
+  for (let index = 0; index < values.length; index += 1) {
+    const cellValue = normalizeCell(values[index]?.[0]);
+    if (!cellValue) {
+      const nextRow = startRow + index;
+
+      console.log('[SHEETS] Reutilizando fila vacia detectada', { sheetName, nextRow });
+      return nextRow;
+    }
+  }
+
+  const nextRow = startRow + values.length;
 
   console.log('[SHEETS] Proxima fila detectada', { sheetName, nextRow });
   return nextRow;
 }
 
-async function findOrderRowInSheet(sheetName, nroPedido) {
+async function findOrderRowsInSheet(sheetName, nroPedido) {
   const cleanOrderId = normalizeCell(nroPedido);
-  if (!cleanOrderId) return null;
+  if (!cleanOrderId) return [];
 
   const sheets = await getSheetsClient();
   const orderColumn = sheetsConfig.columns.nroPedido;
@@ -73,28 +85,31 @@ async function findOrderRowInSheet(sheetName, nroPedido) {
   });
 
   const values = res.data.values || [];
+  const matches = [];
 
   for (let index = 0; index < values.length; index += 1) {
     const cellValue = normalizeCell(values[index]?.[0]);
     if (cellValue && cellValue === cleanOrderId) {
-      return sheetsConfig.dataStartRow + index;
+      matches.push({
+        sheetName,
+        rowNumber: sheetsConfig.dataStartRow + index
+      });
     }
   }
 
-  return null;
+  return matches;
 }
 
 async function findOrderAcrossSheets(nroPedido) {
   const uniqueSheets = getUniqueSheetNames();
+  const matches = [];
 
   for (const sheetName of uniqueSheets) {
-    const rowNumber = await findOrderRowInSheet(sheetName, nroPedido);
-    if (rowNumber) {
-      return { sheetName, rowNumber };
-    }
+    const rows = await findOrderRowsInSheet(sheetName, nroPedido);
+    matches.push(...rows);
   }
 
-  return null;
+  return matches;
 }
 
 async function writeOrderToSheet(sheetName, row, data) {

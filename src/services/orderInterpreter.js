@@ -124,11 +124,11 @@ function interpretOrder(payload = {}) {
   const pedido = [cliente, productos].filter(Boolean).join(' - ') || asString(data.id) || asString(payload.event_id);
   const nroPedido = asString(data.public_id) || asString(data.id) || asString(payload.event_id);
   const fecha = asString(data.created_at) || new Date().toISOString();
-  const numeroPedidoInterno = data.daily_id ?? '';
+  const numeroPedidoInterno = asString(data.daily_id ?? '');
 
   const enviosLejanos = delivery > 0 ? delivery : 0;
   const propinaWeb = toNumber(data.total_tips ?? 0);
-  const importe = total;
+  const importe = toNumber(data.amount ?? data.total ?? 0);
 
   const rawText = [
     `Cliente: ${cliente}`,
