@@ -218,6 +218,51 @@ function detectPropinaWeb(data, payload) {
     return directAmount;
   }
 
+  const baseTotalCandidates = [];
+
+  const explicitTotal = toNumber(data.total);
+  if (explicitTotal > 0) {
+    baseTotalCandidates.push(explicitTotal);
+  }
+
+  const combosPrice = toNumber(data.combos_price);
+  const subtotal = toNumber(data.subtotal);
+  const deliveryPrice = toNumber(data.delivery_price ?? data.delivery_cost ?? 0);
+
+  if (combosPrice > 0) {
+    baseTotalCandidates.push(combosPrice + deliveryPrice);
+  }
+
+  if (subtotal > 0) {
+    baseTotalCandidates.push(subtotal + deliveryPrice);
+  }
+
+  const baseTotal = baseTotalCandidates.length > 0 ? Math.max(...baseTotalCandidates) : 0;
+
+  const paidAmountCandidates = [
+    findFirstValue(data, [['amount']]),
+    findFirstValue(data, [['paid_amount']]),
+    findFirstValue(data, [['total_paid']]),
+    findFirstValue(data, [['payment', 'amount']]),
+    findFirstValue(data, [['payment', 'total']]),
+    findFirstValue(data, [['payment', 'paid_amount']]),
+    findFirstValue(data, [['payments', 0, 'amount']]),
+    findFirstValue(data, [['payments', 0, 'total']]),
+    findFirstValue(data, [['payments', 0, 'paid_amount']]),
+    findFirstValue(data, [['checkout', 'amount']])
+  ]
+    .map((value) => toNumber(value))
+    .filter((amount) => amount > 0);
+
+  if (baseTotal > 0 && paidAmountCandidates.length > 0) {
+    const maxPaidAmount = Math.max(...paidAmountCandidates);
+    const inferredTipFromAmounts = Number((maxPaidAmount - baseTotal).toFixed(2));
+
+    if (inferredTipFromAmounts > 0) {
+      return inferredTipFromAmounts;
+    }
+  }
+
   const textCandidates = [
     asString(findFirstValue(data, [['payment_method_name']])),
     asString(findFirstValue(data, [['payment_description']])),
@@ -261,7 +306,7 @@ function detectPropinaWeb(data, payload) {
       .map((match) => toNumber(match[1]))
       .filter((amount) => amount > 0);
 
-    const orderTotal = toNumber(data.total);
+    const orderTotal = baseTotal || toNumber(data.total);
     if (orderTotal <= 0 || amounts.length === 0) {
       continue;
     }
@@ -336,7 +381,7 @@ function interpretOrder(payload = {}) {
   const productos = extractProductos(data);
   const subtotal = toNumber(data.combos_price ?? data.subtotal ?? 0);
   const delivery = toNumber(data.delivery_price ?? data.delivery_cost ?? 0);
-  const total = toNumber(data.total);
+  const total = toNumber(data.total ?? (subtotal + delivery));
   const paymentStatus = detectPaymentStatus(data);
   const paymentMethod = detectPaymentMethod(data, payload);
   const notas = buildNotas(data);
