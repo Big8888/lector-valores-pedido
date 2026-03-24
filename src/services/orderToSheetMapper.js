@@ -1,52 +1,52 @@
-﻿function stringifyFlags(flags = {}) {
-  const active = [];
+﻿function formatFecha(value) {
+  const date = value ? new Date(value) : new Date();
+  if (Number.isNaN(date.getTime())) {
+    return String(value || '');
+  }
 
-  if (flags.hasReplacement) active.push('REEMPLAZO');
-  if (flags.hasNotes) active.push('NOTAS');
-  if (flags.hasFries) active.push('PAPAS');
-  if (flags.hasMeat) active.push('CARNE');
-
-  return active.join(' | ');
+  return new Intl.DateTimeFormat('es-UY', {
+    year: '2-digit',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  }).format(date);
 }
 
-function buildAnnotations(order, assignment) {
-  const parts = [];
+function asPlainText(value) {
+  const text = String(value || '').trim();
+  if (!text) return '';
+  return `'${text}`;
+}
 
-  if (assignment?.courier) {
-    parts.push(`Repartidor asignado: ${assignment.courier}`);
-  }
-
-  const alerts = stringifyFlags(order.flags);
-  if (alerts) {
-    parts.push(`Alertas: ${alerts}`);
-  }
-
-  if (order.rawText) {
-    parts.push(`Notas: ${order.rawText}`);
-  }
-
-  if (order.itemsText) {
-    parts.push(`Items: ${order.itemsText}`);
-  }
-
-  return parts.join(' | ');
+function truncate(value, max = 120) {
+  const text = String(value || '').trim();
+  if (!text) return '';
+  if (text.length <= max) return text;
+  return `${text.slice(0, max - 3)}...`;
 }
 
 function mapOrderToSheetRow(order, assignment) {
+  const notes = [
+    order.notas ? `Notas: ${order.notas}` : '',
+    order.direccion ? `Dirección: ${order.direccion}` : '',
+    order.repartidor ? `Repartidor webhook: ${order.repartidor}` : '',
+    assignment && assignment.courier ? `Repartidor final: ${assignment.courier}` : ''
+  ].filter(Boolean).join(' | ');
+
   return {
-    pedido: order.pedido || '',
-    tarjeta: '',
-    efectivo: '',
-    transferencia: '',
-    enviosLejanos: '',
-    propinaWeb: '',
-    anotaciones: buildAnnotations(order, assignment),
-    nroPedido: order.pedido || '',
-    importe: order.total || '',
-    telefono: order.telefono || '',
-    fecha: new Date().toLocaleString('es-UY'),
-    repartidor: assignment?.courier || '',
-    hojaDestino: assignment?.sheetName || ''
+    pedido: truncate(order.pedido, 80),
+    tarjeta: order.tarjeta || '',
+    efectivo: order.efectivo || '',
+    transferencia: order.transferencia || '',
+    enviosLejanos: order.enviosLejanos ? 'SI' : '',
+    propinaWeb: order.propinaWeb || '',
+    anotaciones: truncate(notes, 220),
+    nroPedido: asPlainText(order.nroPedido),
+    importe: order.importe || '',
+    telefono: asPlainText(order.telefono),
+    fecha: formatFecha(order.fecha)
   };
 }
 

@@ -1,4 +1,4 @@
-const { google } = require('googleapis');
+﻿const { google } = require('googleapis');
 const path = require('path');
 const sheetsConfig = require('../config/sheetsConfig');
 
@@ -75,7 +75,7 @@ async function writeOrderToSheet(sheetName, row, data) {
   await sheets.spreadsheets.values.batchUpdate({
     spreadsheetId: sheetsConfig.spreadsheetId,
     requestBody: {
-      valueInputOption: 'USER_ENTERED',
+      valueInputOption: 'RAW',
       data: updates
     }
   });
