@@ -231,12 +231,46 @@ function detectPropinaWeb(data, payload) {
   ].filter(Boolean);
 
   for (const text of textCandidates) {
-    const match = text.match(/propina\s*([0-9.,]+)/i);
-    if (match) {
+    const explicitPatterns = [
+      /propina\s*[:+]?\s*\$?\s*([0-9.,]+)/i,
+      /tip\s*[:+]?\s*\$?\s*([0-9.,]+)/i
+    ];
+
+    for (const pattern of explicitPatterns) {
+      const match = text.match(pattern);
+      if (!match) continue;
+
       const amount = toNumber(match[1]);
       if (amount > 0) {
         return amount;
       }
+    }
+
+    const normalizedText = text.toLowerCase();
+    const mentionsPaymentMethod =
+      normalizedText.includes('transf') ||
+      normalizedText.includes('transferencia') ||
+      normalizedText.includes('tarjeta') ||
+      normalizedText.includes('efectivo');
+
+    if (!mentionsPaymentMethod) {
+      continue;
+    }
+
+    const amounts = [...text.matchAll(/([0-9]+(?:[.,][0-9]{1,2})?)/g)]
+      .map((match) => toNumber(match[1]))
+      .filter((amount) => amount > 0);
+
+    const orderTotal = toNumber(data.total);
+    if (orderTotal <= 0 || amounts.length === 0) {
+      continue;
+    }
+
+    const paidAmount = Math.max(...amounts);
+    const inferredTip = Number((paidAmount - orderTotal).toFixed(2));
+
+    if (inferredTip > 0) {
+      return inferredTip;
     }
   }
 
