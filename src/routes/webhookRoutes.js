@@ -2,7 +2,12 @@
 const { interpretOrder } = require('../services/orderInterpreter');
 const { assignCourier } = require('../services/courierAssigner');
 const { mapOrderToSheetRow } = require('../services/orderToSheetMapper');
-const { getNextEmptyRow, writeOrderToSheet } = require('../services/googleSheetsService');
+const {
+  getNextEmptyRow,
+  writeOrderToSheet,
+  findOrderAcrossSheets,
+  clearOrderRow
+} = require('../services/googleSheetsService');
 
 const router = express.Router();
 
@@ -55,16 +60,22 @@ router.post('/', async (req, res, next) => {
 
     console.log('[WEBHOOK] Pedido interpretado', {
       numeroPedidoInterno: order.numeroPedidoInterno || null,
+      nroPedido: order.nroPedido || null,
       total: order.total || 0,
       enviosLejanos: order.enviosLejanos || 0,
       telefono: order.telefono || null,
       repartidor: order.repartidor || null
     });
 
+    if (!order.nroPedido) {
+      const error = new Error('No se pudo obtener nroPedido para identificar el pedido.');
+      error.statusCode = 400;
+      throw error;
+    }
+
     if (!hasAssignedRider(order)) {
       console.log('[WEBHOOK] Pedido omitido por no tener repartidor asignado aun', {
-        nroPedido: order.nroPedido || null,
-        pedido: order.pedido || null
+        nroPedido: order.nroPedido
       });
 
       return res.status(202).json({
@@ -75,20 +86,47 @@ router.post('/', async (req, res, next) => {
     }
 
     const assignment = assignCourier(order);
+    const mappedRow = mapOrderToSheetRow(order, assignment);
 
     console.log('[WEBHOOK] Courier asignado', {
       courier: assignment.courier,
       sheetName: assignment.sheetName
     });
 
-    const mappedRow = mapOrderToSheetRow(order, assignment);
-    const rowNumber = await getNextEmptyRow(assignment.sheetName);
+    const existingOrder = await findOrderAcrossSheets(order.nroPedido);
 
-    await writeOrderToSheet(assignment.sheetName, rowNumber, mappedRow);
+    let rowNumber;
+
+    if (existingOrder && existingOrder.sheetName === assignment.sheetName) {
+      rowNumber = existingOrder.rowNumber;
+
+      console.log('[WEBHOOK] Pedido ya existe en la misma hoja, se actualiza', {
+        nroPedido: order.nroPedido,
+        sheetName: assignment.sheetName,
+        rowNumber
+      });
+
+      await writeOrderToSheet(assignment.sheetName, rowNumber, mappedRow);
+    } else {
+      if (existingOrder && existingOrder.sheetName !== assignment.sheetName) {
+        console.log('[WEBHOOK] Pedido cambia de hoja, se limpia fila anterior', {
+          nroPedido: order.nroPedido,
+          fromSheet: existingOrder.sheetName,
+          fromRow: existingOrder.rowNumber,
+          toSheet: assignment.sheetName
+        });
+
+        await clearOrderRow(existingOrder.sheetName, existingOrder.rowNumber);
+      }
+
+      rowNumber = await getNextEmptyRow(assignment.sheetName);
+      await writeOrderToSheet(assignment.sheetName, rowNumber, mappedRow);
+    }
 
     const durationMs = Date.now() - startedAt;
 
     console.log('[WEBHOOK] Pedido guardado correctamente', {
+      nroPedido: order.nroPedido,
       sheetName: assignment.sheetName,
       rowNumber,
       durationMs

@@ -21,8 +21,6 @@ function getGoogleAuth() {
     }
   }
 
-  console.log('[GOOGLE AUTH] Usando archivo local de credenciales.');
-
   return new google.auth.GoogleAuth({
     keyFile: path.join(__dirname, '../../credentials/google-service-account.json'),
     scopes: ['https://www.googleapis.com/auth/spreadsheets']
@@ -39,6 +37,14 @@ async function getSheetsClient() {
   });
 }
 
+function getUniqueSheetNames() {
+  return [...new Set(Object.values(sheetsConfig.riderSheets || {}))];
+}
+
+function normalizeCell(value) {
+  return String(value || '').trim().replace(/^'/, '');
+}
+
 async function getNextEmptyRow(sheetName) {
   const sheets = await getSheetsClient();
 
@@ -50,12 +56,45 @@ async function getNextEmptyRow(sheetName) {
   const values = res.data.values || [];
   const nextRow = Math.max(values.length + 1, sheetsConfig.dataStartRow);
 
-  console.log('[SHEETS] Proxima fila detectada', {
-    sheetName,
-    nextRow
+  console.log('[SHEETS] Proxima fila detectada', { sheetName, nextRow });
+  return nextRow;
+}
+
+async function findOrderRowInSheet(sheetName, nroPedido) {
+  const cleanOrderId = normalizeCell(nroPedido);
+  if (!cleanOrderId) return null;
+
+  const sheets = await getSheetsClient();
+  const orderColumn = sheetsConfig.columns.nroPedido;
+
+  const res = await sheets.spreadsheets.values.get({
+    spreadsheetId: sheetsConfig.spreadsheetId,
+    range: `${sheetName}!${orderColumn}${sheetsConfig.dataStartRow}:${orderColumn}`
   });
 
-  return nextRow;
+  const values = res.data.values || [];
+
+  for (let index = 0; index < values.length; index += 1) {
+    const cellValue = normalizeCell(values[index]?.[0]);
+    if (cellValue && cellValue === cleanOrderId) {
+      return sheetsConfig.dataStartRow + index;
+    }
+  }
+
+  return null;
+}
+
+async function findOrderAcrossSheets(nroPedido) {
+  const uniqueSheets = getUniqueSheetNames();
+
+  for (const sheetName of uniqueSheets) {
+    const rowNumber = await findOrderRowInSheet(sheetName, nroPedido);
+    if (rowNumber) {
+      return { sheetName, rowNumber };
+    }
+  }
+
+  return null;
 }
 
 async function writeOrderToSheet(sheetName, row, data) {
@@ -63,7 +102,7 @@ async function writeOrderToSheet(sheetName, row, data) {
 
   const updates = Object.entries(sheetsConfig.columns).map(([field, column]) => ({
     range: `${sheetName}!${column}${row}`,
-    values: [[data[field] || '']]
+    values: [[data[field] ?? '']]
   }));
 
   console.log('[SHEETS] Escribiendo pedido en hoja', {
@@ -81,7 +120,25 @@ async function writeOrderToSheet(sheetName, row, data) {
   });
 }
 
+async function clearOrderRow(sheetName, row) {
+  const sheets = await getSheetsClient();
+  const startColumn = 'A';
+  const endColumn = 'R';
+
+  console.log('[SHEETS] Limpiando fila existente', {
+    sheetName,
+    row
+  });
+
+  await sheets.spreadsheets.values.clear({
+    spreadsheetId: sheetsConfig.spreadsheetId,
+    range: `${sheetName}!${startColumn}${row}:${endColumn}${row}`
+  });
+}
+
 module.exports = {
   getNextEmptyRow,
-  writeOrderToSheet
+  writeOrderToSheet,
+  findOrderAcrossSheets,
+  clearOrderRow
 };

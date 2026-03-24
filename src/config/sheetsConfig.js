@@ -11,6 +11,7 @@
     total: 'D',
     enviosLejanos: 'H',
     propinaWeb: 'I',
+    nroPedido: 'N',
     importe: 'O',
     telefono: 'P',
     fecha: 'Q',

@@ -128,6 +128,7 @@ function interpretOrder(payload = {}) {
 
   const enviosLejanos = delivery > 0 ? delivery : 0;
   const propinaWeb = toNumber(data.total_tips ?? 0);
+  const importe = total;
 
   const rawText = [
     `Cliente: ${cliente}`,
@@ -156,7 +157,7 @@ function interpretOrder(payload = {}) {
     subtotal,
     delivery,
     total,
-    importe: total,
+    importe,
     enviosLejanos,
     propinaWeb,
     paymentStatus,
