@@ -20,15 +20,18 @@ function asPlainText(value) {
   return `'${text}`;
 }
 
-function mapOrderToSheetRow(order, assignment) {
+function mapOrderToSheetRow(order) {
+  const total = Number(order.total || order.importe || 0);
+
   return {
     numeroPedidoInterno: order.numeroPedidoInterno || '',
-    total: order.total || 0,
-    enviosLejanos: order.enviosLejanos || 0,
-    propinaWeb: order.propinaWeb || 0,
+    total,
+    enviosLejanos: Number(order.enviosLejanos || 0),
+    propinaWeb: Number(order.propinaWeb || 0),
+    nroPedido: asPlainText(order.nroPedido),
+    importe: total,
     telefono: asPlainText(order.telefono),
-    fecha: formatFecha(order.fecha),
-    repartidor: assignment?.courier || order.repartidor || ''
+    fecha: formatFecha(order.fecha)
   };
 }
 

@@ -1,9 +1,9 @@
 ﻿module.exports = {
   spreadsheetId: '1b6thcjNOAbUPKRWSSvqhog2vp6TOk-wbo5GqokPH2hg',
   riderSheets: {
-    Mauro: 'Mauro',
-    Mauricio: 'Mauro',
-    Diogo: 'Diogo',
+    MAURO: 'Mauro',
+    MAURICIO: 'Mauro',
+    DIOGO: 'Diogo',
     GIAN: 'GIAN'
   },
   columns: {
@@ -12,10 +12,9 @@
     enviosLejanos: 'H',
     propinaWeb: 'I',
     nroPedido: 'N',
-    importe: 'O',
-    telefono: 'P',
-    fecha: 'Q',
-    repartidor: 'R'
+    importe: 'P',
+    telefono: 'Q',
+    fecha: 'R'
   },
   dataStartRow: 8
 };
