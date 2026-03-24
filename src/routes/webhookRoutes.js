@@ -19,6 +19,7 @@ router.post('/', async (req, res, next) => {
 
   try {
     const payload = req.body || {};
+    const rawOrder = payload.datos || payload.data || null;
 
     console.log('[WEBHOOK] Pedido recibido', {
       timestamp: new Date().toISOString(),
@@ -26,8 +27,8 @@ router.post('/', async (req, res, next) => {
       bodyKeys: Object.keys(payload)
     });
 
-    if (payload.data) {
-      console.log('[WEBHOOK] payload.data.raw = ' + JSON.stringify(payload.data));
+    if (rawOrder) {
+      console.log('[WEBHOOK] rawOrder = ' + JSON.stringify(rawOrder));
     }
 
     const order = interpretOrder(payload);
