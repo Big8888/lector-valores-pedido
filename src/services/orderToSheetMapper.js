@@ -25,41 +25,34 @@ function asNumber(value) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function getStoredAmount(existingRow = {}) {
-  const candidates = [
-    asNumber(existingRow.total),
-    asNumber(existingRow.tarjeta),
-    asNumber(existingRow.efectivo),
-    asNumber(existingRow.transferencia)
-  ].filter((value) => value > 0);
-
-  return candidates.length > 0 ? candidates[0] : 0;
-}
-
 function mapOrderToSheetRow(order, existingRow = null) {
-  const storedAmount = getStoredAmount(existingRow || {});
-  const incomingAmount = asNumber(order.total);
-  const hasPaymentMethod = order.paymentMethod && order.paymentMethod !== 'no_especificado';
-  const authoritativeAmount = hasPaymentMethod
-    ? (storedAmount > 0 ? storedAmount : incomingAmount)
-    : (incomingAmount > 0 ? incomingAmount : storedAmount);
-  const enviosLejanos = hasPaymentMethod && existingRow
-    ? asNumber(existingRow.enviosLejanos)
-    : asNumber(order.enviosLejanos);
-  const propinaWeb = asNumber(order.propinaWeb) > 0
-    ? asNumber(order.propinaWeb)
-    : asNumber(existingRow && existingRow.propinaWeb);
+  const incomingAmount = asNumber(order.importe || order.total);
+  const fallbackAmount = asNumber(
+    existingRow?.importe || existingRow?.total || existingRow?.tarjeta || existingRow?.efectivo || existingRow?.transferencia
+  );
+  const authoritativeAmount = incomingAmount > 0 ? incomingAmount : fallbackAmount;
+
+  const incomingEnvio = asNumber(order.enviosLejanos);
+  const fallbackEnvio = asNumber(existingRow?.enviosLejanos);
+  const enviosLejanos = incomingEnvio > 0 ? incomingEnvio : fallbackEnvio;
+
+  const incomingPropina = asNumber(order.propinaWeb);
+  const fallbackPropina = asNumber(existingRow?.propinaWeb);
+  const propinaWeb = incomingPropina > 0 ? incomingPropina : fallbackPropina;
+
+  const paymentMethod = String(order.paymentMethod || '').trim().toLowerCase();
+  const hasPaymentMethod = paymentMethod && paymentMethod !== 'no_especificado';
 
   return {
     numeroPedidoInterno: order.numeroPedidoInterno || '',
     total: hasPaymentMethod ? 0 : authoritativeAmount,
-    tarjeta: order.paymentMethod === 'tarjeta' ? authoritativeAmount : 0,
-    efectivo: order.paymentMethod === 'efectivo' ? authoritativeAmount : 0,
-    transferencia: order.paymentMethod === 'transferencia' ? authoritativeAmount : 0,
+    tarjeta: paymentMethod === 'tarjeta' ? authoritativeAmount : 0,
+    efectivo: paymentMethod === 'efectivo' ? authoritativeAmount : 0,
+    transferencia: paymentMethod === 'transferencia' ? authoritativeAmount : 0,
     enviosLejanos,
     propinaWeb,
-    nroPedido: '',
-    importe: '',
+    nroPedido: asPlainText(order.nroPedido),
+    importe: authoritativeAmount,
     telefono: asPlainText(order.telefono),
     fecha: formatFecha(order.fecha)
   };
