@@ -1,6 +1,8 @@
-﻿const { google } = require('googleapis');
+const { google } = require('googleapis');
 const path = require('path');
 const sheetsConfig = require('../config/sheetsConfig');
+
+let sheetsClientPromise = null;
 
 function getGoogleAuth() {
   if (process.env.GOOGLE_SERVICE_ACCOUNT_JSON) {
@@ -28,13 +30,22 @@ function getGoogleAuth() {
 }
 
 async function getSheetsClient() {
-  const auth = getGoogleAuth();
-  const client = await auth.getClient();
+  if (!sheetsClientPromise) {
+    sheetsClientPromise = (async () => {
+      const auth = getGoogleAuth();
+      const client = await auth.getClient();
 
-  return google.sheets({
-    version: 'v4',
-    auth: client
-  });
+      return google.sheets({
+        version: 'v4',
+        auth: client
+      });
+    })().catch((error) => {
+      sheetsClientPromise = null;
+      throw error;
+    });
+  }
+
+  return sheetsClientPromise;
 }
 
 function getUniqueSheetNames() {
@@ -51,22 +62,97 @@ function toNumber(value) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
-function getLookupKeys(orderOrId) {
-  if (!orderOrId) return [];
+function getManagedColumns() {
+  return Object.values(sheetsConfig.columns);
+}
 
-  if (typeof orderOrId === 'string') {
-    const key = normalizeCell(orderOrId);
-    return key ? [key] : [];
+function getColumnRange(sheetName, column, startRow) {
+  return `${sheetName}!${column}${startRow}:${column}`;
+}
+
+function buildDayKey(value) {
+  if (!value) return '';
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    const normalizedText = normalizeCell(value);
+    const match = normalizedText.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+    if (match) {
+      return `${match[3]}-${match[2]}-${match[1]}`;
+    }
+
+    return '';
   }
 
-  const keys = [
-    orderOrId.numeroPedidoInterno,
-    orderOrId.nroPedido
-  ]
-    .map((value) => normalizeCell(value))
-    .filter(Boolean);
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: sheetsConfig.timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  });
 
-  return [...new Set(keys)];
+  return formatter.format(date);
+}
+
+function parseSheetDayKey(value) {
+  const normalized = normalizeCell(value);
+  if (!normalized) return '';
+
+  const localizedMatch = normalized.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  if (localizedMatch) {
+    return `${localizedMatch[3]}-${localizedMatch[2]}-${localizedMatch[1]}`;
+  }
+
+  const isoDate = new Date(normalized);
+  if (!Number.isNaN(isoDate.getTime())) {
+    return buildDayKey(isoDate.toISOString());
+  }
+
+  return '';
+}
+
+function buildOrderLookup(orderOrId) {
+  if (!orderOrId) {
+    return {
+      numeroPedidoInterno: '',
+      nroPedido: '',
+      dayKey: ''
+    };
+  }
+
+  if (typeof orderOrId === 'string') {
+    return {
+      numeroPedidoInterno: normalizeCell(orderOrId),
+      nroPedido: normalizeCell(orderOrId),
+      dayKey: ''
+    };
+  }
+
+  return {
+    numeroPedidoInterno: normalizeCell(orderOrId.numeroPedidoInterno),
+    nroPedido: normalizeCell(orderOrId.nroPedido),
+    dayKey: buildDayKey(orderOrId.fecha)
+  };
+}
+
+function getLookupMatch({ orderLookup, primaryValue, legacyValue, rowDayKey }) {
+  if (orderLookup.nroPedido && legacyValue && orderLookup.nroPedido === legacyValue) {
+    return true;
+  }
+
+  if (!orderLookup.numeroPedidoInterno || !primaryValue) {
+    return false;
+  }
+
+  if (orderLookup.numeroPedidoInterno !== primaryValue) {
+    return false;
+  }
+
+  if (!orderLookup.dayKey) {
+    return true;
+  }
+
+  return orderLookup.dayKey === rowDayKey;
 }
 
 async function getNextEmptyRow(sheetName) {
@@ -75,7 +161,7 @@ async function getNextEmptyRow(sheetName) {
 
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: sheetsConfig.spreadsheetId,
-    range: `${sheetName}!A${startRow}:A`
+    range: getColumnRange(sheetName, sheetsConfig.columns.numeroPedidoInterno, startRow)
   });
 
   const values = res.data.values || [];
@@ -97,44 +183,50 @@ async function getNextEmptyRow(sheetName) {
 }
 
 async function findOrderRowsInSheet(sheetName, orderOrId) {
-  const lookupKeys = getLookupKeys(orderOrId);
-  if (lookupKeys.length === 0) return [];
+  const orderLookup = buildOrderLookup(orderOrId);
+  if (!orderLookup.numeroPedidoInterno && !orderLookup.nroPedido) {
+    return [];
+  }
 
   const sheets = await getSheetsClient();
-  const primaryColumn = sheetsConfig.columns.numeroPedidoInterno;
-  const legacyColumn = sheetsConfig.columns.nroPedido;
+  const ranges = [
+    getColumnRange(sheetName, sheetsConfig.columns.numeroPedidoInterno, sheetsConfig.dataStartRow),
+    getColumnRange(sheetName, sheetsConfig.columns.fecha, sheetsConfig.dataStartRow)
+  ];
 
-  const primaryRes = await sheets.spreadsheets.values.get({
+  const hasLegacyColumn = Boolean(sheetsConfig.columns.nroPedido);
+  if (hasLegacyColumn) {
+    ranges.push(getColumnRange(sheetName, sheetsConfig.columns.nroPedido, sheetsConfig.dataStartRow));
+  }
+
+  const res = await sheets.spreadsheets.values.batchGet({
     spreadsheetId: sheetsConfig.spreadsheetId,
-    range: `${sheetName}!${primaryColumn}${sheetsConfig.dataStartRow}:${primaryColumn}`
+    ranges
   });
 
-  const legacyRes = legacyColumn
-    ? await sheets.spreadsheets.values.get({
-        spreadsheetId: sheetsConfig.spreadsheetId,
-        range: `${sheetName}!${legacyColumn}${sheetsConfig.dataStartRow}:${legacyColumn}`
-      })
-    : { data: { values: [] } };
+  const valueRanges = res.data.valueRanges || [];
+  const primaryValues = valueRanges[0]?.values || [];
+  const fechaValues = valueRanges[1]?.values || [];
+  const legacyValues = hasLegacyColumn ? valueRanges[2]?.values || [] : [];
 
-  const primaryValues = primaryRes.data.values || [];
-  const legacyValues = legacyRes.data.values || [];
-  const matchedRows = new Set();
-
-  const maxLength = Math.max(primaryValues.length, legacyValues.length);
+  const matchedRows = [];
+  const maxLength = Math.max(primaryValues.length, fechaValues.length, legacyValues.length);
 
   for (let index = 0; index < maxLength; index += 1) {
     const primaryValue = normalizeCell(primaryValues[index]?.[0]);
+    const fechaValue = normalizeCell(fechaValues[index]?.[0]);
     const legacyValue = normalizeCell(legacyValues[index]?.[0]);
+    const rowDayKey = parseSheetDayKey(fechaValue);
 
-    if (lookupKeys.includes(primaryValue) || lookupKeys.includes(legacyValue)) {
-      matchedRows.add(sheetsConfig.dataStartRow + index);
+    if (getLookupMatch({ orderLookup, primaryValue, legacyValue, rowDayKey })) {
+      matchedRows.push({
+        sheetName,
+        rowNumber: sheetsConfig.dataStartRow + index
+      });
     }
   }
 
-  return [...matchedRows].map((rowNumber) => ({
-    sheetName,
-    rowNumber
-  }));
+  return matchedRows;
 }
 
 async function findOrderAcrossSheets(orderOrId) {
@@ -146,7 +238,13 @@ async function findOrderAcrossSheets(orderOrId) {
     matches.push(...rows);
   }
 
-  return matches;
+  return matches.sort((left, right) => {
+    if (left.sheetName === right.sheetName) {
+      return left.rowNumber - right.rowNumber;
+    }
+
+    return left.sheetName.localeCompare(right.sheetName);
+  });
 }
 
 async function writeOrderToSheet(sheetName, row, data) {
@@ -174,44 +272,47 @@ async function writeOrderToSheet(sheetName, row, data) {
 
 async function getOrderRowSnapshot(sheetName, row) {
   const sheets = await getSheetsClient();
-  const res = await sheets.spreadsheets.values.get({
+  const ranges = Object.entries(sheetsConfig.columns).map(([, column]) => `${sheetName}!${column}${row}`);
+
+  const res = await sheets.spreadsheets.values.batchGet({
     spreadsheetId: sheetsConfig.spreadsheetId,
-    range: `${sheetName}!A${row}:R${row}`
+    ranges
   });
 
-  const values = res.data.values?.[0] || [];
+  const valueByField = {};
+  const valueRanges = res.data.valueRanges || [];
 
-  const getValueByColumn = (column) => {
-    const columnIndex = column.charCodeAt(0) - 'A'.charCodeAt(0);
-    return values[columnIndex] ?? '';
-  };
+  Object.entries(sheetsConfig.columns).forEach(([field], index) => {
+    valueByField[field] = valueRanges[index]?.values?.[0]?.[0] ?? '';
+  });
 
   return {
-    numeroPedidoInterno: normalizeCell(getValueByColumn(sheetsConfig.columns.numeroPedidoInterno)),
-    total: toNumber(getValueByColumn(sheetsConfig.columns.total)),
-    tarjeta: toNumber(getValueByColumn(sheetsConfig.columns.tarjeta)),
-    efectivo: toNumber(getValueByColumn(sheetsConfig.columns.efectivo)),
-    transferencia: toNumber(getValueByColumn(sheetsConfig.columns.transferencia)),
-    enviosLejanos: toNumber(getValueByColumn(sheetsConfig.columns.enviosLejanos)),
-    propinaWeb: toNumber(getValueByColumn(sheetsConfig.columns.propinaWeb)),
-    telefono: normalizeCell(getValueByColumn(sheetsConfig.columns.telefono)),
-    fecha: normalizeCell(getValueByColumn(sheetsConfig.columns.fecha))
+    numeroPedidoInterno: normalizeCell(valueByField.numeroPedidoInterno),
+    total: toNumber(valueByField.total),
+    tarjeta: toNumber(valueByField.tarjeta),
+    efectivo: toNumber(valueByField.efectivo),
+    transferencia: toNumber(valueByField.transferencia),
+    enviosLejanos: toNumber(valueByField.enviosLejanos),
+    propinaWeb: toNumber(valueByField.propinaWeb),
+    telefono: normalizeCell(valueByField.telefono),
+    fecha: normalizeCell(valueByField.fecha)
   };
 }
 
 async function clearOrderRow(sheetName, row) {
   const sheets = await getSheetsClient();
-  const startColumn = 'A';
-  const endColumn = 'R';
+  const ranges = getManagedColumns().map((column) => `${sheetName}!${column}${row}`);
 
   console.log('[SHEETS] Limpiando fila existente', {
     sheetName,
     row
   });
 
-  await sheets.spreadsheets.values.clear({
+  await sheets.spreadsheets.values.batchClear({
     spreadsheetId: sheetsConfig.spreadsheetId,
-    range: `${sheetName}!${startColumn}${row}:${endColumn}${row}`
+    requestBody: {
+      ranges
+    }
   });
 }
 
@@ -220,5 +321,6 @@ module.exports = {
   writeOrderToSheet,
   findOrderAcrossSheets,
   clearOrderRow,
-  getOrderRowSnapshot
+  getOrderRowSnapshot,
+  buildDayKey
 };

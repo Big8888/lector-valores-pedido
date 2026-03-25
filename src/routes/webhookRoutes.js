@@ -1,4 +1,4 @@
-﻿const express = require('express');
+const express = require('express');
 const { interpretOrder } = require('../services/orderInterpreter');
 const { assignCourier } = require('../services/courierAssigner');
 const { mapOrderToSheetRow } = require('../services/orderToSheetMapper');
@@ -16,6 +16,24 @@ function maskSecret(secret) {
   if (!secret) return '(vacio)';
   if (secret.length <= 6) return '***';
   return `${secret.slice(0, 3)}***${secret.slice(-3)}`;
+}
+
+function getReceivedSecret(req) {
+  return (
+    req.header('x-webhook-secret') ||
+    req.header('X-Webhook-Secret') ||
+    req.query.secret ||
+    ''
+  );
+}
+
+function validateWebhookSecret(receivedSecret) {
+  const expectedSecret = String(process.env.WEBHOOK_SECRET || '').trim();
+  if (!expectedSecret) {
+    return true;
+  }
+
+  return receivedSecret === expectedSecret;
 }
 
 function hasAssignedRider(order = {}) {
@@ -60,13 +78,10 @@ router.post('/', async (req, res, next) => {
 
   try {
     const payload = req.body || {};
-    const receivedSecret =
-      req.header('x-webhook-secret') ||
-      req.header('X-Webhook-Secret') ||
-      req.query.secret ||
-      '';
+    const receivedSecret = getReceivedSecret(req);
 
     console.log('[WEBHOOK] Pedido recibido', {
+      requestId: req.requestId,
       timestamp: new Date().toISOString(),
       hasBody: !!req.body,
       bodyKeys: Object.keys(payload),
@@ -74,9 +89,16 @@ router.post('/', async (req, res, next) => {
       secretPresent: !!receivedSecret
     });
 
+    if (!validateWebhookSecret(receivedSecret)) {
+      const error = new Error('Webhook secret invalido.');
+      error.statusCode = 401;
+      throw error;
+    }
+
     const order = interpretOrder(payload);
 
     console.log('[WEBHOOK] Pedido interpretado', {
+      requestId: req.requestId,
       numeroPedidoInterno: order.numeroPedidoInterno || null,
       nroPedido: order.nroPedido || null,
       total: order.total || 0,
@@ -94,6 +116,7 @@ router.post('/', async (req, res, next) => {
 
     if ((order.propinaWeb || 0) === 0) {
       console.log('[WEBHOOK] Debug de pago/propina', {
+        requestId: req.requestId,
         numeroPedidoInterno: order.numeroPedidoInterno || null,
         nroPedido: order.nroPedido || null,
         paymentMethod: order.paymentMethod || null,
@@ -112,6 +135,7 @@ router.post('/', async (req, res, next) => {
       const clearedRows = await clearExistingOrders(order);
 
       console.log('[WEBHOOK] Rider cancelado, pedido eliminado de Sheets', {
+        requestId: req.requestId,
         numeroPedidoInterno: order.numeroPedidoInterno || null,
         nroPedido: order.nroPedido || null,
         clearedRows
@@ -129,8 +153,9 @@ router.post('/', async (req, res, next) => {
       const clearedRows = await clearExistingOrders(order);
 
       console.log('[WEBHOOK] Pedido omitido por no tener repartidor asignado aun', {
+        requestId: req.requestId,
         numeroPedidoInterno: order.numeroPedidoInterno || null,
-        nroPedido: order.nroPedido,
+        nroPedido: order.nroPedido || null,
         clearedRows
       });
 
@@ -145,7 +170,9 @@ router.post('/', async (req, res, next) => {
     const assignment = assignCourier(order);
     if (!assignment.sheetName) {
       console.log('[WEBHOOK] Pedido omitido por rider no mapeado', {
-        nroPedido: order.nroPedido,
+        requestId: req.requestId,
+        numeroPedidoInterno: order.numeroPedidoInterno || null,
+        nroPedido: order.nroPedido || null,
         rider: order.repartidor || order.riderHint || null
       });
 
@@ -157,25 +184,29 @@ router.post('/', async (req, res, next) => {
     }
 
     console.log('[WEBHOOK] Courier asignado', {
+      requestId: req.requestId,
       courier: assignment.courier,
       sheetName: assignment.sheetName
     });
 
     const existingOrders = await findOrderAcrossSheets(order);
-    const existingInTargetSheet = existingOrders.filter(
-      (entry) => entry.sheetName === assignment.sheetName
-    );
-    const existingInOtherSheets = existingOrders.filter(
-      (entry) => entry.sheetName !== assignment.sheetName
-    );
+    const existingInTargetSheet = existingOrders
+      .filter((entry) => entry.sheetName === assignment.sheetName)
+      .sort((left, right) => left.rowNumber - right.rowNumber);
+    const existingInOtherSheets = existingOrders
+      .filter((entry) => entry.sheetName !== assignment.sheetName)
+      .sort((left, right) => left.rowNumber - right.rowNumber);
 
     let rowNumber;
     let existingSnapshot = null;
     let mappedRow;
+    let action = 'created';
 
     for (const duplicate of existingInOtherSheets) {
       console.log('[WEBHOOK] Pedido encontrado en otra hoja, se limpia fila anterior', {
-        nroPedido: order.nroPedido,
+        requestId: req.requestId,
+        numeroPedidoInterno: order.numeroPedidoInterno || null,
+        nroPedido: order.nroPedido || null,
         fromSheet: duplicate.sheetName,
         fromRow: duplicate.rowNumber,
         toSheet: assignment.sheetName
@@ -189,7 +220,9 @@ router.post('/', async (req, res, next) => {
       existingSnapshot = await getOrderRowSnapshot(assignment.sheetName, rowNumber);
 
       console.log('[WEBHOOK] Pedido ya existe en la misma hoja, se actualiza', {
-        nroPedido: order.nroPedido,
+        requestId: req.requestId,
+        numeroPedidoInterno: order.numeroPedidoInterno || null,
+        nroPedido: order.nroPedido || null,
         sheetName: assignment.sheetName,
         rowNumber,
         existingSnapshot
@@ -197,7 +230,9 @@ router.post('/', async (req, res, next) => {
 
       for (const duplicate of existingInTargetSheet.slice(1)) {
         console.log('[WEBHOOK] Duplicado extra encontrado en misma hoja, se limpia', {
-          nroPedido: order.nroPedido,
+          requestId: req.requestId,
+          numeroPedidoInterno: order.numeroPedidoInterno || null,
+          nroPedido: order.nroPedido || null,
           sheetName: duplicate.sheetName,
           rowNumber: duplicate.rowNumber
         });
@@ -207,6 +242,7 @@ router.post('/', async (req, res, next) => {
 
       mappedRow = mapOrderToSheetRow(order, existingSnapshot);
       await writeOrderToSheet(assignment.sheetName, rowNumber, mappedRow);
+      action = 'updated';
     } else {
       rowNumber = await getNextEmptyRow(assignment.sheetName);
       mappedRow = mapOrderToSheetRow(order);
@@ -216,16 +252,20 @@ router.post('/', async (req, res, next) => {
     const durationMs = Date.now() - startedAt;
 
     console.log('[WEBHOOK] Pedido guardado correctamente', {
-      nroPedido: order.nroPedido,
+      requestId: req.requestId,
+      action,
+      numeroPedidoInterno: order.numeroPedidoInterno || null,
+      nroPedido: order.nroPedido || null,
       sheetName: assignment.sheetName,
       rowNumber,
       durationMs
     });
 
-    res.status(201).json({
+    res.status(action === 'updated' ? 200 : 201).json({
       ok: true,
       message: 'Pedido procesado correctamente.',
       result: {
+        action,
         courier: assignment.courier,
         sheetName: assignment.sheetName,
         rowNumber,

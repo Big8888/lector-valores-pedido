@@ -1,15 +1,19 @@
-﻿function asString(value) {
+function asString(value) {
   if (value === null || value === undefined) return '';
   if (typeof value === 'string') return value.trim();
   if (typeof value === 'number' || typeof value === 'boolean') return String(value).trim();
   return '';
 }
 
+function hasValue(value) {
+  return value !== undefined && value !== null && value !== '';
+}
+
 function toNumber(value) {
   if (value === null || value === undefined || value === '') return 0;
 
   if (typeof value === 'number') {
-    return value;
+    return Number.isFinite(value) ? value : 0;
   }
 
   const sanitized = String(value).replace(/[^\d.,-]/g, '').trim();
@@ -20,7 +24,7 @@ function toNumber(value) {
     : sanitized;
 
   const parsed = Number(normalized);
-  return Number.isNaN(parsed) ? 0 : parsed;
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function getNestedValue(source, path) {
@@ -33,10 +37,10 @@ function getNestedValue(source, path) {
   }, source);
 }
 
-function findFirstValue(source, paths) {
+function findFirstPresent(source, paths) {
   for (const path of paths) {
     const value = getNestedValue(source, path);
-    if (value !== undefined && value !== null && value !== '') {
+    if (hasValue(value)) {
       return value;
     }
   }
@@ -44,7 +48,7 @@ function findFirstValue(source, paths) {
   return undefined;
 }
 
-function flattenStringValues(value, result = []) {
+function flattenScalarValues(value, result = []) {
   if (value === null || value === undefined) {
     return result;
   }
@@ -54,21 +58,19 @@ function flattenStringValues(value, result = []) {
     if (text) {
       result.push(text);
     }
-
     return result;
   }
 
   if (Array.isArray(value)) {
     for (const item of value) {
-      flattenStringValues(item, result);
+      flattenScalarValues(item, result);
     }
-
     return result;
   }
 
   if (typeof value === 'object') {
     for (const nestedValue of Object.values(value)) {
-      flattenStringValues(nestedValue, result);
+      flattenScalarValues(nestedValue, result);
     }
   }
 
@@ -77,8 +79,8 @@ function flattenStringValues(value, result = []) {
 
 function getAllPayloadTexts(data, payload) {
   return [
-    ...flattenStringValues(data),
-    ...flattenStringValues(payload)
+    ...flattenScalarValues(data),
+    ...flattenScalarValues(payload)
   ]
     .map((value) => asString(value))
     .filter(Boolean);
@@ -134,7 +136,7 @@ function extractCombos(data) {
   if (!Array.isArray(data.combos)) return [];
 
   return data.combos.map((combo) => {
-    const quantity = combo.quantity || 1;
+    const quantity = toNumber(combo.quantity) || 1;
     const baseName =
       asString(combo.product_name) ||
       asString(combo.variant_name) ||
@@ -142,11 +144,11 @@ function extractCombos(data) {
 
     const modifiers = Array.isArray(combo.modifiers)
       ? combo.modifiers
-          .map((m) => {
-            const qty = m.quantity || 1;
-            const name = asString(m.name);
-            if (!name) return '';
-            return `${qty} x ${name}`;
+          .map((modifier) => {
+            const modifierQuantity = toNumber(modifier.quantity) || 1;
+            const modifierName = asString(modifier.name);
+            if (!modifierName) return '';
+            return `${modifierQuantity} x ${modifierName}`;
           })
           .filter(Boolean)
       : [];
@@ -155,7 +157,7 @@ function extractCombos(data) {
 
     let line = `${quantity} x ${baseName}`;
 
-    if (modifiers.length) {
+    if (modifiers.length > 0) {
       line += ` (${modifiers.join(', ')})`;
     }
 
@@ -183,31 +185,38 @@ function detectPaymentStatus(data) {
 }
 
 function detectPaymentMethod(data, payload) {
-  const rawCandidates = [
-    findFirstValue(data, [['payment_method']]),
-    findFirstValue(data, [['payment_method_name']]),
-    findFirstValue(data, [['payment_type']]),
-    findFirstValue(data, [['payment', 'method']]),
-    findFirstValue(data, [['payment', 'name']]),
-    findFirstValue(data, [['checkout', 'payment_method']]),
-    findFirstValue(data, [['checkout', 'payment_method_name']]),
-    findFirstValue(data, [['payments', 0, 'method']]),
-    findFirstValue(data, [['payments', 0, 'name']]),
-    findFirstValue(data, [['payments', 0, 'type']]),
-    findFirstValue(data, [['last_payment_method']]),
-    findFirstValue(data, [['payment_option']]),
-    findFirstValue(data, [['payment_channel']])
+  const explicitCandidates = [
+    findFirstPresent(data, [['meta_data', 'assigned_payment', 'payment_method']]),
+    findFirstPresent(data, [['meta_data', 'assigned_payment', 'method']]),
+    findFirstPresent(data, [['meta_data', 'assigned_payment', 'payment_method_name']]),
+    findFirstPresent(data, [['meta_data', 'assigned_payment', 'name']]),
+    findFirstPresent(data, [['payment_method']]),
+    findFirstPresent(data, [['payment_method_name']]),
+    findFirstPresent(data, [['payment_type']]),
+    findFirstPresent(data, [['payment', 'method']]),
+    findFirstPresent(data, [['payment', 'name']]),
+    findFirstPresent(data, [['checkout', 'payment_method']]),
+    findFirstPresent(data, [['checkout', 'payment_method_name']]),
+    findFirstPresent(data, [['payments', 0, 'method']]),
+    findFirstPresent(data, [['payments', 0, 'name']]),
+    findFirstPresent(data, [['payments', 0, 'type']]),
+    findFirstPresent(data, [['last_payment_method']]),
+    findFirstPresent(data, [['payment_option']]),
+    findFirstPresent(data, [['payment_channel']])
+  ]
+    .map((value) => asString(value))
+    .filter(Boolean);
+
+  const metadataCandidates = [
+    ...flattenScalarValues(data.meta_data && data.meta_data.assigned_payment),
+    ...flattenScalarValues(data.payment),
+    ...flattenScalarValues(data.payments)
   ];
 
-  const allCandidates = [
-    ...rawCandidates.map((value) => asString(value)),
-    ...getAllPayloadTexts(data, payload),
-    ...flattenStringValues(data.payment),
-    ...flattenStringValues(data.payments)
-  ];
+  const textCandidates = [...explicitCandidates, ...metadataCandidates, ...getAllPayloadTexts(data, payload)];
 
-  const normalized = allCandidates
-    .map((value) => asString(value).toLowerCase())
+  const normalized = textCandidates
+    .map((value) => value.toLowerCase())
     .find((value) =>
       value &&
       (
@@ -237,7 +246,7 @@ function detectPaymentMethod(data, payload) {
 }
 
 function detectPropinaWeb(data, payload) {
-  const directValue = findFirstValue(data, [
+  const directValue = findFirstPresent(data, [
     ['total_tips'],
     ['tip'],
     ['tips'],
@@ -251,72 +260,53 @@ function detectPropinaWeb(data, payload) {
     ['payments', 0, 'tips']
   ]);
 
-  const directAmount = toNumber(directValue);
-  if (directAmount > 0) {
-    return directAmount;
+  if (hasValue(directValue)) {
+    return toNumber(directValue);
   }
 
-  const baseTotalCandidates = [];
-
-  const explicitTotal = toNumber(data.total);
-  if (explicitTotal > 0) {
-    baseTotalCandidates.push(explicitTotal);
-  }
-
-  const combosPrice = toNumber(data.combos_price);
-  const subtotal = toNumber(data.subtotal);
-  const deliveryPrice = toNumber(data.delivery_price ?? data.delivery_cost ?? 0);
-
-  if (combosPrice > 0) {
-    baseTotalCandidates.push(combosPrice + deliveryPrice);
-  }
-
-  if (subtotal > 0) {
-    baseTotalCandidates.push(subtotal + deliveryPrice);
-  }
-
-  const baseTotal = baseTotalCandidates.length > 0 ? Math.max(...baseTotalCandidates) : 0;
+  const subtotal = toNumber(findFirstPresent(data, [['combos_price'], ['subtotal']]));
+  const delivery = toNumber(findFirstPresent(data, [['delivery_price'], ['delivery_cost']]));
+  const total = toNumber(findFirstPresent(data, [['total']]));
+  const baseOrderTotal = total > 0 ? total : subtotal + delivery;
 
   const paidAmountCandidates = [
-    findFirstValue(data, [['amount']]),
-    findFirstValue(data, [['paid_amount']]),
-    findFirstValue(data, [['total_paid']]),
-    findFirstValue(data, [['payment', 'amount']]),
-    findFirstValue(data, [['payment', 'total']]),
-    findFirstValue(data, [['payment', 'paid_amount']]),
-    findFirstValue(data, [['payments', 0, 'amount']]),
-    findFirstValue(data, [['payments', 0, 'total']]),
-    findFirstValue(data, [['payments', 0, 'paid_amount']]),
-    findFirstValue(data, [['checkout', 'amount']])
+    ['meta_data', 'assigned_payment', 'amount'],
+    ['meta_data', 'assigned_payment', 'paid_amount'],
+    ['meta_data', 'assigned_payment', 'total'],
+    ['amount'],
+    ['paid_amount'],
+    ['total_paid'],
+    ['payment', 'amount'],
+    ['payment', 'total'],
+    ['payment', 'paid_amount'],
+    ['payments', 0, 'amount'],
+    ['payments', 0, 'total'],
+    ['payments', 0, 'paid_amount'],
+    ['checkout', 'amount']
   ]
-    .map((value) => toNumber(value))
+    .map((path) => toNumber(getNestedValue(data, path)))
     .filter((amount) => amount > 0);
 
-  if (baseTotal > 0 && paidAmountCandidates.length > 0) {
+  if (baseOrderTotal > 0 && paidAmountCandidates.length > 0) {
     const maxPaidAmount = Math.max(...paidAmountCandidates);
-    const inferredTipFromAmounts = Number((maxPaidAmount - baseTotal).toFixed(2));
+    const inferredTip = Number((maxPaidAmount - baseOrderTotal).toFixed(2));
 
-    if (inferredTipFromAmounts > 0) {
-      return inferredTipFromAmounts;
+    if (inferredTip > 0) {
+      return inferredTip;
     }
   }
 
   const textCandidates = [
-    asString(findFirstValue(data, [['payment_method_name']])),
-    asString(findFirstValue(data, [['payment_description']])),
-    asString(findFirstValue(data, [['payment', 'description']])),
-    asString(findFirstValue(data, [['payments', 0, 'description']])),
-    asString(findFirstValue(data, [['payments', 0, 'name']])),
-    asString(findFirstValue(data, [['payments', 0, 'detail']])),
-    ...getAllPayloadTexts(data, payload),
-    ...flattenStringValues(data.payment),
-    ...flattenStringValues(data.payments)
+    ...flattenScalarValues(data.meta_data && data.meta_data.assigned_payment),
+    ...flattenScalarValues(data.payment),
+    ...flattenScalarValues(data.payments),
+    ...getAllPayloadTexts(data, payload)
   ].filter(Boolean);
 
   for (const text of textCandidates) {
     const explicitPatterns = [
-      /propina\s*[:+]?\s*\$?\s*([0-9.,]+)/i,
-      /tip\s*[:+]?\s*\$?\s*([0-9.,]+)/i
+      /propina\s*[:+]?[\s$U]*\s*([0-9.,]+)/i,
+      /tip\s*[:+]?[\s$U]*\s*([0-9.,]+)/i
     ];
 
     for (const pattern of explicitPatterns) {
@@ -328,33 +318,6 @@ function detectPropinaWeb(data, payload) {
         return amount;
       }
     }
-
-    const normalizedText = text.toLowerCase();
-    const mentionsPaymentMethod =
-      normalizedText.includes('transf') ||
-      normalizedText.includes('transferencia') ||
-      normalizedText.includes('tarjeta') ||
-      normalizedText.includes('efectivo');
-
-    if (!mentionsPaymentMethod) {
-      continue;
-    }
-
-    const amounts = [...text.matchAll(/([0-9]+(?:[.,][0-9]{1,2})?)/g)]
-      .map((match) => toNumber(match[1]))
-      .filter((amount) => amount > 0);
-
-    const orderTotal = baseTotal || toNumber(data.total);
-    if (orderTotal <= 0 || amounts.length === 0) {
-      continue;
-    }
-
-    const paidAmount = Math.max(...amounts);
-    const inferredTip = Number((paidAmount - orderTotal).toFixed(2));
-
-    if (inferredTip > 0) {
-      return inferredTip;
-    }
   }
 
   return 0;
@@ -364,6 +327,7 @@ function detectRiderCancelled(data, payload, repartidor) {
   const statusTexts = [
     asString(data.rider_status),
     asString(data.status),
+    asString(data.delivery_status),
     asString(payload.event),
     asString(payload.type),
     asString(payload.action),
@@ -417,22 +381,26 @@ function interpretOrder(payload = {}) {
   const repartidor = asString(data.rider && data.rider.name);
 
   const productos = extractProductos(data);
-  const subtotal = toNumber(data.combos_price ?? data.subtotal ?? 0);
-  const delivery = toNumber(data.delivery_price ?? data.delivery_cost ?? 0);
-  const total = toNumber(data.total ?? (subtotal + delivery));
+  const subtotal = toNumber(findFirstPresent(data, [['combos_price'], ['subtotal']]));
+  const delivery = toNumber(findFirstPresent(data, [['delivery_price'], ['delivery_cost']]));
+  const total = toNumber(findFirstPresent(data, [['total']])) || subtotal + delivery;
   const paymentStatus = detectPaymentStatus(data);
   const paymentMethod = detectPaymentMethod(data, payload);
   const notas = buildNotas(data);
 
   const pedido = [cliente, productos].filter(Boolean).join(' - ') || asString(data.id) || asString(payload.event_id);
-  const nroPedido = asString(data.public_id) || asString(data.id) || asString(payload.event_id);
-  const fecha = asString(data.created_at) || new Date().toISOString();
+  const nroPedido = asString(findFirstPresent(data, [['public_id'], ['id']])) || asString(payload.event_id);
+  const fecha = asString(findFirstPresent(data, [['created_at'], ['updated_at']])) || new Date().toISOString();
   const numeroPedidoInterno = asString(data.daily_id ?? '');
   const riderCancelled = detectRiderCancelled(data, payload, repartidor);
 
-  const enviosLejanos = delivery > 0 ? delivery : 0;
+  const enviosLejanos = delivery;
   const propinaWeb = detectPropinaWeb(data, payload);
-  const importe = toNumber(data.amount ?? data.total ?? 0);
+  const importe = toNumber(findFirstPresent(data, [
+    ['amount'],
+    ['meta_data', 'assigned_payment', 'amount'],
+    ['total']
+  ]));
   const totalSinMetodo = paymentMethod === 'no_especificado' ? total : 0;
   const tarjeta = paymentMethod === 'tarjeta' ? total : 0;
   const efectivo = paymentMethod === 'efectivo' ? total : 0;
@@ -444,8 +412,8 @@ function interpretOrder(payload = {}) {
 
   const rawText = [
     `Cliente: ${cliente}`,
-    `Teléfono: ${telefono}`,
-    `Dirección: ${direccion}`,
+    `Telefono: ${telefono}`,
+    `Direccion: ${direccion}`,
     `Repartidor: ${repartidor}`,
     `Productos: ${productos}`,
     `Subtotal: ${subtotal}`,

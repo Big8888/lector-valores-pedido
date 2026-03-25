@@ -1,5 +1,6 @@
-﻿module.exports = {
+module.exports = {
   spreadsheetId: '1b6thcjNOAbUPKRWSSvqhog2vp6TOk-wbo5GqokPH2hg',
+  timeZone: process.env.ORDER_TIMEZONE || 'America/Montevideo',
   riderSheets: {
     MAURO: 'Mauro',
     MAURICIO: 'Mauro',
@@ -19,5 +20,9 @@
     telefono: 'Q',
     fecha: 'R'
   },
-  dataStartRow: 8
+  dataStartRow: 8,
+  sheetBounds: {
+    startColumn: 'A',
+    endColumn: 'R'
+  }
 };

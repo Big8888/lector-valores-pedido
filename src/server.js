@@ -1,20 +1,29 @@
+const crypto = require('crypto');
 const express = require('express');
 const webhookRoutes = require('./routes/webhookRoutes');
 
 const app = express();
 const port = Number(process.env.PORT) || 3000;
 
+app.disable('x-powered-by');
 app.use(express.json({ limit: '1mb' }));
 
+app.use((req, res, next) => {
+  req.requestId = crypto.randomUUID();
+  res.setHeader('x-request-id', req.requestId);
+  next();
+});
+
 app.get('/', (req, res) => {
-  res.send('Servidor OK');
+  res.status(200).send('Servidor OK');
 });
 
 app.get('/health', (req, res) => {
   res.status(200).json({
     ok: true,
     service: 'lector-valores-pedido',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    requestId: req.requestId
   });
 });
 
@@ -25,7 +34,8 @@ app.use((req, res) => {
     ok: false,
     error: 'Ruta no encontrada.',
     method: req.method,
-    path: req.originalUrl
+    path: req.originalUrl,
+    requestId: req.requestId
   });
 });
 
@@ -34,6 +44,7 @@ app.use((error, req, res, next) => {
   const message = error.message || 'Error interno del servidor.';
 
   const errorLog = {
+    requestId: req.requestId,
     timestamp: new Date().toISOString(),
     method: req.method,
     path: req.originalUrl,
@@ -49,7 +60,8 @@ app.use((error, req, res, next) => {
 
   res.status(statusCode).json({
     ok: false,
-    error: message
+    error: message,
+    requestId: req.requestId
   });
 });
 
