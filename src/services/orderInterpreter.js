@@ -246,31 +246,45 @@ function detectPaymentMethod(data, payload) {
 }
 
 function detectPropinaWeb(data, payload) {
-  const directValue =
-    findFirstPresent(data, [
-      ['total_tips'],
-      ['tip'],
-      ['tips'],
-      ['meta_data', 'assigned_payment', 'tip_value'],
-      ['meta_data', 'assigned_payment', 'tip'],
-      ['assigned_payment', 'tip_value'],
-      ['assigned_payment', 'tip'],
-      ['payment', 'tip'],
-      ['payment', 'tips'],
-      ['payments', 0, 'tip'],
-      ['payments', 0, 'tips']
-    ]) ??
-    findFirstPresent(payload, [
-      ['meta_data', 'assigned_payment', 'tip_value'],
-      ['meta_data', 'assigned_payment', 'tip'],
-      ['data', 'meta_data', 'assigned_payment', 'tip_value'],
-      ['data', 'meta_data', 'assigned_payment', 'tip'],
-      ['datos', 'meta_data', 'assigned_payment', 'tip_value'],
-      ['datos', 'meta_data', 'assigned_payment', 'tip']
-    ]);
+  const priorityPaths = [
+    ['meta_data', 'assigned_payment', 'tip_value'],
+    ['meta_data', 'assigned_payment', 'tip'],
+    ['assigned_payment', 'tip_value'],
+    ['assigned_payment', 'tip'],
+    ['payment', 'tip'],
+    ['payment', 'tips'],
+    ['payments', 0, 'tip'],
+    ['payments', 0, 'tips']
+  ];
 
-  if (hasValue(directValue)) {
-    return toNumber(directValue);
+  for (const path of priorityPaths) {
+    const amount = toNumber(getNestedValue(data, path));
+    if (amount > 0) return amount;
+  }
+
+  const payloadPriorityPaths = [
+    ['meta_data', 'assigned_payment', 'tip_value'],
+    ['meta_data', 'assigned_payment', 'tip'],
+    ['data', 'meta_data', 'assigned_payment', 'tip_value'],
+    ['data', 'meta_data', 'assigned_payment', 'tip'],
+    ['datos', 'meta_data', 'assigned_payment', 'tip_value'],
+    ['datos', 'meta_data', 'assigned_payment', 'tip']
+  ];
+
+  for (const path of payloadPriorityPaths) {
+    const amount = toNumber(getNestedValue(payload, path));
+    if (amount > 0) return amount;
+  }
+
+  const fallbackPaths = [
+    ['total_tips'],
+    ['tip'],
+    ['tips']
+  ];
+
+  for (const path of fallbackPaths) {
+    const amount = toNumber(getNestedValue(data, path));
+    if (amount > 0) return amount;
   }
 
   const subtotal = toNumber(findFirstPresent(data, [['combos_price'], ['subtotal']]));
