@@ -1,4 +1,4 @@
-﻿function formatFecha(value) {
+function formatFecha(value) {
   const date = value ? new Date(value) : new Date();
   if (Number.isNaN(date.getTime())) {
     return String(value || '');

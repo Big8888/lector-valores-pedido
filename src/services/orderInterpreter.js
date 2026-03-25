@@ -1,4 +1,4 @@
-﻿function asString(value) {
+function asString(value) {
   if (value === null || value === undefined) return '';
   if (typeof value === 'string') return value.trim();
   if (typeof value === 'number' || typeof value === 'boolean') return String(value).trim();
