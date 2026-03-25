@@ -41,7 +41,7 @@ function mapOrderToSheetRow(order, existingRow = null) {
   const hasPaymentMethod = paymentMethod && paymentMethod !== 'no_especificado';
 
   const authoritativeAmount = resolveNumber(
-    order.importe ?? order.total,
+    order.total,
     existingRow?.total ?? existingRow?.tarjeta ?? existingRow?.efectivo ?? existingRow?.transferencia,
     0
   );

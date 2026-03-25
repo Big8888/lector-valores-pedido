@@ -1,4 +1,4 @@
-function asString(value) {
+﻿function asString(value) {
   if (value === null || value === undefined) return '';
   if (typeof value === 'string') return value.trim();
   if (typeof value === 'number' || typeof value === 'boolean') return String(value).trim();
@@ -246,19 +246,28 @@ function detectPaymentMethod(data, payload) {
 }
 
 function detectPropinaWeb(data, payload) {
-  const directValue = findFirstPresent(data, [
-    ['total_tips'],
-    ['tip'],
-    ['tips'],
-    ['meta_data', 'assigned_payment', 'tip_value'],
-    ['meta_data', 'assigned_payment', 'tip'],
-    ['assigned_payment', 'tip_value'],
-    ['assigned_payment', 'tip'],
-    ['payment', 'tip'],
-    ['payment', 'tips'],
-    ['payments', 0, 'tip'],
-    ['payments', 0, 'tips']
-  ]);
+  const directValue =
+    findFirstPresent(data, [
+      ['total_tips'],
+      ['tip'],
+      ['tips'],
+      ['meta_data', 'assigned_payment', 'tip_value'],
+      ['meta_data', 'assigned_payment', 'tip'],
+      ['assigned_payment', 'tip_value'],
+      ['assigned_payment', 'tip'],
+      ['payment', 'tip'],
+      ['payment', 'tips'],
+      ['payments', 0, 'tip'],
+      ['payments', 0, 'tips']
+    ]) ??
+    findFirstPresent(payload, [
+      ['meta_data', 'assigned_payment', 'tip_value'],
+      ['meta_data', 'assigned_payment', 'tip'],
+      ['data', 'meta_data', 'assigned_payment', 'tip_value'],
+      ['data', 'meta_data', 'assigned_payment', 'tip'],
+      ['datos', 'meta_data', 'assigned_payment', 'tip_value'],
+      ['datos', 'meta_data', 'assigned_payment', 'tip']
+    ]);
 
   if (hasValue(directValue)) {
     return toNumber(directValue);
@@ -267,7 +276,7 @@ function detectPropinaWeb(data, payload) {
   const subtotal = toNumber(findFirstPresent(data, [['combos_price'], ['subtotal']]));
   const delivery = toNumber(findFirstPresent(data, [['delivery_price'], ['delivery_cost']]));
   const total = toNumber(findFirstPresent(data, [['total']]));
-  const baseOrderTotal = total > 0 ? total : subtotal + delivery;
+  const baseOrderTotal = subtotal + delivery || total;
 
   const paidAmountCandidates = [
     ['meta_data', 'assigned_payment', 'amount'],
