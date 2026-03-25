@@ -16,8 +16,6 @@
     transferencia: 'G',
     enviosLejanos: 'H',
     propinaWeb: 'I',
-    nroPedido: 'N',
-    importe: 'P',
     telefono: 'Q',
     fecha: 'R'
   },

@@ -51,8 +51,6 @@ function mapOrderToSheetRow(order, existingRow = null) {
     transferencia: paymentMethod === 'transferencia' ? authoritativeAmount : 0,
     enviosLejanos,
     propinaWeb,
-    nroPedido: asPlainText(order.nroPedido),
-    importe: authoritativeAmount,
     telefono: asPlainText(order.telefono),
     fecha: formatFecha(order.fecha)
   };
