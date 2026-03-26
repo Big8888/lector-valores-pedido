@@ -1,6 +1,7 @@
 const HOJAS_COBRO = ['Mauro', 'Diogo', 'GIAN', 'LIBRE1'];
 const FILA_INICIO_PEDIDOS = 8;
-const CELDA_BOTON_COBRO = 'N1';
+const CELDA_BOTON_COBRO = 'N6';
+const RANGO_LIMPIEZA_BOTON_VIEJO = 'N1:O2';
 const TITULO_IMAGEN_COBRO = 'COBROS_BUTTON';
 const COLUMNAS_COBRO = {
   numeroPedidoInterno: 1, // A
@@ -34,7 +35,11 @@ function crearBotonCobrosEnHojas() {
     if (!hoja) return;
 
     limpiarBotonesCobro_(hoja);
+    hoja.getRange(RANGO_LIMPIEZA_BOTON_VIEJO).clearContent().clearDataValidations().clearNote();
     hoja.getRange(CELDA_BOTON_COBRO).clearContent().clearDataValidations().setNote('Click sobre el boton verde para abrir cobros.');
+    hoja.setRowHeight(6, 48);
+    hoja.setColumnWidth(14, 180);
+    hoja.setColumnWidth(15, 60);
 
     const image = hoja.insertImage(boton.copyBlob(), hoja.getRange(CELDA_BOTON_COBRO).getColumn(), hoja.getRange(CELDA_BOTON_COBRO).getRow());
     image.assignScript('abrirVentanaCobro');
