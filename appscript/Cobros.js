@@ -3,6 +3,10 @@ const FILA_INICIO_PEDIDOS = 8;
 const RANGO_LIMPIEZA_CONTROLES_VIEJOS = 'O1:P6';
 const CELDA_BOTON_COBRO = 'A7';
 const TITULO_IMAGEN_COBRO = 'COBROS_BUTTON';
+const ANCHO_BOTON_COBRO = 126;
+const ALTO_BOTON_COBRO = 26;
+const OFFSET_X_BOTON_COBRO = 2;
+const OFFSET_Y_BOTON_COBRO = 3;
 const COLOR_COBRADO = '#d9ead3';
 const COLUMNAS_COBRO = {
   accion: 1, // A
@@ -52,37 +56,49 @@ function limpiarBotonesCobroEnHojas() {
 
 function crearBotonCobrosEnHojas() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const boton = crearImagenBotonCobros_();
 
   HOJAS_COBRO.forEach((nombreHoja) => {
     const hoja = ss.getSheetByName(nombreHoja);
     if (!hoja) return;
 
-    limpiarBotonesCobro_(hoja);
-    hoja.getRange(RANGO_LIMPIEZA_CONTROLES_VIEJOS)
-      .clearContent()
-      .clearDataValidations()
-      .clearNote()
-      .setBackground(null);
-
-    hoja.setRowHeight(7, 34);
-    const botonColumna = hoja.getRange(CELDA_BOTON_COBRO).getColumn();
-    hoja.setColumnWidth(botonColumna, 132);
-
-    const image = hoja.insertImage(
-      boton.copyBlob(),
-      hoja.getRange(CELDA_BOTON_COBRO).getColumn(),
-      hoja.getRange(CELDA_BOTON_COBRO).getRow(),
-      2,
-      3
-    );
-
-    image.assignScript('abrirPedidosSeleccionados');
-    image.setAltTextTitle(TITULO_IMAGEN_COBRO);
-    image.setAltTextDescription('Abre la calculadora de cobro de esta hoja');
-    image.setWidth(126);
-    image.setHeight(26);
+    asegurarBotonCobroEnHoja_(hoja);
   });
+}
+
+function asegurarBotonCobroEnHojaActual_() {
+  const hoja = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  if (!hoja || !HOJAS_COBRO.includes(hoja.getName())) return;
+
+  asegurarBotonCobroEnHoja_(hoja);
+}
+
+function asegurarBotonCobroEnHoja_(hoja) {
+  hoja.getRange(RANGO_LIMPIEZA_CONTROLES_VIEJOS)
+    .clearContent()
+    .clearDataValidations()
+    .clearNote()
+    .setBackground(null);
+
+  const celdaBoton = hoja.getRange(CELDA_BOTON_COBRO);
+  const botonFila = celdaBoton.getRow();
+  const botonColumna = celdaBoton.getColumn();
+
+  hoja.setRowHeight(botonFila, 34);
+  hoja.setColumnWidth(botonColumna, 132);
+
+  const botones = getBotonesCobro_(hoja);
+  const botonEnPosicion = botones.some((image) => {
+    if (!image.getAnchorCell) return false;
+    const anchor = image.getAnchorCell();
+    return anchor && anchor.getRow() === botonFila && anchor.getColumn() === botonColumna;
+  });
+
+  if (botones.length === 1 && botonEnPosicion) {
+    return;
+  }
+
+  limpiarBotonesCobro_(hoja);
+  colocarBotonCobroEnHoja_(hoja, celdaBoton);
 }
 
 function abrirVentanaCobro() {
@@ -370,15 +386,33 @@ function toNumberCobro_(value) {
 }
 
 function limpiarBotonesCobro_(hoja) {
-  if (!hoja.getImages) return;
+  getBotonesCobro_(hoja).forEach((image) => image.remove());
+}
 
-  const images = hoja.getImages();
-  images.forEach((image) => {
+function getBotonesCobro_(hoja) {
+  if (!hoja.getImages) return [];
+
+  return hoja.getImages().filter((image) => {
     const altTitle = image.getAltTextTitle ? image.getAltTextTitle() : '';
-    if (altTitle === TITULO_IMAGEN_COBRO) {
-      image.remove();
-    }
+    return altTitle === TITULO_IMAGEN_COBRO;
   });
+}
+
+function colocarBotonCobroEnHoja_(hoja, celdaBoton) {
+  const boton = crearImagenBotonCobros_();
+  const image = hoja.insertImage(
+    boton.copyBlob(),
+    celdaBoton.getColumn(),
+    celdaBoton.getRow(),
+    OFFSET_X_BOTON_COBRO,
+    OFFSET_Y_BOTON_COBRO
+  );
+
+  image.assignScript('abrirPedidosSeleccionados');
+  image.setAltTextTitle(TITULO_IMAGEN_COBRO);
+  image.setAltTextDescription('Abre la calculadora de cobro de esta hoja');
+  image.setWidth(ANCHO_BOTON_COBRO);
+  image.setHeight(ALTO_BOTON_COBRO);
 }
 
 function crearImagenBotonCobros_() {

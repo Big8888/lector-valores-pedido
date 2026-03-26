@@ -10,6 +10,16 @@ function onInstall() {
   onOpen();
 }
 
+function onSelectionChange(e) {
+  if (!e || !e.range) return;
+
+  try {
+    asegurarBotonCobroEnHojaActual_();
+  } catch (error) {
+    console.error('No se pudo reacomodar el boton de cobros', error);
+  }
+}
+
 function crearDesplegableMedioPago() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const hojasPermitidas = ['Mauro', 'Diogo', 'GIAN', 'LIBRE1'];
