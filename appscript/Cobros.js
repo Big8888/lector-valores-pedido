@@ -29,7 +29,7 @@ function crearMenuCobros() {
 }
 
 function abrirPedidosSeleccionados() {
-  SpreadsheetApp.getUi().alert('Boton funcionando');
+  abrirVentanaCobro();
 }
 
 function limpiarBotonesCobroEnHojas() {
