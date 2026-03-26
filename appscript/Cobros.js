@@ -1,6 +1,7 @@
 const HOJAS_COBRO = ['Mauro', 'Diogo', 'GIAN', 'LIBRE1'];
 const FILA_INICIO_PEDIDOS = 8;
 const RANGO_LIMPIEZA_CONTROLES_VIEJOS = 'N1:O6';
+const CELDA_BOTON_COBRO = 'N5';
 const TITULO_IMAGEN_COBRO = 'COBROS_BUTTON';
 const COLOR_COBRADO = '#d9ead3';
 const COLUMNAS_COBRO = {
@@ -22,6 +23,7 @@ function crearMenuCobros() {
   SpreadsheetApp.getUi()
     .createMenu('COBROS')
     .addItem('Abrir calculadora de cobro', 'abrirVentanaCobro')
+    .addItem('Recrear boton en hojas', 'crearBotonCobrosEnHojas')
     .addToUi();
 }
 
@@ -38,6 +40,42 @@ function limpiarBotonesCobroEnHojas() {
       .clearDataValidations()
       .clearNote()
       .setBackground(null);
+  });
+}
+
+function crearBotonCobrosEnHojas() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const boton = crearImagenBotonCobros_();
+
+  HOJAS_COBRO.forEach((nombreHoja) => {
+    const hoja = ss.getSheetByName(nombreHoja);
+    if (!hoja) return;
+
+    limpiarBotonesCobro_(hoja);
+    hoja.getRange(RANGO_LIMPIEZA_CONTROLES_VIEJOS)
+      .clearContent()
+      .clearDataValidations()
+      .clearNote()
+      .setBackground(null);
+
+    hoja.setRowHeight(5, 46);
+    hoja.setRowHeight(6, 24);
+    hoja.setColumnWidth(14, 155);
+    hoja.setColumnWidth(15, 65);
+
+    const image = hoja.insertImage(
+      boton.copyBlob(),
+      hoja.getRange(CELDA_BOTON_COBRO).getColumn(),
+      hoja.getRange(CELDA_BOTON_COBRO).getRow(),
+      4,
+      4
+    );
+
+    image.assignScript('abrirVentanaCobro');
+    image.setAltTextTitle(TITULO_IMAGEN_COBRO);
+    image.setAltTextDescription('Abre la calculadora de cobro de esta hoja');
+    image.setWidth(210);
+    image.setHeight(38);
   });
 }
 
@@ -226,4 +264,15 @@ function limpiarBotonesCobro_(hoja) {
       image.remove();
     }
   });
+}
+
+function crearImagenBotonCobros_() {
+  const svg = [
+    '<svg xmlns="http://www.w3.org/2000/svg" width="420" height="76" viewBox="0 0 420 76">',
+    '<rect x="2" y="2" width="416" height="72" rx="18" fill="#34a853" stroke="#1f6f37" stroke-width="4"/>',
+    '<text x="210" y="48" text-anchor="middle" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#ffffff">ABRIR COBROS</text>',
+    '</svg>'
+  ].join('');
+
+  return Utilities.newBlob(svg, 'image/svg+xml', 'cobros-button.svg');
 }
