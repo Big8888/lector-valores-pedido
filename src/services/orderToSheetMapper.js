@@ -14,6 +14,20 @@ function formatFecha(value) {
   }).format(date);
 }
 
+function formatHora(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return String(value || '').trim();
+  }
+
+  return new Intl.DateTimeFormat('es-UY', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false
+  }).format(date);
+}
+
 function asPlainText(value) {
   const text = String(value || '').trim();
   if (!text) return '';
@@ -36,6 +50,16 @@ function resolveNumber(incomingValue, fallbackValue, defaultValue = 0) {
   return defaultValue;
 }
 
+function resolveText(incomingValue, fallbackValue, defaultValue = '') {
+  const incoming = String(incomingValue || '').trim();
+  if (incoming) return incoming;
+
+  const fallback = String(fallbackValue || '').trim();
+  if (fallback) return fallback;
+
+  return defaultValue;
+}
+
 function mapOrderToSheetRow(order, existingRow = null) {
   const paymentMethod = String(order.paymentMethod || '').trim().toLowerCase();
   const hasPaymentMethod = paymentMethod && paymentMethod !== 'no_especificado';
@@ -49,14 +73,30 @@ function mapOrderToSheetRow(order, existingRow = null) {
   const enviosLejanos = resolveNumber(order.enviosLejanos, existingRow?.enviosLejanos, 0);
   const propinaWeb = resolveNumber(order.propinaWeb, existingRow?.propinaWeb, 0);
 
+  const enCamino = resolveText(
+    order.enCamino ? formatHora(order.enCamino) : '',
+    existingRow?.enCamino,
+    ''
+  );
+
+  const finalizado = resolveText(
+    order.finalizado ? formatHora(order.finalizado) : '',
+    existingRow?.finalizado,
+    ''
+  );
+
   return {
     numeroPedidoInterno: order.numeroPedidoInterno || '',
+    estadoPago: order.paymentStatus || order.estadoPago || '',
     total: hasPaymentMethod ? 0 : authoritativeAmount,
     tarjeta: paymentMethod === 'tarjeta' ? authoritativeAmount : 0,
     efectivo: paymentMethod === 'efectivo' ? authoritativeAmount : 0,
     transferencia: paymentMethod === 'transferencia' ? authoritativeAmount : 0,
     enviosLejanos,
     propinaWeb,
+    salidaDinero: order.salidaDinero || existingRow?.salidaDinero || '',
+    enCamino,
+    finalizado,
     telefono: asPlainText(order.telefono),
     fecha: formatFecha(order.fecha)
   };

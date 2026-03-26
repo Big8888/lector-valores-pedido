@@ -288,12 +288,16 @@ async function getOrderRowSnapshot(sheetName, row) {
 
   return {
     numeroPedidoInterno: normalizeCell(valueByField.numeroPedidoInterno),
+    estadoPago: normalizeCell(valueByField.estadoPago),
     total: toNumber(valueByField.total),
     tarjeta: toNumber(valueByField.tarjeta),
     efectivo: toNumber(valueByField.efectivo),
     transferencia: toNumber(valueByField.transferencia),
     enviosLejanos: toNumber(valueByField.enviosLejanos),
     propinaWeb: toNumber(valueByField.propinaWeb),
+    salidaDinero: normalizeCell(valueByField.salidaDinero),
+    enCamino: normalizeCell(valueByField.enCamino),
+    finalizado: normalizeCell(valueByField.finalizado),
     telefono: normalizeCell(valueByField.telefono),
     fecha: normalizeCell(valueByField.fecha)
   };

@@ -392,6 +392,91 @@ function buildNotas(data) {
   return notes.join(' | ');
 }
 
+function normalizeStatusText(value) {
+  return asString(value).toLowerCase();
+}
+
+function detectStatusTimestamp(data, payload, kind) {
+  const targetKinds = {
+    enCamino: [
+      'en camino',
+      'encamino',
+      'on the way',
+      'on_the_way',
+      'in route',
+      'in_route',
+      'picked_up',
+      'picked up',
+      'shipped'
+    ],
+    finalizado: [
+      'finalizado',
+      'finalized',
+      'completed',
+      'complete',
+      'delivered',
+      'entregado',
+      'closed',
+      'done'
+    ]
+  };
+
+  const targetKeywords = targetKinds[kind] || [];
+  if (targetKeywords.length === 0) return '';
+
+  const statusCandidates = [
+    ['status'],
+    ['delivery_status'],
+    ['rider_status'],
+    ['order_status'],
+    ['state'],
+    ['event'],
+    ['type'],
+    ['action'],
+    ['event_type'],
+    ['topic'],
+    ['meta_data', 'status'],
+    ['meta_data', 'delivery_status'],
+    ['meta_data', 'order_status']
+  ];
+
+  const timestampCandidates = [
+    ['updated_at'],
+    ['status_updated_at'],
+    ['delivery_status_updated_at'],
+    ['completed_at'],
+    ['finished_at'],
+    ['delivered_at'],
+    ['closed_at'],
+    ['picked_up_at'],
+    ['on_the_way_at'],
+    ['meta_data', 'updated_at'],
+    ['meta_data', 'status_updated_at'],
+    ['meta_data', 'delivery_status_updated_at']
+  ];
+
+  const candidateSources = [data, payload];
+
+  for (const source of candidateSources) {
+    const matchedStatus = statusCandidates
+      .map((path) => normalizeStatusText(getNestedValue(source, path)))
+      .find((text) => text && targetKeywords.some((keyword) => text.includes(keyword)));
+
+    if (!matchedStatus) continue;
+
+    for (const tsPath of timestampCandidates) {
+      const value = getNestedValue(source, tsPath);
+      if (hasValue(value)) {
+        return value;
+      }
+    }
+
+    return new Date().toISOString();
+  }
+
+  return '';
+}
+
 function interpretOrder(payload = {}) {
   const data = getOrderData(payload);
 
@@ -419,6 +504,8 @@ function interpretOrder(payload = {}) {
 
   const enviosLejanos = delivery;
   const propinaWeb = detectPropinaWeb(data, payload);
+  const enCamino = detectStatusTimestamp(data, payload, 'enCamino');
+  const finalizado = detectStatusTimestamp(data, payload, 'finalizado');
   const importe = toNumber(findFirstPresent(data, [
     ['amount'],
     ['meta_data', 'assigned_payment', 'amount'],
@@ -469,6 +556,8 @@ function interpretOrder(payload = {}) {
     importe,
     enviosLejanos,
     propinaWeb,
+    enCamino,
+    finalizado,
     paymentMethod,
     paymentStatus,
     paymentDebugTexts,

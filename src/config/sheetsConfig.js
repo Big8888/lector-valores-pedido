@@ -11,18 +11,22 @@ module.exports = {
   },
   columns: {
     numeroPedidoInterno: 'A',
-    total: 'D',
-    tarjeta: 'E',
-    efectivo: 'F',
-    transferencia: 'G',
-    enviosLejanos: 'H',
-    propinaWeb: 'I',
-    telefono: 'Q',
-    fecha: 'R'
+    estadoPago: 'B',
+    total: 'C',
+    tarjeta: 'D',
+    efectivo: 'E',
+    transferencia: 'F',
+    enviosLejanos: 'G',
+    propinaWeb: 'H',
+    salidaDinero: 'I',
+    enCamino: 'J',
+    finalizado: 'K',
+    telefono: 'W',
+    fecha: 'X'
   },
   dataStartRow: 8,
   sheetBounds: {
     startColumn: 'A',
-    endColumn: 'R'
+    endColumn: 'X'
   }
 };
