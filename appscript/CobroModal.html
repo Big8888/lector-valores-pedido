@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 16px;
+      }
+
+      h2 {
+        margin: 0 0 12px;
+      }
+
+      .box {
+        border: 1px solid #d9d9d9;
+        border-radius: 10px;
+        padding: 12px;
+        margin-bottom: 12px;
+      }
+
+      .totales {
+        font-size: 18px;
+        font-weight: bold;
+        margin-top: 6px;
+      }
+
+      label {
+        display: block;
+        font-weight: bold;
+        margin-bottom: 6px;
+      }
+
+      input {
+        width: 100%;
+        padding: 10px;
+        box-sizing: border-box;
+        font-size: 16px;
+      }
+
+      .resultado {
+        margin-top: 10px;
+        font-size: 20px;
+        font-weight: bold;
+        color: #0b5394;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+      }
+
+      th,
+      td {
+        border: 1px solid #e5e5e5;
+        padding: 6px;
+        text-align: center;
+      }
+
+      th {
+        background: #f5f5f5;
+      }
+
+      .acciones {
+        display: flex;
+        gap: 10px;
+        margin-top: 14px;
+      }
+
+      button {
+        flex: 1;
+        padding: 10px 14px;
+        font-size: 15px;
+        cursor: pointer;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>Cobro de pedidos seleccionados</h2>
+
+    <div class="box">
+      <div><b>Tarjeta:</b> $<?= totalTarjeta ?></div>
+      <div><b>Efectivo:</b> $<?= totalEfectivo ?></div>
+      <div><b>Transferencia:</b> $<?= totalTransferencia ?></div>
+      <div class="totales">Efectivo a cobrar: $<span id="totalEfectivo"><?= totalEfectivo ?></span></div>
+      <div class="totales">Total general seleccionado: $<?= totalGeneral ?></div>
+    </div>
+
+    <div class="box">
+      <label for="montoPago">¿Con cuánto pagan?</label>
+      <input type="number" id="montoPago" placeholder="Ej: 2000" oninput="calcularVuelto()">
+      <div class="resultado" id="vuelto">Vuelto: $0</div>
+    </div>
+
+    <div class="box">
+      <table>
+        <thead>
+          <tr>
+            <th>Fila</th>
+            <th>Pedido</th>
+            <th>Estado</th>
+            <th>Tarjeta</th>
+            <th>Efectivo</th>
+            <th>Transfer.</th>
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          <? for (var i = 0; i < items.length; i++) { ?>
+            <tr>
+              <td><?= items[i].fila ?></td>
+              <td><?= items[i].numeroPedidoInterno ?></td>
+              <td><?= items[i].estadoPago ?></td>
+              <td>$<?= items[i].tarjeta ?></td>
+              <td>$<?= items[i].efectivo ?></td>
+              <td>$<?= items[i].transferencia ?></td>
+              <td>$<?= items[i].totalFila ?></td>
+            </tr>
+          <? } ?>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="acciones">
+      <button onclick="confirmar()">OK</button>
+      <button onclick="google.script.host.close()">Cancelar</button>
+    </div>
+
+    <script>
+      const totalEfectivo = Number(<?= totalEfectivo ?>) || 0;
+      const filas = <?!= JSON.stringify(items.map(item => item.fila)) ?>;
+      const sheetName = <?!= JSON.stringify(sheetName) ?>;
+
+      function calcularVuelto() {
+        const montoPago = Number(document.getElementById('montoPago').value) || 0;
+        const vuelto = montoPago - totalEfectivo;
+        document.getElementById('vuelto').textContent = 'Vuelto: $' + vuelto;
+      }
+
+      function confirmar() {
+        const montoPago = Number(document.getElementById('montoPago').value) || 0;
+
+        if (totalEfectivo > 0 && montoPago < totalEfectivo) {
+          alert('El monto ingresado es menor que el efectivo a cobrar.');
+          return;
+        }
+
+        google.script.run
+          .withSuccessHandler(function(res) {
+            alert(res.mensaje);
+            google.script.host.close();
+          })
+          .withFailureHandler(function(error) {
+            alert(error && error.message ? error.message : 'No se pudo registrar el cobro.');
+          })
+          .confirmarCobro({
+            sheetName: sheetName,
+            filas: filas,
+            montoPago: montoPago,
+            totalEfectivo: totalEfectivo,
+            vuelto: montoPago - totalEfectivo
+          });
+      }
+    </script>
+  </body>
+</html>

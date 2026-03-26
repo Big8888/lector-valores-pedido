@@ -1,5 +1,6 @@
 function onOpen() {
   crearDesplegableMedioPago();
+  crearMenuCobros();
 }
 
 function crearDesplegableMedioPago() {
