@@ -75,7 +75,9 @@ function mapOrderToSheetRow(order, existingRow = null) {
   );
 
   const enviosLejanos = resolveNumber(order.enviosLejanos, existingRow?.enviosLejanos, 0);
-  const propinaWeb = resolveNumber(order.propinaWeb, existingRow?.propinaWeb, 0);
+  const propinaWeb = existingRow
+    ? resolveNumber(existingRow?.propinaWeb, 0, 0)
+    : resolveNumber(order.propinaWeb, 0, 0);
 
   const enCamino = order.finalizado
     ? resolveText(existingRow?.enCamino, '', '')
