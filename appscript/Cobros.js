@@ -1,7 +1,7 @@
 const HOJAS_COBRO = ['Mauro', 'Diogo', 'GIAN', 'LIBRE1'];
 const FILA_INICIO_PEDIDOS = 8;
 const CELDA_BOTON_COBRO = 'N1';
-const RANGO_ETIQUETA_COBRO = 'O1:Q2';
+const TITULO_IMAGEN_COBRO = 'COBROS_BUTTON';
 const COLUMNAS_COBRO = {
   numeroPedidoInterno: 1, // A
   estadoPago: 2, // B
@@ -27,31 +27,24 @@ function crearMenuCobros() {
 
 function crearBotonCobrosEnHojas() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const boton = crearImagenBotonCobros_();
 
   HOJAS_COBRO.forEach((nombreHoja) => {
     const hoja = ss.getSheetByName(nombreHoja);
     if (!hoja) return;
 
-    hoja.getRange('N1:Q2').breakApart();
-    hoja.getRange(RANGO_ETIQUETA_COBRO).merge();
-    hoja.getRange(CELDA_BOTON_COBRO).insertCheckboxes();
-    hoja.getRange(CELDA_BOTON_COBRO)
-      .setValue(false)
-      .setBackground('#34a853')
-      .setHorizontalAlignment('center')
-      .setVerticalAlignment('middle')
-      .setBorder(true, true, true, true, true, true)
-      .setNote('Tilda esta casilla para abrir la ventana de cobro.');
-    hoja.getRange(RANGO_ETIQUETA_COBRO)
-      .setValue('ABRIR COBROS')
-      .setBackground('#34a853')
-      .setFontColor('#ffffff')
-      .setFontWeight('bold')
-      .setHorizontalAlignment('center')
-      .setVerticalAlignment('middle')
-      .setBorder(true, true, true, true, true, true)
-      .setNote('Tilda la casilla verde de la izquierda para abrir la ventana de cobro.');
-    hoja.setColumnWidth(14, 42);
+    limpiarBotonesCobro_(hoja);
+    hoja.getRange(CELDA_BOTON_COBRO).clearContent().clearDataValidations().setNote('Click sobre el boton verde para abrir cobros.');
+
+    const image = hoja.insertImage(boton.copyBlob(), hoja.getRange(CELDA_BOTON_COBRO).getColumn(), hoja.getRange(CELDA_BOTON_COBRO).getRow());
+    image.assignScript('abrirVentanaCobro');
+    image.setAltTextTitle(TITULO_IMAGEN_COBRO);
+    image.setAltTextDescription('Abre la ventana de cobro para esta hoja');
+    image.setAnchorCell(hoja.getRange(CELDA_BOTON_COBRO));
+    image.setAnchorCellXOffset(6);
+    image.setAnchorCellYOffset(4);
+    image.setWidth(210);
+    image.setHeight(44);
   });
 }
 
@@ -210,4 +203,29 @@ function toNumberCobro_(value) {
   );
 
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function limpiarBotonesCobro_(hoja) {
+  const images = hoja.getImages ? hoja.getImages() : [];
+
+  images.forEach((image) => {
+    const anchorCell = image.getAnchorCell();
+    const isCobroButton = image.getAltTextTitle && image.getAltTextTitle() === TITULO_IMAGEN_COBRO;
+    const isOnCobroCell = anchorCell && anchorCell.getA1Notation() === CELDA_BOTON_COBRO;
+
+    if (isCobroButton || isOnCobroCell) {
+      image.remove();
+    }
+  });
+}
+
+function crearImagenBotonCobros_() {
+  const svg = [
+    '<svg xmlns="http://www.w3.org/2000/svg" width="420" height="88" viewBox="0 0 420 88">',
+    '<rect x="2" y="2" width="416" height="84" rx="18" fill="#34a853" stroke="#1e7c3b" stroke-width="4"/>',
+    '<text x="210" y="55" text-anchor="middle" font-family="Arial, sans-serif" font-size="32" font-weight="700" fill="#ffffff">ABRIR COBROS</text>',
+    '</svg>'
+  ].join('');
+
+  return Utilities.newBlob(svg, 'image/svg+xml', 'cobros-button.svg');
 }
