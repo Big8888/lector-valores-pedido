@@ -1,3 +1,5 @@
+const sheetsConfig = require('../config/sheetsConfig');
+
 function formatFecha(value) {
   const date = value ? new Date(value) : new Date();
   if (Number.isNaN(date.getTime())) {
@@ -5,6 +7,7 @@ function formatFecha(value) {
   }
 
   return new Intl.DateTimeFormat('es-UY', {
+    timeZone: sheetsConfig.timeZone,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -22,6 +25,7 @@ function formatHora(value) {
   }
 
   return new Intl.DateTimeFormat('es-UY', {
+    timeZone: sheetsConfig.timeZone,
     hour: '2-digit',
     minute: '2-digit',
     hour12: false
@@ -99,6 +103,7 @@ function mapOrderToSheetRow(order, existingRow = null) {
     salidaDinero: order.salidaDinero || existingRow?.salidaDinero || '',
     enCamino,
     finalizado,
+    nroPedido: order.nroPedido || existingRow?.nroPedido || '',
     telefono: asPlainText(order.telefono),
     fecha: formatFecha(order.fecha)
   };

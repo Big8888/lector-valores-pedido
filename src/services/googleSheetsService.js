@@ -298,6 +298,7 @@ async function getOrderRowSnapshot(sheetName, row) {
     salidaDinero: normalizeCell(valueByField.salidaDinero),
     enCamino: normalizeCell(valueByField.enCamino),
     finalizado: normalizeCell(valueByField.finalizado),
+    nroPedido: normalizeCell(valueByField.nroPedido),
     telefono: normalizeCell(valueByField.telefono),
     fecha: normalizeCell(valueByField.fecha)
   };
