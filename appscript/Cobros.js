@@ -22,8 +22,21 @@ const COLOR_COBRADO = '#d9ead3';
 function crearMenuCobros() {
   SpreadsheetApp.getUi()
     .createMenu('COBROS')
-      .addItem('Cobrar seleccionados', 'abrirVentanaCobro')
+      .addItem('Abrir calculadora de cobro', 'abrirVentanaCobro')
       .addToUi();
+}
+
+function limpiarBotonesCobroEnHojas() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+
+  HOJAS_COBRO.forEach((nombreHoja) => {
+    const hoja = ss.getSheetByName(nombreHoja);
+    if (!hoja) return;
+
+    limpiarBotonesCobro_(hoja);
+    hoja.getRange(RANGO_LIMPIEZA_BOTON_VIEJO).clearContent().clearDataValidations().clearNote().setBackground(null);
+    hoja.getRange(CELDA_BOTON_COBRO).clearContent().clearDataValidations().clearNote().setBackground(null);
+  });
 }
 
 function crearBotonCobrosEnHojas() {

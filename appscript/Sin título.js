@@ -1,8 +1,8 @@
 function onOpen() {
   crearDesplegableMedioPago();
   crearMenuCobros();
-  crearBotonCobrosEnHojas();
-  SpreadsheetApp.getActiveSpreadsheet().toast('Boton COBROS listo en cada hoja de repartidor.', 'COBROS', 5);
+  limpiarBotonesCobroEnHojas();
+  SpreadsheetApp.getActiveSpreadsheet().toast('Abrí la calculadora desde el menú COBROS.', 'COBROS', 5);
 }
 
 function onInstall() {
