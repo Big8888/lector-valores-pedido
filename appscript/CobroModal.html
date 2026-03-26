@@ -39,6 +39,13 @@
         font-size: 16px;
       }
 
+      input[type="checkbox"] {
+        width: auto;
+        padding: 0;
+        transform: scale(1.2);
+        accent-color: #34a853;
+      }
+
       .resultado {
         margin-top: 10px;
         font-size: 20px;
@@ -81,11 +88,11 @@
     <h2>Cobro de pedidos seleccionados</h2>
 
     <div class="box">
-      <div><b>Tarjeta:</b> $<?= totalTarjeta ?></div>
-      <div><b>Efectivo:</b> $<?= totalEfectivo ?></div>
-      <div><b>Transferencia:</b> $<?= totalTransferencia ?></div>
-      <div class="totales">Efectivo a cobrar: $<span id="totalEfectivo"><?= totalEfectivo ?></span></div>
-      <div class="totales">Total general seleccionado: $<?= totalGeneral ?></div>
+      <div><b>Tarjeta seleccionada:</b> $<span id="totalTarjeta"><?= totalTarjeta ?></span></div>
+      <div><b>Efectivo seleccionado:</b> $<span id="totalEfectivo"><?= totalEfectivo ?></span></div>
+      <div><b>Transferencia seleccionada:</b> $<span id="totalTransferencia"><?= totalTransferencia ?></span></div>
+      <div class="totales">Efectivo a cobrar: $<span id="totalEfectivoCobro"><?= totalEfectivo ?></span></div>
+      <div class="totales">Total general seleccionado: $<span id="totalGeneral"><?= totalGeneral ?></span></div>
     </div>
 
     <div class="box">
@@ -99,6 +106,7 @@
         <thead>
           <tr>
             <th>Fila</th>
+            <th>OK</th>
             <th>Pedido</th>
             <th>Estado</th>
             <th>Tarjeta</th>
@@ -111,6 +119,7 @@
           <? for (var i = 0; i < items.length; i++) { ?>
             <tr>
               <td><?= items[i].fila ?></td>
+              <td><input type="checkbox" class="selectorPedido" data-index="<?= i ?>" oninput="recalcularSeleccion()"></td>
               <td><?= items[i].numeroPedidoInterno ?></td>
               <td><?= items[i].estadoPago ?></td>
               <td>$<?= items[i].tarjeta ?></td>
@@ -129,9 +138,9 @@
     </div>
 
     <script>
-      const totalEfectivo = Number(<?= totalEfectivo ?>) || 0;
-      const filas = <?!= JSON.stringify(items.map(item => item.fila)) ?>;
+      const items = <?!= JSON.stringify(items) ?>;
       const sheetName = <?!= JSON.stringify(sheetName) ?>;
+      let totalEfectivo = 0;
 
       function calcularVuelto() {
         const montoPago = Number(document.getElementById('montoPago').value) || 0;
@@ -139,8 +148,39 @@
         document.getElementById('vuelto').textContent = 'Vuelto: $' + vuelto;
       }
 
+      function obtenerSeleccionados() {
+        const checks = Array.from(document.querySelectorAll('.selectorPedido'));
+        return checks
+          .filter((check) => check.checked)
+          .map((check) => items[Number(check.dataset.index)]);
+      }
+
+      function recalcularSeleccion() {
+        const seleccionados = obtenerSeleccionados();
+
+        const totalTarjeta = seleccionados.reduce((sum, item) => sum + (Number(item.tarjeta) || 0), 0);
+        totalEfectivo = seleccionados.reduce((sum, item) => sum + (Number(item.efectivo) || 0), 0);
+        const totalTransferencia = seleccionados.reduce((sum, item) => sum + (Number(item.transferencia) || 0), 0);
+        const totalGeneral = seleccionados.reduce((sum, item) => sum + (Number(item.totalFila) || 0), 0);
+
+        document.getElementById('totalTarjeta').textContent = totalTarjeta;
+        document.getElementById('totalEfectivo').textContent = totalEfectivo;
+        document.getElementById('totalTransferencia').textContent = totalTransferencia;
+        document.getElementById('totalEfectivoCobro').textContent = totalEfectivo;
+        document.getElementById('totalGeneral').textContent = totalGeneral;
+
+        calcularVuelto();
+      }
+
       function confirmar() {
+        const seleccionados = obtenerSeleccionados();
+        const filas = seleccionados.map(item => item.fila);
         const montoPago = Number(document.getElementById('montoPago').value) || 0;
+
+        if (filas.length === 0) {
+          alert('Tildá al menos un pedido para cobrar.');
+          return;
+        }
 
         if (totalEfectivo > 0 && montoPago < totalEfectivo) {
           alert('El monto ingresado es menor que el efectivo a cobrar.');
@@ -163,6 +203,8 @@
             vuelto: montoPago - totalEfectivo
           });
       }
+
+      recalcularSeleccion();
     </script>
   </body>
 </html>

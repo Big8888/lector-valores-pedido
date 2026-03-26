@@ -19,8 +19,23 @@ const COLOR_COBRADO = '#d9ead3';
 function crearMenuCobros() {
   SpreadsheetApp.getUi()
     .createMenu('COBROS')
-    .addItem('Cobrar seleccionados', 'abrirVentanaCobro')
-    .addToUi();
+      .addItem('Cobrar seleccionados', 'abrirVentanaCobro')
+      .addItem('Mostrar panel de cobros', 'mostrarPanelCobros')
+      .addToUi();
+}
+
+function mostrarPanelCobros() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const hoja = ss.getActiveSheet();
+
+  if (!hoja || !HOJAS_COBRO.includes(hoja.getName())) {
+    return;
+  }
+
+  const html = HtmlService.createHtmlOutputFromFile('CobroLauncher')
+    .setTitle('COBROS');
+
+  SpreadsheetApp.getUi().showSidebar(html);
 }
 
 function abrirVentanaCobro() {
@@ -33,15 +48,9 @@ function abrirVentanaCobro() {
     return;
   }
 
-  const rango = hoja.getActiveRange();
-  if (!rango) {
-    ui.alert('Seleccioná las filas de los pedidos primero.');
-    return;
-  }
-
-  const datos = obtenerCobroSeleccionado_(hoja, rango);
+  const datos = obtenerPedidosDisponibles_(hoja);
   if (datos.items.length === 0) {
-    ui.alert('No encontré pedidos válidos en la selección.');
+    ui.alert('No encontré pedidos válidos para cobrar en esta hoja.');
     return;
   }
 
@@ -149,6 +158,22 @@ function obtenerCobroSeleccionado_(hoja, rango) {
   });
 
   return resultado;
+}
+
+function obtenerPedidosDisponibles_(hoja) {
+  const lastRow = hoja.getLastRow();
+  if (lastRow < FILA_INICIO_PEDIDOS) {
+    return {
+      items: [],
+      totalTarjeta: 0,
+      totalEfectivo: 0,
+      totalTransferencia: 0,
+      totalGeneral: 0
+    };
+  }
+
+  const rango = hoja.getRange(FILA_INICIO_PEDIDOS, 1, lastRow - FILA_INICIO_PEDIDOS + 1, COLUMNAS_COBRO.anotaciones);
+  return obtenerCobroSeleccionado_(hoja, rango);
 }
 
 function toNumberCobro_(value) {

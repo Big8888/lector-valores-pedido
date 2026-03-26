@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 16px;
+      }
+
+      h2 {
+        margin: 0 0 10px;
+      }
+
+      p {
+        margin: 0 0 14px;
+        line-height: 1.4;
+      }
+
+      button {
+        width: 100%;
+        padding: 14px;
+        font-size: 16px;
+        font-weight: bold;
+        background: #34a853;
+        color: #fff;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+      }
+
+      button:hover {
+        background: #2f964b;
+      }
+
+      .note {
+        margin-top: 12px;
+        font-size: 13px;
+        color: #555;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>COBROS</h2>
+    <p>Abrí la calculadora y desde ahí tildá los pedidos que querés cobrar.</p>
+    <button onclick="google.script.run.abrirVentanaCobro()">ABRIR CALCULADORA</button>
+    <div class="note">Funciona en las hojas Mauro, Diogo, GIAN y LIBRE1.</div>
+  </body>
+</html>
