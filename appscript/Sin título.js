@@ -1,5 +1,6 @@
 function onOpen() {
   crearDesplegableMedioPago();
+  ocultarColumnasAuxiliares();
   crearMenuCobros();
   crearBotonCobrosEnHojas();
   SpreadsheetApp.getActiveSpreadsheet().toast('Marca en A los pedidos a cobrar y usa el boton en A7.', 'COBROS', 5);

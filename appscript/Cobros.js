@@ -17,7 +17,9 @@ const COLUMNAS_COBRO = {
   salidaDinero: 10, // J
   enCamino: 11, // K
   finalizado: 12, // L
-  anotaciones: 13 // M
+  anotaciones: 27, // AA
+  backupAnotacion: 28, // AB
+  backupFondos: 29 // AC
 };
 
 function crearMenuCobros() {
@@ -108,13 +110,89 @@ function abrirVentanaCobro() {
   template.totalGeneral = datos.totalGeneral;
 
   const html = template.evaluate()
-    .setWidth(560)
-    .setHeight(650);
+    .setWidth(620)
+    .setHeight(680);
 
   ui.showModalDialog(html, 'Cobro de pedidos seleccionados');
 }
 
 function confirmarCobro(payload) {
+  const hoja = getHojaCobroDesdePayload_(payload);
+  const filas = getFilasCobroDesdePayload_(payload);
+
+  const totalEfectivo = toNumberCobro_(payload && payload.totalEfectivo);
+  const montoPago = toNumberCobro_(payload && payload.montoPago);
+  const vuelto = toNumberCobro_(payload && payload.vuelto);
+  const hora = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'HH:mm:ss');
+
+  filas.forEach((fila) => {
+    const rangoVisible = hoja.getRange(fila, 1, 1, COLUMNAS_COBRO.anotaciones);
+    const anotacionCelda = hoja.getRange(fila, COLUMNAS_COBRO.anotaciones);
+    const backupAnotacionCelda = hoja.getRange(fila, COLUMNAS_COBRO.backupAnotacion);
+    const backupFondosCelda = hoja.getRange(fila, COLUMNAS_COBRO.backupFondos);
+    const anotacionActual = String(anotacionCelda.getValue() || '').trim();
+    const yaCobrado = /COBRADO/i.test(anotacionActual);
+
+    if (!yaCobrado) {
+      backupAnotacionCelda.setValue(anotacionActual);
+      backupFondosCelda.setValue(JSON.stringify(rangoVisible.getBackgrounds()[0]));
+    }
+
+    rangoVisible.setBackground(COLOR_COBRADO);
+
+    if (!yaCobrado) {
+      const detalleCobro = totalEfectivo > 0
+        ? 'COBRADO ' + hora + ' | Efectivo ' + totalEfectivo + ' | Pago ' + montoPago + ' | Vuelto ' + vuelto
+        : 'COBRADO ' + hora;
+      const nuevaAnotacion = anotacionActual ? anotacionActual + ' | ' + detalleCobro : detalleCobro;
+      anotacionCelda.setValue(nuevaAnotacion);
+    }
+
+    hoja.getRange(fila, COLUMNAS_COBRO.accion).setValue(false);
+  });
+
+  return {
+    ok: true,
+    mensaje: 'Cobro registrado correctamente.'
+  };
+}
+
+function quitarCobro(payload) {
+  const hoja = getHojaCobroDesdePayload_(payload);
+  const filas = getFilasCobroDesdePayload_(payload);
+  const fondosTemplate = obtenerFondosTemplate_(hoja, filas);
+
+  filas.forEach((fila) => {
+    const rangoVisible = hoja.getRange(fila, 1, 1, COLUMNAS_COBRO.anotaciones);
+    const anotacionCelda = hoja.getRange(fila, COLUMNAS_COBRO.anotaciones);
+    const backupAnotacionCelda = hoja.getRange(fila, COLUMNAS_COBRO.backupAnotacion);
+    const backupFondosCelda = hoja.getRange(fila, COLUMNAS_COBRO.backupFondos);
+
+    const backupAnotacion = String(backupAnotacionCelda.getValue() || '');
+    const backupFondosRaw = String(backupFondosCelda.getValue() || '').trim();
+    const anotacionActual = String(anotacionCelda.getValue() || '');
+
+    const fondos = parseFondosBackup_(backupFondosRaw) || fondosTemplate;
+    if (fondos) {
+      rangoVisible.setBackgrounds([fondos]);
+    }
+
+    anotacionCelda.setValue(
+      backupAnotacion || limpiarDetalleCobro_(anotacionActual)
+    );
+
+    backupAnotacionCelda.clearContent();
+    backupFondosCelda.clearContent();
+    hoja.getRange(fila, COLUMNAS_COBRO.accion).setValue(false);
+  });
+
+  return {
+    ok: true,
+    mensaje: 'Cobro quitado correctamente.'
+  };
+}
+
+function getHojaCobroDesdePayload_(payload) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheetName = String((payload && payload.sheetName) || '').trim();
   const hoja = ss.getSheetByName(sheetName);
@@ -123,6 +201,10 @@ function confirmarCobro(payload) {
     throw new Error('No se encontro la hoja del cobro.');
   }
 
+  return hoja;
+}
+
+function getFilasCobroDesdePayload_(payload) {
   const filas = Array.isArray(payload && payload.filas)
     ? payload.filas
         .map((fila) => Number(fila))
@@ -133,29 +215,7 @@ function confirmarCobro(payload) {
     throw new Error('No se recibieron filas validas para cobrar.');
   }
 
-  const totalEfectivo = toNumberCobro_(payload && payload.totalEfectivo);
-  const montoPago = toNumberCobro_(payload && payload.montoPago);
-  const vuelto = toNumberCobro_(payload && payload.vuelto);
-  const hora = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'HH:mm:ss');
-
-  filas.forEach((fila) => {
-    hoja.getRange(fila, 1, 1, COLUMNAS_COBRO.anotaciones).setBackground(COLOR_COBRADO);
-
-    const anotacionCelda = hoja.getRange(fila, COLUMNAS_COBRO.anotaciones);
-    const anotacionActual = String(anotacionCelda.getValue() || '').trim();
-    const detalleCobro = totalEfectivo > 0
-      ? 'COBRADO ' + hora + ' | Efectivo ' + totalEfectivo + ' | Pago ' + montoPago + ' | Vuelto ' + vuelto
-      : 'COBRADO ' + hora;
-    const nuevaAnotacion = anotacionActual ? anotacionActual + ' | ' + detalleCobro : detalleCobro;
-
-    anotacionCelda.setValue(nuevaAnotacion);
-    hoja.getRange(fila, COLUMNAS_COBRO.accion).setValue(false);
-  });
-
-  return {
-    ok: true,
-    mensaje: 'Cobro registrado correctamente.'
-  };
+  return filas;
 }
 
 function obtenerPedidosSeleccionados_(hoja) {
@@ -188,6 +248,8 @@ function obtenerCobroSeleccionado_(hoja, rango) {
     if (fila < FILA_INICIO_PEDIDOS) return;
 
     const accionMarcada = filaValores[COLUMNAS_COBRO.accion - 1] === true;
+    if (!accionMarcada) return;
+
     const numeroPedidoInterno = String(
       filaValores[COLUMNAS_COBRO.numeroPedidoInterno - 1] || ''
     ).trim();
@@ -201,14 +263,6 @@ function obtenerCobroSeleccionado_(hoja, rango) {
     const tarjeta = toNumberCobro_(filaValores[COLUMNAS_COBRO.tarjeta - 1]);
     const efectivo = toNumberCobro_(filaValores[COLUMNAS_COBRO.efectivo - 1]);
     const transferencia = toNumberCobro_(filaValores[COLUMNAS_COBRO.transferencia - 1]);
-
-    if (/COBRADO/i.test(anotaciones)) {
-      return;
-    }
-
-    if (!accionMarcada) {
-      return;
-    }
 
     if (!numeroPedidoInterno && total <= 0 && tarjeta <= 0 && efectivo <= 0 && transferencia <= 0) {
       return;
@@ -228,7 +282,8 @@ function obtenerCobroSeleccionado_(hoja, rango) {
       tarjeta,
       efectivo,
       transferencia,
-      totalFila
+      totalFila,
+      cobrado: /COBRADO/i.test(anotaciones)
     });
   });
 
@@ -243,6 +298,56 @@ function buildCobroVacio_() {
     totalTransferencia: 0,
     totalGeneral: 0
   };
+}
+
+function obtenerFondosTemplate_(hoja, filasExcluidas) {
+  const excluidas = new Set((filasExcluidas || []).map((fila) => Number(fila)));
+  const lastRow = hoja.getLastRow();
+
+  for (let fila = FILA_INICIO_PEDIDOS; fila <= lastRow; fila += 1) {
+    if (excluidas.has(fila)) continue;
+
+    const anotacion = String(hoja.getRange(fila, COLUMNAS_COBRO.anotaciones).getValue() || '').trim();
+    if (/COBRADO/i.test(anotacion)) continue;
+
+    return hoja.getRange(fila, 1, 1, COLUMNAS_COBRO.anotaciones).getBackgrounds()[0];
+  }
+
+  return null;
+}
+
+function parseFondosBackup_(rawValue) {
+  if (!rawValue) return null;
+
+  try {
+    const parsed = JSON.parse(rawValue);
+    if (Array.isArray(parsed) && parsed.length >= COLUMNAS_COBRO.anotaciones) {
+      return parsed;
+    }
+  } catch (error) {
+    return null;
+  }
+
+  return null;
+}
+
+function limpiarDetalleCobro_(texto) {
+  if (!texto) return '';
+
+  const partes = String(texto)
+    .split('|')
+    .map((parte) => parte.trim())
+    .filter(Boolean);
+
+  const partesLimpias = partes.filter((parte) => {
+    if (/^COBRADO\b/i.test(parte)) return false;
+    if (/^Efectivo\b/i.test(parte)) return false;
+    if (/^Pago\b/i.test(parte)) return false;
+    if (/^Vuelto\b/i.test(parte)) return false;
+    return true;
+  });
+
+  return partesLimpias.join(' | ');
 }
 
 function toNumberCobro_(value) {

@@ -80,6 +80,25 @@
         font-size: 13px;
       }
 
+      .badge {
+        display: inline-block;
+        margin-top: 6px;
+        padding: 3px 8px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: bold;
+      }
+
+      .badgeCobrado {
+        background: #d9ead3;
+        color: #1f4d1f;
+      }
+
+      .badgePendiente {
+        background: #fce5cd;
+        color: #8a4b08;
+      }
+
       .acciones {
         display: flex;
         gap: 10px;
@@ -119,12 +138,16 @@
           <div class="pedidoSub">
             Estado: <?= items[i].estadoPago || 'SIN ESTADO' ?> | Tarjeta $<?= items[i].tarjeta ?> | Efectivo $<?= items[i].efectivo ?> | Transferencia $<?= items[i].transferencia ?>
           </div>
+          <div class="badge <?= items[i].cobrado ? 'badgeCobrado' : 'badgePendiente' ?>">
+            <?= items[i].cobrado ? 'COBRADO' : 'PENDIENTE' ?>
+          </div>
         </div>
       <? } ?>
     </div>
 
     <div class="acciones">
       <button onclick="confirmar()">Confirmar cobro</button>
+      <button onclick="quitar()">Quitar cobro</button>
       <button onclick="google.script.host.close()">Cancelar</button>
     </div>
 
@@ -167,6 +190,26 @@
             montoPago: montoPago,
             totalEfectivo: totalEfectivo,
             vuelto: montoPago - totalEfectivo
+          });
+      }
+
+      function quitar() {
+        if (filas.length === 0) {
+          alert('No hay pedidos marcados en A para quitar.');
+          return;
+        }
+
+        google.script.run
+          .withSuccessHandler(function(res) {
+            alert(res.mensaje);
+            google.script.host.close();
+          })
+          .withFailureHandler(function(error) {
+            alert(error && error.message ? error.message : 'No se pudo quitar el cobro.');
+          })
+          .quitarCobro({
+            sheetName: sheetName,
+            filas: filas
           });
       }
 
