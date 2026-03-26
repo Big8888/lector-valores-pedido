@@ -8,6 +8,7 @@ const ALTO_BOTON_COBRO = 26;
 const OFFSET_X_BOTON_COBRO = 2;
 const OFFSET_Y_BOTON_COBRO = 3;
 const COLOR_COBRADO = '#d9ead3';
+const PREFIJO_CACHE_FILAS_COBRO = 'COBROS_FILAS_';
 const COLUMNAS_COBRO = {
   accion: 1, // A
   numeroPedidoInterno: 2, // B
@@ -176,6 +177,8 @@ function confirmarCobro(payload) {
     hoja.getRange(fila, COLUMNAS_COBRO.accion).setValue(false);
   });
 
+  actualizarFilasCobroSeleccionadas_(hoja, filas, false);
+
   return {
     ok: true,
     mensaje: 'Cobro registrado correctamente.'
@@ -210,6 +213,8 @@ function quitarCobro(payload) {
     backupFondosCelda.clearContent();
     hoja.getRange(fila, COLUMNAS_COBRO.accion).setValue(false);
   });
+
+  actualizarFilasCobroSeleccionadas_(hoja, filas, false);
 
   return {
     ok: true,
@@ -249,25 +254,24 @@ function obtenerPedidosSeleccionados_(hoja) {
     return buildCobroVacio_();
   }
 
-  return obtenerCobroSeleccionado_(hoja, FILA_INICIO_PEDIDOS, lastRow - FILA_INICIO_PEDIDOS + 1);
+  const filasSeleccionadas = obtenerFilasSeleccionadasCobro_(hoja, lastRow);
+  if (filasSeleccionadas.length === 0) {
+    return buildCobroVacio_();
+  }
+
+  return obtenerCobroSeleccionadoPorFilas_(hoja, filasSeleccionadas);
 }
 
-function obtenerCobroSeleccionado_(hoja, startRow, numRows) {
-  const valoresBase = hoja
-    .getRange(startRow, 1, numRows, COLUMNAS_COBRO.transferencia)
-    .getValues();
-  const anotaciones = hoja
-    .getRange(startRow, COLUMNAS_COBRO.anotaciones, numRows, 1)
-    .getValues();
-
+function obtenerCobroSeleccionadoPorFilas_(hoja, filasSeleccionadas) {
   const resultado = buildCobroVacio_();
 
-  valoresBase.forEach((filaValores, index) => {
-    const fila = startRow + index;
-    if (fila < FILA_INICIO_PEDIDOS) return;
-
-    const accionMarcada = filaValores[COLUMNAS_COBRO.accion - 1] === true;
-    if (!accionMarcada) return;
+  filasSeleccionadas.forEach((fila) => {
+    const filaValores = hoja
+      .getRange(fila, 1, 1, COLUMNAS_COBRO.transferencia)
+      .getValues()[0];
+    const anotacionFila = String(
+      hoja.getRange(fila, COLUMNAS_COBRO.anotaciones).getValue() || ''
+    ).trim();
 
     const numeroPedidoInterno = String(
       filaValores[COLUMNAS_COBRO.numeroPedidoInterno - 1] || ''
@@ -275,7 +279,6 @@ function obtenerCobroSeleccionado_(hoja, startRow, numRows) {
     const estadoPago = String(
       filaValores[COLUMNAS_COBRO.estadoPago - 1] || ''
     ).trim();
-    const anotacionFila = String(anotaciones[index][0] || '').trim();
     const total = toNumberCobro_(filaValores[COLUMNAS_COBRO.total - 1]);
     const tarjeta = toNumberCobro_(filaValores[COLUMNAS_COBRO.tarjeta - 1]);
     const efectivo = toNumberCobro_(filaValores[COLUMNAS_COBRO.efectivo - 1]);
@@ -305,6 +308,28 @@ function obtenerCobroSeleccionado_(hoja, startRow, numRows) {
   });
 
   return resultado;
+}
+
+function obtenerFilasSeleccionadasCobro_(hoja, lastRow) {
+  const filasCacheadas = getFilasCobroSeleccionadasCache_(hoja.getName())
+    .filter((fila) => fila >= FILA_INICIO_PEDIDOS && fila <= lastRow);
+
+  if (filasCacheadas.length > 0) {
+    return filasCacheadas;
+  }
+
+  const totalRows = lastRow - FILA_INICIO_PEDIDOS + 1;
+  const checks = hoja.getRange(FILA_INICIO_PEDIDOS, COLUMNAS_COBRO.accion, totalRows, 1).getValues();
+  const filasDetectadas = [];
+
+  checks.forEach((filaValor, index) => {
+    if (filaValor[0] === true) {
+      filasDetectadas.push(FILA_INICIO_PEDIDOS + index);
+    }
+  });
+
+  setFilasCobroSeleccionadasCache_(hoja.getName(), filasDetectadas);
+  return filasDetectadas;
 }
 
 function buildCobroVacio_() {
@@ -346,6 +371,66 @@ function parseFondosBackup_(rawValue) {
   }
 
   return null;
+}
+
+function actualizarFilasCobroSeleccionadas_(hoja, filas, checked) {
+  const filasActuales = getFilasCobroSeleccionadasCache_(hoja.getName());
+  const objetivo = new Set(filasActuales);
+
+  (Array.isArray(filas) ? filas : [filas]).forEach((fila) => {
+    const numeroFila = Number(fila);
+    if (!Number.isFinite(numeroFila) || numeroFila < FILA_INICIO_PEDIDOS) return;
+
+    if (checked) {
+      objetivo.add(numeroFila);
+    } else {
+      objetivo.delete(numeroFila);
+    }
+  });
+
+  setFilasCobroSeleccionadasCache_(hoja.getName(), Array.from(objetivo).sort((a, b) => a - b));
+}
+
+function getFilasCobroSeleccionadasCache_(sheetName) {
+  const raw = PropertiesService
+    .getDocumentProperties()
+    .getProperty(getKeyFilasCobro_(sheetName));
+
+  if (!raw) return [];
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed
+      .map((fila) => Number(fila))
+      .filter((fila) => Number.isFinite(fila) && fila >= FILA_INICIO_PEDIDOS)
+      .sort((a, b) => a - b);
+  } catch (error) {
+    return [];
+  }
+}
+
+function setFilasCobroSeleccionadasCache_(sheetName, filas) {
+  const props = PropertiesService.getDocumentProperties();
+  const key = getKeyFilasCobro_(sheetName);
+  const normalizadas = Array.isArray(filas)
+    ? filas
+        .map((fila) => Number(fila))
+        .filter((fila) => Number.isFinite(fila) && fila >= FILA_INICIO_PEDIDOS)
+        .sort((a, b) => a - b)
+    : [];
+
+  if (normalizadas.length === 0) {
+    props.deleteProperty(key);
+    return;
+  }
+
+  props.setProperty(key, JSON.stringify(normalizadas));
+}
+
+function getKeyFilasCobro_(sheetName) {
+  return PREFIJO_CACHE_FILAS_COBRO + String(sheetName || '').trim().toUpperCase();
 }
 
 function limpiarDetalleCobro_(texto) {
