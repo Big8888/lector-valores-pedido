@@ -1,0 +1,60 @@
+{
+  "timeZone": "America/Montevideo",
+  "dependencies": {
+  },
+  "exceptionLogging": "STACKDRIVER",
+  "runtimeVersion": "V8",
+  "sheets": {
+    "macros": [{
+      "menuName": "prueba",
+      "functionName": "prueba",
+      "defaultShortcut": "Ctrl+Alt+Shift+8"
+    }, {
+      "menuName": "Colgar datos Dario con fecha",
+      "functionName": "ColgardatosDarioconfecha"
+    }, {
+      "menuName": "Prueba 2",
+      "functionName": "Prueba2"
+    }, {
+      "menuName": "Registro repartidores y total",
+      "functionName": "Registrorepartidoresytotal"
+    }, {
+      "menuName": "Almacenar",
+      "functionName": "Almacenar"
+    }, {
+      "menuName": "qq",
+      "functionName": "qq"
+    }, {
+      "menuName": "rr",
+      "functionName": "rr"
+    }, {
+      "menuName": "ee",
+      "functionName": "ee"
+    }, {
+      "menuName": "hh",
+      "functionName": "hh"
+    }, {
+      "menuName": "nn",
+      "functionName": "nn"
+    }, {
+      "menuName": "almacenar1",
+      "functionName": "almacenar1"
+    }, {
+      "menuName": "as",
+      "functionName": "as"
+    }, {
+      "menuName": "Almacenar Datos 888",
+      "functionName": "AlmacenarDatos888"
+    }, {
+      "menuName": "BORRAR DATOS PLANILLAS",
+      "functionName": "BORRARDATOSPLANILLAS"
+    }, {
+      "menuName": "BORRAR PRUEBA",
+      "functionName": "BORRARPRUEBA"
+    }, {
+      "menuName": "Borrar Celdas",
+      "functionName": "BorrarCeldas",
+      "defaultShortcut": "Ctrl+Alt+Shift+8"
+    }]
+  }
+}

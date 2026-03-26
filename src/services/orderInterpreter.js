@@ -415,9 +415,13 @@ function detectEnCaminoTimestamp(data, payload) {
   ];
   const timestampPaths = [
     ['delivery_status_updated_at'],
+    ['picked_up_at'],
+    ['on_the_way_at'],
     ['status_updated_at'],
     ['updated_at'],
-    ['meta_data', 'delivery_status_updated_at']
+    ['meta_data', 'delivery_status_updated_at'],
+    ['meta_data', 'status_updated_at'],
+    ['meta_data', 'updated_at']
   ];
 
   const enCaminoStatuses = [
