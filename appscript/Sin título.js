@@ -2,7 +2,7 @@ function onOpen() {
   crearDesplegableMedioPago();
   crearMenuCobros();
   crearBotonCobrosEnHojas();
-  SpreadsheetApp.getActiveSpreadsheet().toast('Tenes el boton ABRIR COBROS en la hoja y tambien el menu COBROS arriba.', 'COBROS', 5);
+  SpreadsheetApp.getActiveSpreadsheet().toast('A marca la accion manual, J el medio de pago, y COBROS sigue disponible arriba.', 'COBROS', 5);
 }
 
 function onInstall() {
@@ -17,9 +17,14 @@ function crearDesplegableMedioPago() {
     const hoja = ss.getSheetByName(nombreHoja);
     if (!hoja) return;
 
-    hoja.getRange('L8:L35').clearDataValidations();
+    const totalRows = Math.max(hoja.getMaxRows() - 7, 1);
 
-    const rango = hoja.getRange('J8:J35');
+    const rangoAccion = hoja.getRange(8, 1, totalRows, 1);
+    rangoAccion.insertCheckboxes();
+
+    hoja.getRange(8, 12, totalRows, 1).clearDataValidations();
+
+    const rango = hoja.getRange(8, 10, totalRows, 1);
     const regla = SpreadsheetApp.newDataValidation()
       .requireValueInList(['Tarjeta', 'Efectivo', 'Transferencia'], true)
       .setAllowInvalid(false)
