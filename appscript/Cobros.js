@@ -83,9 +83,6 @@ function asegurarBotonCobroEnHoja_(hoja) {
   const botonFila = celdaBoton.getRow();
   const botonColumna = celdaBoton.getColumn();
 
-  hoja.setRowHeight(botonFila, 34);
-  hoja.setColumnWidth(botonColumna, 132);
-
   const botones = getBotonesCobro_(hoja);
   const botonEnPosicion = botones.some((image) => {
     if (!image.getAnchorCell) return false;
