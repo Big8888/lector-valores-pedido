@@ -99,6 +99,21 @@
         color: #8a4b08;
       }
 
+      .loading,
+      .error {
+        padding: 18px 10px;
+        text-align: center;
+        font-size: 14px;
+      }
+
+      .loading {
+        color: #555;
+      }
+
+      .error {
+        color: #9c0006;
+      }
+
       .acciones {
         display: flex;
         gap: 10px;
@@ -111,51 +126,127 @@
         font-size: 15px;
         cursor: pointer;
       }
+
+      button:disabled,
+      input:disabled {
+        opacity: 0.6;
+        cursor: default;
+      }
     </style>
   </head>
   <body>
     <h2>Cobro de pedidos</h2>
-    <p class="subtitulo">Estos son los pedidos marcados en A en la hoja actual.</p>
+    <p class="subtitulo" id="subtitulo">Cargando pedidos marcados en A...</p>
 
     <div class="box resumen">
-      <div class="totales">Efectivo a cobrar: $<span id="totalEfectivoCobro"><?= totalEfectivo ?></span></div>
-      <div>Tarjeta: $<span id="totalTarjeta"><?= totalTarjeta ?></span></div>
-      <div>Efectivo: $<span id="totalEfectivo"><?= totalEfectivo ?></span></div>
-      <div>Transferencia: $<span id="totalTransferencia"><?= totalTransferencia ?></span></div>
-      <div>Total seleccionado: $<span id="totalGeneral"><?= totalGeneral ?></span></div>
+      <div class="totales">Efectivo a cobrar: $<span id="totalEfectivoCobro">0</span></div>
+      <div>Tarjeta: $<span id="totalTarjeta">0</span></div>
+      <div>Efectivo: $<span id="totalEfectivo">0</span></div>
+      <div>Transferencia: $<span id="totalTransferencia">0</span></div>
+      <div>Total seleccionado: $<span id="totalGeneral">0</span></div>
     </div>
 
     <div class="box">
       <label for="montoPago">Con cuanto pagan?</label>
-      <input type="number" id="montoPago" placeholder="Ej: 2000" oninput="calcularVuelto()">
+      <input type="number" id="montoPago" placeholder="Ej: 2000" oninput="calcularVuelto()" disabled>
       <div class="resultado" id="vuelto">Vuelto: $0</div>
     </div>
 
-    <div class="box listaPedidos">
-      <? for (var i = 0; i < items.length; i++) { ?>
-        <div class="pedidoItem">
-          <div class="pedidoTitulo">Pedido <?= items[i].numeroPedidoInterno || items[i].fila ?> - $<?= items[i].totalFila ?></div>
-          <div class="pedidoSub">
-            Estado: <?= items[i].estadoPago || 'SIN ESTADO' ?> | Tarjeta $<?= items[i].tarjeta ?> | Efectivo $<?= items[i].efectivo ?> | Transferencia $<?= items[i].transferencia ?>
-          </div>
-          <div class="badge <?= items[i].cobrado ? 'badgeCobrado' : 'badgePendiente' ?>">
-            <?= items[i].cobrado ? 'COBRADO' : 'PENDIENTE' ?>
-          </div>
-        </div>
-      <? } ?>
+    <div class="box listaPedidos" id="listaPedidos">
+      <div class="loading">Cargando pedidos...</div>
     </div>
 
     <div class="acciones">
-      <button onclick="confirmar()">Confirmar cobro</button>
-      <button onclick="quitar()">Quitar cobro</button>
-      <button onclick="google.script.host.close()">Cancelar</button>
+      <button id="btnConfirmar" onclick="confirmar()" disabled>Confirmar cobro</button>
+      <button id="btnQuitar" onclick="quitar()" disabled>Quitar cobro</button>
+      <button id="btnCancelar" onclick="google.script.host.close()">Cancelar</button>
     </div>
 
     <script>
-      const items = <?!= JSON.stringify(items) ?>;
       const sheetName = <?!= JSON.stringify(sheetName) ?>;
-      const filas = items.map((item) => item.fila);
-      const totalEfectivo = Number(<?= totalEfectivo ?>) || 0;
+      let items = [];
+      let filas = [];
+      let totalEfectivo = 0;
+
+      function escapeHtml(value) {
+        return String(value || '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      function setAccionesHabilitadas(enabled) {
+        document.getElementById('btnConfirmar').disabled = !enabled;
+        document.getElementById('btnQuitar').disabled = !enabled;
+        document.getElementById('montoPago').disabled = !enabled;
+      }
+
+      function actualizarResumen(data) {
+        document.getElementById('totalTarjeta').textContent = data.totalTarjeta || 0;
+        document.getElementById('totalEfectivo').textContent = data.totalEfectivo || 0;
+        document.getElementById('totalTransferencia').textContent = data.totalTransferencia || 0;
+        document.getElementById('totalGeneral').textContent = data.totalGeneral || 0;
+        document.getElementById('totalEfectivoCobro').textContent = data.totalEfectivo || 0;
+      }
+
+      function renderPedidos() {
+        const lista = document.getElementById('listaPedidos');
+
+        if (items.length === 0) {
+          lista.innerHTML = '<div class="error">No hay pedidos marcados en A.</div>';
+          return;
+        }
+
+        lista.innerHTML = items.map(function(item) {
+          return ''
+            + '<div class="pedidoItem">'
+            + '  <div class="pedidoTitulo">Pedido ' + escapeHtml(item.numeroPedidoInterno || item.fila) + ' - $' + escapeHtml(item.totalFila) + '</div>'
+            + '  <div class="pedidoSub">'
+            + '    Estado: ' + escapeHtml(item.estadoPago || 'SIN ESTADO')
+            + ' | Tarjeta $' + escapeHtml(item.tarjeta)
+            + ' | Efectivo $' + escapeHtml(item.efectivo)
+            + ' | Transferencia $' + escapeHtml(item.transferencia)
+            + '  </div>'
+            + '  <div class="badge ' + (item.cobrado ? 'badgeCobrado' : 'badgePendiente') + '">'
+            +       (item.cobrado ? 'COBRADO' : 'PENDIENTE')
+            + '  </div>'
+            + '</div>';
+        }).join('');
+      }
+
+      function mostrarError(message) {
+        document.getElementById('subtitulo').textContent = message;
+        document.getElementById('listaPedidos').innerHTML = '<div class="error">' + escapeHtml(message) + '</div>';
+        document.getElementById('btnCancelar').textContent = 'Cerrar';
+        setAccionesHabilitadas(false);
+      }
+
+      function cargarDatos() {
+        setAccionesHabilitadas(false);
+
+        google.script.run
+          .withSuccessHandler(function(data) {
+            items = Array.isArray(data.items) ? data.items : [];
+            filas = items.map(function(item) { return item.fila; });
+            totalEfectivo = Number(data.totalEfectivo) || 0;
+
+            document.getElementById('subtitulo').textContent = 'Estos son los pedidos marcados en A en la hoja actual.';
+            actualizarResumen(data);
+            renderPedidos();
+            setAccionesHabilitadas(items.length > 0);
+            calcularVuelto();
+
+            if (items.length > 0) {
+              document.getElementById('montoPago').focus();
+            }
+          })
+          .withFailureHandler(function(error) {
+            mostrarError(error && error.message ? error.message : 'No se pudieron cargar los pedidos seleccionados.');
+          })
+          .obtenerDatosCobroModal(sheetName);
+      }
 
       function calcularVuelto() {
         const montoPago = Number(document.getElementById('montoPago').value) || 0;
@@ -211,7 +302,7 @@
           });
       }
 
-      calcularVuelto();
+      document.addEventListener('DOMContentLoaded', cargarDatos);
     </script>
   </body>
 </html>

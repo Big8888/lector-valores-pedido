@@ -108,25 +108,37 @@ function abrirVentanaCobro() {
     return;
   }
 
-  const datos = obtenerPedidosSeleccionados_(hoja);
-  if (datos.items.length === 0) {
-    ui.alert('Marca en A los pedidos que queres cobrar y despues toca ABRIR COBROS.');
-    return;
-  }
-
   const template = HtmlService.createTemplateFromFile('CobroModal');
   template.sheetName = hoja.getName();
-  template.items = datos.items;
-  template.totalTarjeta = datos.totalTarjeta;
-  template.totalEfectivo = datos.totalEfectivo;
-  template.totalTransferencia = datos.totalTransferencia;
-  template.totalGeneral = datos.totalGeneral;
 
   const html = template.evaluate()
     .setWidth(620)
     .setHeight(680);
 
   ui.showModalDialog(html, 'Cobro de pedidos seleccionados');
+}
+
+function obtenerDatosCobroModal(sheetName) {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const hoja = ss.getSheetByName(String(sheetName || '').trim());
+
+  if (!hoja) {
+    throw new Error('No se encontro la hoja del cobro.');
+  }
+
+  const datos = obtenerPedidosSeleccionados_(hoja);
+  if (datos.items.length === 0) {
+    throw new Error('Marca en A los pedidos que queres cobrar y despues toca ABRIR COBROS.');
+  }
+
+  return {
+    sheetName: hoja.getName(),
+    items: datos.items,
+    totalTarjeta: datos.totalTarjeta,
+    totalEfectivo: datos.totalEfectivo,
+    totalTransferencia: datos.totalTransferencia,
+    totalGeneral: datos.totalGeneral
+  };
 }
 
 function confirmarCobro(payload) {
@@ -237,26 +249,20 @@ function obtenerPedidosSeleccionados_(hoja) {
     return buildCobroVacio_();
   }
 
-  const rango = hoja.getRange(
-    FILA_INICIO_PEDIDOS,
-    1,
-    lastRow - FILA_INICIO_PEDIDOS + 1,
-    COLUMNAS_COBRO.anotaciones
-  );
-
-  return obtenerCobroSeleccionado_(hoja, rango);
+  return obtenerCobroSeleccionado_(hoja, FILA_INICIO_PEDIDOS, lastRow - FILA_INICIO_PEDIDOS + 1);
 }
 
-function obtenerCobroSeleccionado_(hoja, rango) {
-  const startRow = rango.getRow();
-  const numRows = rango.getNumRows();
-  const valores = hoja
-    .getRange(startRow, 1, numRows, COLUMNAS_COBRO.anotaciones)
+function obtenerCobroSeleccionado_(hoja, startRow, numRows) {
+  const valoresBase = hoja
+    .getRange(startRow, 1, numRows, COLUMNAS_COBRO.transferencia)
+    .getValues();
+  const anotaciones = hoja
+    .getRange(startRow, COLUMNAS_COBRO.anotaciones, numRows, 1)
     .getValues();
 
   const resultado = buildCobroVacio_();
 
-  valores.forEach((filaValores, index) => {
+  valoresBase.forEach((filaValores, index) => {
     const fila = startRow + index;
     if (fila < FILA_INICIO_PEDIDOS) return;
 
@@ -269,9 +275,7 @@ function obtenerCobroSeleccionado_(hoja, rango) {
     const estadoPago = String(
       filaValores[COLUMNAS_COBRO.estadoPago - 1] || ''
     ).trim();
-    const anotaciones = String(
-      filaValores[COLUMNAS_COBRO.anotaciones - 1] || ''
-    ).trim();
+    const anotacionFila = String(anotaciones[index][0] || '').trim();
     const total = toNumberCobro_(filaValores[COLUMNAS_COBRO.total - 1]);
     const tarjeta = toNumberCobro_(filaValores[COLUMNAS_COBRO.tarjeta - 1]);
     const efectivo = toNumberCobro_(filaValores[COLUMNAS_COBRO.efectivo - 1]);
@@ -296,7 +300,7 @@ function obtenerCobroSeleccionado_(hoja, rango) {
       efectivo,
       transferencia,
       totalFila,
-      cobrado: /COBRADO/i.test(anotaciones)
+      cobrado: /COBRADO/i.test(anotacionFila)
     });
   });
 
