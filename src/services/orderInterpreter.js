@@ -184,6 +184,145 @@ function detectPaymentStatus(data) {
   return status;
 }
 
+function normalizePaymentMethodText(value) {
+  const normalized = asString(value).toLowerCase();
+
+  if (!normalized) return '';
+  if (normalized.includes('transf')) return 'transferencia';
+  if (normalized.includes('efect')) return 'efectivo';
+  if (normalized.includes('cash')) return 'efectivo';
+  if (normalized.includes('card')) return 'tarjeta';
+  if (normalized.includes('tarjeta')) return 'tarjeta';
+  if (normalized.includes('debito')) return 'tarjeta';
+  if (normalized.includes('credito')) return 'tarjeta';
+
+  return '';
+}
+
+function collectPaymentEntries(data, payload) {
+  const dataPaymentArrays = [
+    data.payments,
+    data.payment_splits,
+    data.split_payments,
+    data.meta_data && data.meta_data.payments,
+    data.meta_data && data.meta_data.split_payments
+  ].filter(Array.isArray);
+
+  const payloadPaymentArrays = payload !== data ? [
+    payload.payments,
+    payload.payment_splits,
+    payload.split_payments
+  ].filter(Array.isArray) : [];
+
+  const arrayEntries = [...dataPaymentArrays, ...payloadPaymentArrays].flat();
+  if (arrayEntries.length > 0) {
+    return arrayEntries.filter((entry) => entry && typeof entry === 'object');
+  }
+
+  const singularEntries = [
+    data.payment,
+    data.meta_data && data.meta_data.assigned_payment,
+    payload !== data ? payload.payment : null
+  ].filter((entry) => entry && typeof entry === 'object');
+
+  return singularEntries;
+}
+
+function getPaymentEntryMethod(entry) {
+  const methodPaths = [
+    ['payment_method'],
+    ['payment_method_name'],
+    ['method'],
+    ['name'],
+    ['type'],
+    ['payment_type'],
+    ['payment_channel']
+  ];
+
+  for (const path of methodPaths) {
+    const method = normalizePaymentMethodText(getNestedValue(entry, path));
+    if (method) return method;
+  }
+
+  const flattenedValues = flattenScalarValues(entry);
+  for (const value of flattenedValues) {
+    const method = normalizePaymentMethodText(value);
+    if (method) return method;
+  }
+
+  return '';
+}
+
+function getPaymentEntryAmount(entry) {
+  const amountPaths = [
+    ['amount'],
+    ['paid_amount'],
+    ['total'],
+    ['value']
+  ];
+
+  for (const path of amountPaths) {
+    const amount = toNumber(getNestedValue(entry, path));
+    if (amount > 0) return amount;
+  }
+
+  return 0;
+}
+
+function detectPaymentBreakdown(data, payload, paymentStatus) {
+  const breakdown = {
+    tarjeta: 0,
+    efectivo: 0,
+    transferencia: 0,
+    hasExplicitAmounts: false,
+    detectedMethods: []
+  };
+
+  const entries = collectPaymentEntries(data, payload);
+
+  for (const entry of entries) {
+    const method = getPaymentEntryMethod(entry);
+    const amount = getPaymentEntryAmount(entry);
+
+    if (!method || amount <= 0) continue;
+
+    breakdown[method] += amount;
+    breakdown.hasExplicitAmounts = true;
+
+    if (!breakdown.detectedMethods.includes(method)) {
+      breakdown.detectedMethods.push(method);
+    }
+  }
+
+  if (breakdown.hasExplicitAmounts) {
+    return breakdown;
+  }
+
+  const fallbackMethod = detectPaymentMethod(data, payload);
+  const isPaidEvent = ['PAGADO', 'PARTIAL', 'PAID', 'PARTIALLY_PAID'].includes(asString(paymentStatus).toUpperCase());
+
+  if (!fallbackMethod || fallbackMethod === 'no_especificado' || !isPaidEvent) {
+    return breakdown;
+  }
+
+  const fallbackAmount = [
+    ['meta_data', 'assigned_payment', 'amount'],
+    ['payment', 'amount'],
+    ['payments', 0, 'amount'],
+    ['amount']
+  ]
+    .map((path) => toNumber(getNestedValue(data, path)))
+    .find((amount) => amount > 0) || 0;
+
+  if (fallbackAmount > 0) {
+    breakdown[fallbackMethod] = fallbackAmount;
+    breakdown.hasExplicitAmounts = true;
+    breakdown.detectedMethods.push(fallbackMethod);
+  }
+
+  return breakdown;
+}
+
 function detectPaymentMethod(data, payload) {
   const explicitCandidates = [
     findFirstPresent(data, [['meta_data', 'assigned_payment', 'payment_method']]),
@@ -216,33 +355,14 @@ function detectPaymentMethod(data, payload) {
   const textCandidates = [...explicitCandidates, ...metadataCandidates, ...getAllPayloadTexts(data, payload)];
 
   const normalized = textCandidates
-    .map((value) => value.toLowerCase())
-    .find((value) =>
-      value &&
-      (
-        value.includes('transf') ||
-        value.includes('efect') ||
-        value.includes('cash') ||
-        value.includes('card') ||
-        value.includes('tarjeta') ||
-        value.includes('debito') ||
-        value.includes('credito')
-      )
-    ) || '';
+    .map((value) => normalizePaymentMethodText(value))
+    .find(Boolean) || '';
 
   if (!normalized) {
     return 'no_especificado';
   }
 
-  if (normalized.includes('transf')) return 'transferencia';
-  if (normalized.includes('efect')) return 'efectivo';
-  if (normalized.includes('cash')) return 'efectivo';
-  if (normalized.includes('card')) return 'tarjeta';
-  if (normalized.includes('tarjeta')) return 'tarjeta';
-  if (normalized.includes('debito')) return 'tarjeta';
-  if (normalized.includes('credito')) return 'tarjeta';
-
-  return 'no_especificado';
+  return normalized;
 }
 
 function detectPropinaWeb(data, payload) {
@@ -525,7 +645,10 @@ function interpretOrder(payload = {}) {
   const delivery = toNumber(findFirstPresent(data, [['delivery_price'], ['delivery_cost']]));
   const total = toNumber(findFirstPresent(data, [['total']])) || subtotal + delivery;
   const paymentStatus = detectPaymentStatus(data);
-  const paymentMethod = detectPaymentMethod(data, payload);
+  const paymentBreakdown = detectPaymentBreakdown(data, payload, paymentStatus);
+  const paymentMethod = paymentBreakdown.detectedMethods.length > 1
+    ? 'multiple'
+    : paymentBreakdown.detectedMethods[0] || detectPaymentMethod(data, payload);
   const notas = buildNotas(data);
 
   const pedido = [cliente, productos].filter(Boolean).join(' - ') || asString(data.id) || asString(payload.event_id);
@@ -543,10 +666,10 @@ function interpretOrder(payload = {}) {
     ['meta_data', 'assigned_payment', 'amount'],
     ['total']
   ]));
-  const totalSinMetodo = paymentMethod === 'no_especificado' ? total : 0;
-  const tarjeta = paymentMethod === 'tarjeta' ? total : 0;
-  const efectivo = paymentMethod === 'efectivo' ? total : 0;
-  const transferencia = paymentMethod === 'transferencia' ? total : 0;
+  const totalSinMetodo = paymentBreakdown.hasExplicitAmounts || paymentMethod !== 'no_especificado' ? 0 : total;
+  const tarjeta = paymentBreakdown.hasExplicitAmounts ? paymentBreakdown.tarjeta : paymentMethod === 'tarjeta' ? total : 0;
+  const efectivo = paymentBreakdown.hasExplicitAmounts ? paymentBreakdown.efectivo : paymentMethod === 'efectivo' ? total : 0;
+  const transferencia = paymentBreakdown.hasExplicitAmounts ? paymentBreakdown.transferencia : paymentMethod === 'transferencia' ? total : 0;
   const paymentDebugTexts = getAllPayloadTexts(data, payload)
     .filter((value) => /transf|efect|cash|card|tarjeta|debito|credito|propina|tip/i.test(value))
     .slice(0, 20);
@@ -591,6 +714,7 @@ function interpretOrder(payload = {}) {
     enCamino,
     finalizado,
     paymentMethod,
+    hasExplicitPaymentAmounts: paymentBreakdown.hasExplicitAmounts,
     paymentStatus,
     paymentDebugTexts,
     paymentDebugFields,

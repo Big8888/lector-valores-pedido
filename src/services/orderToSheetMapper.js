@@ -67,6 +67,10 @@ function resolveText(incomingValue, fallbackValue, defaultValue = '') {
 function mapOrderToSheetRow(order, existingRow = null) {
   const paymentMethod = String(order.paymentMethod || '').trim().toLowerCase();
   const hasPaymentMethod = paymentMethod && paymentMethod !== 'no_especificado';
+  const incomingTarjeta = resolveNumber(order.tarjeta, null, 0);
+  const incomingEfectivo = resolveNumber(order.efectivo, null, 0);
+  const incomingTransferencia = resolveNumber(order.transferencia, null, 0);
+  const hasExplicitPaymentAmounts = Boolean(order.hasExplicitPaymentAmounts);
 
   const authoritativeAmount = resolveNumber(
     order.total,
@@ -101,13 +105,35 @@ function mapOrderToSheetRow(order, existingRow = null) {
         ''
       );
 
+  const existingTarjeta = resolveNumber(existingRow?.tarjeta, 0, 0);
+  const existingEfectivo = resolveNumber(existingRow?.efectivo, 0, 0);
+  const existingTransferencia = resolveNumber(existingRow?.transferencia, 0, 0);
+  const existingHasPaymentAmounts = existingTarjeta > 0 || existingEfectivo > 0 || existingTransferencia > 0;
+
+  let totalValue = hasPaymentMethod ? 0 : authoritativeAmount;
+  let tarjetaValue = paymentMethod === 'tarjeta' ? authoritativeAmount : 0;
+  let efectivoValue = paymentMethod === 'efectivo' ? authoritativeAmount : 0;
+  let transferenciaValue = paymentMethod === 'transferencia' ? authoritativeAmount : 0;
+
+  if (hasExplicitPaymentAmounts) {
+    totalValue = 0;
+    tarjetaValue = incomingTarjeta;
+    efectivoValue = incomingEfectivo;
+    transferenciaValue = incomingTransferencia;
+  } else if (existingHasPaymentAmounts) {
+    totalValue = resolveNumber(existingRow?.total, 0, 0);
+    tarjetaValue = existingTarjeta;
+    efectivoValue = existingEfectivo;
+    transferenciaValue = existingTransferencia;
+  }
+
   return {
     numeroPedidoInterno: order.numeroPedidoInterno || '',
     estadoPago: order.paymentStatus || order.estadoPago || '',
-    total: hasPaymentMethod ? 0 : authoritativeAmount,
-    tarjeta: paymentMethod === 'tarjeta' ? authoritativeAmount : 0,
-    efectivo: paymentMethod === 'efectivo' ? authoritativeAmount : 0,
-    transferencia: paymentMethod === 'transferencia' ? authoritativeAmount : 0,
+    total: totalValue,
+    tarjeta: tarjetaValue,
+    efectivo: efectivoValue,
+    transferencia: transferenciaValue,
     enviosLejanos,
     propinaWeb,
     salidaDinero: order.salidaDinero || existingRow?.salidaDinero || '',
