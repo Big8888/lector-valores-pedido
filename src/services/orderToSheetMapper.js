@@ -109,6 +109,7 @@ function mapOrderToSheetRow(order, existingRow = null) {
   const existingEfectivo = resolveNumber(existingRow?.efectivo, 0, 0);
   const existingTransferencia = resolveNumber(existingRow?.transferencia, 0, 0);
   const existingHasPaymentAmounts = existingTarjeta > 0 || existingEfectivo > 0 || existingTransferencia > 0;
+  const incomingPaymentTotal = incomingTarjeta + incomingEfectivo + incomingTransferencia;
 
   let totalValue = hasPaymentMethod ? 0 : authoritativeAmount;
   let tarjetaValue = paymentMethod === 'tarjeta' ? authoritativeAmount : 0;
@@ -116,10 +117,22 @@ function mapOrderToSheetRow(order, existingRow = null) {
   let transferenciaValue = paymentMethod === 'transferencia' ? authoritativeAmount : 0;
 
   if (hasExplicitPaymentAmounts) {
+    const shouldMergePartialPayment =
+      existingHasPaymentAmounts &&
+      incomingPaymentTotal > 0 &&
+      incomingPaymentTotal < authoritativeAmount;
+
     totalValue = 0;
-    tarjetaValue = incomingTarjeta;
-    efectivoValue = incomingEfectivo;
-    transferenciaValue = incomingTransferencia;
+
+    if (shouldMergePartialPayment) {
+      tarjetaValue = incomingTarjeta > 0 ? (existingTarjeta > 0 ? Math.max(existingTarjeta, incomingTarjeta) : incomingTarjeta) : existingTarjeta;
+      efectivoValue = incomingEfectivo > 0 ? (existingEfectivo > 0 ? Math.max(existingEfectivo, incomingEfectivo) : incomingEfectivo) : existingEfectivo;
+      transferenciaValue = incomingTransferencia > 0 ? (existingTransferencia > 0 ? Math.max(existingTransferencia, incomingTransferencia) : incomingTransferencia) : existingTransferencia;
+    } else {
+      tarjetaValue = incomingTarjeta;
+      efectivoValue = incomingEfectivo;
+      transferenciaValue = incomingTransferencia;
+    }
   } else if (existingHasPaymentAmounts) {
     totalValue = resolveNumber(existingRow?.total, 0, 0);
     tarjetaValue = existingTarjeta;

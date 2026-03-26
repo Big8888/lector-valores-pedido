@@ -258,11 +258,33 @@ function getPaymentEntryAmount(entry) {
     ['amount'],
     ['paid_amount'],
     ['total'],
-    ['value']
+    ['value'],
+    ['price']
   ];
 
   for (const path of amountPaths) {
     const amount = toNumber(getNestedValue(entry, path));
+    if (amount > 0) return amount;
+  }
+
+  return 0;
+}
+
+function findPaymentAmountFromText(data, payload) {
+  const textCandidates = [
+    ...flattenScalarValues(data.payment),
+    ...flattenScalarValues(data.payments),
+    ...flattenScalarValues(data.meta_data && data.meta_data.assigned_payment),
+    ...getAllPayloadTexts(data, payload)
+  ];
+
+  const paymentPattern = /(?:tarjeta|efectivo|cash|transferencia|transfer|card)[^0-9]{0,20}([0-9]+(?:[.,][0-9]+)?)/i;
+
+  for (const text of textCandidates) {
+    const match = asString(text).match(paymentPattern);
+    if (!match) continue;
+
+    const amount = toNumber(match[1]);
     if (amount > 0) return amount;
   }
 
@@ -307,12 +329,15 @@ function detectPaymentBreakdown(data, payload, paymentStatus) {
 
   const fallbackAmount = [
     ['meta_data', 'assigned_payment', 'amount'],
+    ['meta_data', 'assigned_payment', 'value'],
     ['payment', 'amount'],
+    ['payment', 'value'],
     ['payments', 0, 'amount'],
+    ['payments', 0, 'value'],
     ['amount']
   ]
     .map((path) => toNumber(getNestedValue(data, path)))
-    .find((amount) => amount > 0) || 0;
+    .find((amount) => amount > 0) || findPaymentAmountFromText(data, payload);
 
   if (fallbackAmount > 0) {
     breakdown[fallbackMethod] = fallbackAmount;
@@ -666,10 +691,16 @@ function interpretOrder(payload = {}) {
     ['meta_data', 'assigned_payment', 'amount'],
     ['total']
   ]));
-  const totalSinMetodo = paymentBreakdown.hasExplicitAmounts || paymentMethod !== 'no_especificado' ? 0 : total;
-  const tarjeta = paymentBreakdown.hasExplicitAmounts ? paymentBreakdown.tarjeta : paymentMethod === 'tarjeta' ? total : 0;
-  const efectivo = paymentBreakdown.hasExplicitAmounts ? paymentBreakdown.efectivo : paymentMethod === 'efectivo' ? total : 0;
-  const transferencia = paymentBreakdown.hasExplicitAmounts ? paymentBreakdown.transferencia : paymentMethod === 'transferencia' ? total : 0;
+  const isPartialPayment = ['PARTIAL', 'PARTIALLY_PAID'].includes(asString(paymentStatus).toUpperCase());
+  const canApplyFullTotalToSingleMethod =
+    !paymentBreakdown.hasExplicitAmounts &&
+    !isPartialPayment &&
+    paymentMethod !== 'no_especificado' &&
+    paymentMethod !== 'multiple';
+  const totalSinMetodo = paymentBreakdown.hasExplicitAmounts || canApplyFullTotalToSingleMethod ? 0 : total;
+  const tarjeta = paymentBreakdown.hasExplicitAmounts ? paymentBreakdown.tarjeta : canApplyFullTotalToSingleMethod && paymentMethod === 'tarjeta' ? total : 0;
+  const efectivo = paymentBreakdown.hasExplicitAmounts ? paymentBreakdown.efectivo : canApplyFullTotalToSingleMethod && paymentMethod === 'efectivo' ? total : 0;
+  const transferencia = paymentBreakdown.hasExplicitAmounts ? paymentBreakdown.transferencia : canApplyFullTotalToSingleMethod && paymentMethod === 'transferencia' ? total : 0;
   const paymentDebugTexts = getAllPayloadTexts(data, payload)
     .filter((value) => /transf|efect|cash|card|tarjeta|debito|credito|propina|tip/i.test(value))
     .slice(0, 20);
