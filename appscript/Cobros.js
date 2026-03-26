@@ -264,14 +264,32 @@ function obtenerPedidosSeleccionados_(hoja) {
 
 function obtenerCobroSeleccionadoPorFilas_(hoja, filasSeleccionadas) {
   const resultado = buildCobroVacio_();
+  const filasOrdenadas = Array.from(
+    new Set(
+      (filasSeleccionadas || [])
+        .map((fila) => Number(fila))
+        .filter((fila) => Number.isFinite(fila) && fila >= FILA_INICIO_PEDIDOS)
+    )
+  ).sort((a, b) => a - b);
 
-  filasSeleccionadas.forEach((fila) => {
-    const filaValores = hoja
-      .getRange(fila, 1, 1, COLUMNAS_COBRO.transferencia)
-      .getValues()[0];
-    const anotacionFila = String(
-      hoja.getRange(fila, COLUMNAS_COBRO.anotaciones).getValue() || ''
-    ).trim();
+  if (filasOrdenadas.length === 0) {
+    return resultado;
+  }
+
+  const filaMinima = filasOrdenadas[0];
+  const filaMaxima = filasOrdenadas[filasOrdenadas.length - 1];
+  const cantidadFilas = filaMaxima - filaMinima + 1;
+  const valoresBase = hoja
+    .getRange(filaMinima, 1, cantidadFilas, COLUMNAS_COBRO.transferencia)
+    .getValues();
+  const anotaciones = hoja
+    .getRange(filaMinima, COLUMNAS_COBRO.anotaciones, cantidadFilas, 1)
+    .getValues();
+
+  filasOrdenadas.forEach((fila) => {
+    const indice = fila - filaMinima;
+    const filaValores = valoresBase[indice] || [];
+    const anotacionFila = String((anotaciones[indice] && anotaciones[indice][0]) || '').trim();
 
     const numeroPedidoInterno = String(
       filaValores[COLUMNAS_COBRO.numeroPedidoInterno - 1] || ''
