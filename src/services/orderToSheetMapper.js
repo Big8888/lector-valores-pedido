@@ -73,11 +73,13 @@ function mapOrderToSheetRow(order, existingRow = null) {
   const enviosLejanos = resolveNumber(order.enviosLejanos, existingRow?.enviosLejanos, 0);
   const propinaWeb = resolveNumber(order.propinaWeb, existingRow?.propinaWeb, 0);
 
-  const enCamino = resolveText(
-    order.enCamino ? formatHora(order.enCamino) : '',
-    existingRow?.enCamino,
-    ''
-  );
+  const enCamino = order.finalizado
+    ? resolveText(existingRow?.enCamino, '', '')
+    : resolveText(
+        order.enCamino ? formatHora(order.enCamino) : '',
+        existingRow?.enCamino,
+        ''
+      );
 
   const finalizado = resolveText(
     order.finalizado ? formatHora(order.finalizado) : '',

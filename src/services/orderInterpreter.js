@@ -393,82 +393,97 @@ function buildNotas(data) {
 }
 
 function normalizeStatusText(value) {
-  return asString(value).toLowerCase();
+  return asString(value).toLowerCase().trim();
 }
 
-function detectStatusTimestamp(data, payload, kind) {
-  const targetKinds = {
-    enCamino: [
-      'en camino',
-      'encamino',
-      'on the way',
-      'on_the_way',
-      'in route',
-      'in_route',
-      'picked_up',
-      'picked up',
-      'shipped'
-    ],
-    finalizado: [
-      'finalizado',
-      'finalized',
-      'completed',
-      'complete',
-      'delivered',
-      'entregado',
-      'closed',
-      'done'
-    ]
-  };
-
-  const targetKeywords = targetKinds[kind] || [];
-  if (targetKeywords.length === 0) return '';
-
-  const statusCandidates = [
-    ['status'],
+function detectEnCaminoTimestamp(data, payload) {
+  const candidateSources = [data, payload];
+  const statusPaths = [
     ['delivery_status'],
-    ['rider_status'],
+    ['status'],
     ['order_status'],
-    ['state'],
-    ['event'],
-    ['type'],
-    ['action'],
-    ['event_type'],
-    ['topic'],
-    ['meta_data', 'status'],
-    ['meta_data', 'delivery_status'],
-    ['meta_data', 'order_status']
+    ['meta_data', 'delivery_status']
+  ];
+  const timestampPaths = [
+    ['delivery_status_updated_at'],
+    ['status_updated_at'],
+    ['updated_at'],
+    ['meta_data', 'delivery_status_updated_at']
   ];
 
-  const timestampCandidates = [
-    ['updated_at'],
-    ['status_updated_at'],
+  const enCaminoStatuses = [
+    'rider_assigned',
+    'on_the_way',
+    'on the way',
+    'in_route',
+    'in route',
+    'picked_up',
+    'picked up',
+    'shipped',
+    'en camino',
+    'encamino'
+  ];
+
+  for (const source of candidateSources) {
+    const status = statusPaths
+      .map((path) => normalizeStatusText(getNestedValue(source, path)))
+      .find(Boolean);
+
+    if (!status) continue;
+    if (!enCaminoStatuses.some((keyword) => status.includes(keyword))) continue;
+
+    for (const path of timestampPaths) {
+      const value = getNestedValue(source, path);
+      if (hasValue(value)) return value;
+    }
+
+    return new Date().toISOString();
+  }
+
+  return '';
+}
+
+function detectFinalizadoTimestamp(data, payload) {
+  const candidateSources = [data, payload];
+  const statusPaths = [
+    ['delivery_status'],
+    ['status'],
+    ['order_status'],
+    ['meta_data', 'delivery_status']
+  ];
+  const timestampPaths = [
     ['delivery_status_updated_at'],
     ['completed_at'],
     ['finished_at'],
     ['delivered_at'],
     ['closed_at'],
-    ['picked_up_at'],
-    ['on_the_way_at'],
-    ['meta_data', 'updated_at'],
-    ['meta_data', 'status_updated_at'],
+    ['status_updated_at'],
+    ['updated_at'],
     ['meta_data', 'delivery_status_updated_at']
   ];
 
-  const candidateSources = [data, payload];
+  const finalizadoStatuses = [
+    'delivered',
+    'completed',
+    'complete',
+    'finalized',
+    'finalizado',
+    'entregado',
+    'closed',
+    'done'
+  ];
 
   for (const source of candidateSources) {
-    const matchedStatus = statusCandidates
+    const status = statusPaths
       .map((path) => normalizeStatusText(getNestedValue(source, path)))
-      .find((text) => text && targetKeywords.some((keyword) => text.includes(keyword)));
+      .find(Boolean);
 
-    if (!matchedStatus) continue;
+    if (!status) continue;
+    if (!finalizadoStatuses.some((keyword) => status.includes(keyword))) continue;
 
-    for (const tsPath of timestampCandidates) {
-      const value = getNestedValue(source, tsPath);
-      if (hasValue(value)) {
-        return value;
-      }
+    for (const path of timestampPaths) {
+      const value = getNestedValue(source, path);
+      if (hasValue(value)) return value;
     }
 
     return new Date().toISOString();
@@ -504,8 +519,8 @@ function interpretOrder(payload = {}) {
 
   const enviosLejanos = delivery;
   const propinaWeb = detectPropinaWeb(data, payload);
-  const enCamino = detectStatusTimestamp(data, payload, 'enCamino');
-  const finalizado = detectStatusTimestamp(data, payload, 'finalizado');
+  const enCamino = detectEnCaminoTimestamp(data, payload);
+  const finalizado = detectFinalizadoTimestamp(data, payload);
   const importe = toNumber(findFirstPresent(data, [
     ['amount'],
     ['meta_data', 'assigned_payment', 'amount'],
