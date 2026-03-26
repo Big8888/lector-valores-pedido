@@ -180,6 +180,7 @@ function detectPaymentStatus(data) {
   if (status === 'UNPAID') return 'NO PAGADO';
   if (status === 'PAID') return 'PAGADO';
   if (status === 'PENDING') return 'PENDIENTE';
+  if (status === 'PARTIAL' || status === 'PARTIALLY_PAID') return 'PARCIAL';
 
   return status;
 }
@@ -366,7 +367,7 @@ function detectPaymentBreakdown(data, payload, paymentStatus) {
   }
 
   const fallbackMethod = detectPaymentMethod(data, payload);
-  const isPaidEvent = ['PAGADO', 'PARTIAL', 'PAID', 'PARTIALLY_PAID'].includes(asString(paymentStatus).toUpperCase());
+  const isPaidEvent = ['PAGADO', 'PARCIAL', 'PARTIAL', 'PAID', 'PARTIALLY_PAID'].includes(asString(paymentStatus).toUpperCase());
 
   if (!fallbackMethod || fallbackMethod === 'no_especificado' || !isPaidEvent) {
     return breakdown;
@@ -750,7 +751,7 @@ function interpretOrder(payload = {}) {
     ['meta_data', 'assigned_payment', 'amount'],
     ['total']
   ]));
-  const isPartialPayment = ['PARTIAL', 'PARTIALLY_PAID'].includes(asString(paymentStatus).toUpperCase());
+  const isPartialPayment = ['PARCIAL', 'PARTIAL', 'PARTIALLY_PAID'].includes(asString(paymentStatus).toUpperCase());
   const canApplyFullTotalToSingleMethod =
     !paymentBreakdown.hasExplicitAmounts &&
     !isPartialPayment &&
