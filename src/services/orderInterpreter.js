@@ -483,12 +483,10 @@ function detectFinalizadoTimestamp(data, payload) {
   ];
 
   const finalizadoStatuses = [
-    'delivered',
     'completed',
     'complete',
     'finalized',
     'finalizado',
-    'entregado',
     'closed',
     'done'
   ];

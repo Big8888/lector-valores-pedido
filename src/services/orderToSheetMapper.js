@@ -78,20 +78,28 @@ function mapOrderToSheetRow(order, existingRow = null) {
   const propinaWeb = existingRow
     ? resolveNumber(existingRow?.propinaWeb, 0, 0)
     : resolveNumber(order.propinaWeb, 0, 0);
+  const enCaminoFormatted = order.enCamino ? formatHora(order.enCamino) : '';
 
   const enCamino = order.finalizado
     ? resolveText(existingRow?.enCamino, '', '')
     : resolveText(
-        order.enCamino ? formatHora(order.enCamino) : '',
+        enCaminoFormatted,
         existingRow?.enCamino,
         ''
       );
 
-  const finalizado = resolveText(
-    order.finalizado ? formatHora(order.finalizado) : '',
-    existingRow?.finalizado,
-    ''
-  );
+  const shouldClearFalseFinalizado =
+    !order.finalizado &&
+    existingRow?.finalizado &&
+    existingRow.finalizado === (enCaminoFormatted || existingRow?.enCamino || '');
+
+  const finalizado = shouldClearFalseFinalizado
+    ? ''
+    : resolveText(
+        order.finalizado ? formatHora(order.finalizado) : '',
+        existingRow?.finalizado,
+        ''
+      );
 
   return {
     numeroPedidoInterno: order.numeroPedidoInterno || '',
