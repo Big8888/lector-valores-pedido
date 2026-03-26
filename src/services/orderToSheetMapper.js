@@ -67,10 +67,12 @@ function resolveText(incomingValue, fallbackValue, defaultValue = '') {
 function mapOrderToSheetRow(order, existingRow = null) {
   const paymentMethod = String(order.paymentMethod || '').trim().toLowerCase();
   const hasPaymentMethod = paymentMethod && paymentMethod !== 'no_especificado';
+  const paymentStatus = String(order.paymentStatus || order.estadoPago || '').trim().toUpperCase();
   const incomingTarjeta = resolveNumber(order.tarjeta, null, 0);
   const incomingEfectivo = resolveNumber(order.efectivo, null, 0);
   const incomingTransferencia = resolveNumber(order.transferencia, null, 0);
   const hasExplicitPaymentAmounts = Boolean(order.hasExplicitPaymentAmounts);
+  const isUnpaidLike = paymentStatus === 'NO PAGADO' || paymentStatus === 'UNPAID' || paymentStatus === 'PENDIENTE' || paymentStatus === 'PENDING';
 
   const authoritativeAmount = resolveNumber(
     order.total,
@@ -116,7 +118,12 @@ function mapOrderToSheetRow(order, existingRow = null) {
   let efectivoValue = paymentMethod === 'efectivo' ? authoritativeAmount : 0;
   let transferenciaValue = paymentMethod === 'transferencia' ? authoritativeAmount : 0;
 
-  if (hasExplicitPaymentAmounts) {
+  if (isUnpaidLike && !hasExplicitPaymentAmounts) {
+    totalValue = authoritativeAmount;
+    tarjetaValue = 0;
+    efectivoValue = 0;
+    transferenciaValue = 0;
+  } else if (hasExplicitPaymentAmounts) {
     const shouldMergePartialPayment =
       existingHasPaymentAmounts &&
       incomingPaymentTotal > 0 &&

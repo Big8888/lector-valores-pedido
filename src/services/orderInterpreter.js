@@ -253,6 +253,43 @@ function getPaymentEntryMethod(entry) {
   return '';
 }
 
+function isCanceledPaymentEntry(entry) {
+  if (!entry || typeof entry !== 'object') return false;
+
+  const statusPaths = [
+    ['status'],
+    ['payment_status'],
+    ['state'],
+    ['status_name'],
+    ['cancellation_status']
+  ];
+
+  for (const path of statusPaths) {
+    const value = asString(getNestedValue(entry, path)).toLowerCase();
+    if (!value) continue;
+
+    if (
+      value.includes('anulad') ||
+      value.includes('cancel') ||
+      value.includes('annul') ||
+      value.includes('void') ||
+      value.includes('revers')
+    ) {
+      return true;
+    }
+  }
+
+  const cancellationMarkers = [
+    ['canceled_at'],
+    ['cancelled_at'],
+    ['annulled_at'],
+    ['voided_at'],
+    ['deleted_at']
+  ];
+
+  return cancellationMarkers.some((path) => hasValue(getNestedValue(entry, path)));
+}
+
 function getPaymentEntryAmount(entry) {
   const amountPaths = [
     ['amount'],
@@ -305,6 +342,8 @@ function detectPaymentBreakdown(data, payload, paymentStatus) {
   const entries = collectPaymentEntries(data, payload);
 
   for (const entry of entries) {
+    if (isCanceledPaymentEntry(entry)) continue;
+
     const method = getPaymentEntryMethod(entry);
     const amount = getPaymentEntryAmount(entry);
 
@@ -355,6 +394,20 @@ function detectPaymentBreakdown(data, payload, paymentStatus) {
 }
 
 function detectPaymentMethod(data, payload) {
+  const paymentEntries = collectPaymentEntries(data, payload);
+  if (paymentEntries.length > 0) {
+    const activeEntries = paymentEntries.filter((entry) => !isCanceledPaymentEntry(entry));
+
+    for (const entry of activeEntries) {
+      const method = getPaymentEntryMethod(entry);
+      if (method) return method;
+    }
+
+    if (activeEntries.length === 0) {
+      return 'no_especificado';
+    }
+  }
+
   const explicitCandidates = [
     findFirstPresent(data, [['meta_data', 'assigned_payment', 'payment_method']]),
     findFirstPresent(data, [['meta_data', 'assigned_payment', 'method']]),
