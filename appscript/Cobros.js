@@ -28,6 +28,10 @@ function crearMenuCobros() {
     .addToUi();
 }
 
+function abrirPedidosSeleccionados() {
+  SpreadsheetApp.getUi().alert('Boton funcionando');
+}
+
 function limpiarBotonesCobroEnHojas() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
 
@@ -71,7 +75,7 @@ function crearBotonCobrosEnHojas() {
       3
     );
 
-    image.assignScript('abrirVentanaCobro');
+    image.assignScript('abrirPedidosSeleccionados');
     image.setAltTextTitle(TITULO_IMAGEN_COBRO);
     image.setAltTextDescription('Abre la calculadora de cobro de esta hoja');
     image.setWidth(126);
