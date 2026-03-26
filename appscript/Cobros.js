@@ -113,9 +113,10 @@ function abrirVentanaCobro() {
   template.sheetName = hoja.getName();
 
   const html = template.evaluate()
-    .setTitle('Cobros');
+    .setWidth(620)
+    .setHeight(680);
 
-  ui.showSidebar(html);
+  ui.showModalDialog(html, 'Cobro de pedidos seleccionados');
 }
 
 function obtenerDatosCobroModal(sheetName) {
