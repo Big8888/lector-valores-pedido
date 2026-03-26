@@ -2,7 +2,7 @@ function onOpen() {
   crearDesplegableMedioPago();
   crearMenuCobros();
   crearBotonCobrosEnHojas();
-  SpreadsheetApp.getActiveSpreadsheet().toast('A marca la accion manual, J el medio de pago, y COBROS sigue disponible arriba.', 'COBROS', 5);
+  SpreadsheetApp.getActiveSpreadsheet().toast('Marca en A los pedidos a cobrar y usa ABRIR COBROS.', 'COBROS', 5);
 }
 
 function onInstall() {

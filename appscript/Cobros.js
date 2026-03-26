@@ -5,6 +5,7 @@ const CELDA_BOTON_COBRO = 'O5';
 const TITULO_IMAGEN_COBRO = 'COBROS_BUTTON';
 const COLOR_COBRADO = '#d9ead3';
 const COLUMNAS_COBRO = {
+  accion: 1, // A
   numeroPedidoInterno: 2, // B
   estadoPago: 3, // C
   total: 4, // D
@@ -90,9 +91,9 @@ function abrirVentanaCobro() {
     return;
   }
 
-  const datos = obtenerPedidosDisponibles_(hoja);
+  const datos = obtenerPedidosSeleccionados_(hoja);
   if (datos.items.length === 0) {
-    ui.alert('No encontre pedidos validos para cobrar en esta hoja.');
+    ui.alert('Marca en A los pedidos que queres cobrar y despues toca ABRIR COBROS.');
     return;
   }
 
@@ -146,6 +147,7 @@ function confirmarCobro(payload) {
     const nuevaAnotacion = anotacionActual ? anotacionActual + ' | ' + detalleCobro : detalleCobro;
 
     anotacionCelda.setValue(nuevaAnotacion);
+    hoja.getRange(fila, COLUMNAS_COBRO.accion).setValue(false);
   });
 
   return {
@@ -154,7 +156,7 @@ function confirmarCobro(payload) {
   };
 }
 
-function obtenerPedidosDisponibles_(hoja) {
+function obtenerPedidosSeleccionados_(hoja) {
   const lastRow = hoja.getLastRow();
   if (lastRow < FILA_INICIO_PEDIDOS) {
     return buildCobroVacio_();
@@ -183,6 +185,7 @@ function obtenerCobroSeleccionado_(hoja, rango) {
     const fila = startRow + index;
     if (fila < FILA_INICIO_PEDIDOS) return;
 
+    const accionMarcada = filaValores[COLUMNAS_COBRO.accion - 1] === true;
     const numeroPedidoInterno = String(
       filaValores[COLUMNAS_COBRO.numeroPedidoInterno - 1] || ''
     ).trim();
@@ -198,6 +201,10 @@ function obtenerCobroSeleccionado_(hoja, rango) {
     const transferencia = toNumberCobro_(filaValores[COLUMNAS_COBRO.transferencia - 1]);
 
     if (/COBRADO/i.test(anotaciones)) {
+      return;
+    }
+
+    if (!accionMarcada) {
       return;
     }
 

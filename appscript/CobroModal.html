@@ -50,13 +50,6 @@
         font-size: 16px;
       }
 
-      input[type="checkbox"] {
-        width: auto;
-        padding: 0;
-        transform: scale(1.2);
-        accent-color: #34a853;
-      }
-
       .resultado {
         margin-top: 10px;
         font-size: 20px;
@@ -76,13 +69,6 @@
         margin-bottom: 8px;
       }
 
-      .pedidoLabel {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        cursor: pointer;
-      }
-
       .pedidoTitulo {
         font-size: 16px;
         font-weight: bold;
@@ -90,7 +76,6 @@
 
       .pedidoSub {
         margin-top: 6px;
-        margin-left: 30px;
         color: #555;
         font-size: 13px;
       }
@@ -111,14 +96,14 @@
   </head>
   <body>
     <h2>Cobro de pedidos</h2>
-    <p class="subtitulo">Tilda los pedidos que queres cobrar en esta hoja y confirma.</p>
+    <p class="subtitulo">Estos son los pedidos marcados en A en la hoja actual.</p>
 
     <div class="box resumen">
-      <div class="totales">Efectivo a cobrar: $<span id="totalEfectivoCobro">0</span></div>
-      <div>Tarjeta: $<span id="totalTarjeta">0</span></div>
-      <div>Efectivo: $<span id="totalEfectivo">0</span></div>
-      <div>Transferencia: $<span id="totalTransferencia">0</span></div>
-      <div>Total seleccionado: $<span id="totalGeneral">0</span></div>
+      <div class="totales">Efectivo a cobrar: $<span id="totalEfectivoCobro"><?= totalEfectivo ?></span></div>
+      <div>Tarjeta: $<span id="totalTarjeta"><?= totalTarjeta ?></span></div>
+      <div>Efectivo: $<span id="totalEfectivo"><?= totalEfectivo ?></span></div>
+      <div>Transferencia: $<span id="totalTransferencia"><?= totalTransferencia ?></span></div>
+      <div>Total seleccionado: $<span id="totalGeneral"><?= totalGeneral ?></span></div>
     </div>
 
     <div class="box">
@@ -130,10 +115,7 @@
     <div class="box listaPedidos">
       <? for (var i = 0; i < items.length; i++) { ?>
         <div class="pedidoItem">
-          <label class="pedidoLabel">
-            <input type="checkbox" class="selectorPedido" data-index="<?= i ?>" oninput="recalcularSeleccion()">
-            <span class="pedidoTitulo">Pedido <?= items[i].numeroPedidoInterno || items[i].fila ?> - $<?= items[i].totalFila ?></span>
-          </label>
+          <div class="pedidoTitulo">Pedido <?= items[i].numeroPedidoInterno || items[i].fila ?> - $<?= items[i].totalFila ?></div>
           <div class="pedidoSub">
             Estado: <?= items[i].estadoPago || 'SIN ESTADO' ?> | Tarjeta $<?= items[i].tarjeta ?> | Efectivo $<?= items[i].efectivo ?> | Transferencia $<?= items[i].transferencia ?>
           </div>
@@ -149,7 +131,8 @@
     <script>
       const items = <?!= JSON.stringify(items) ?>;
       const sheetName = <?!= JSON.stringify(sheetName) ?>;
-      let totalEfectivo = 0;
+      const filas = items.map((item) => item.fila);
+      const totalEfectivo = Number(<?= totalEfectivo ?>) || 0;
 
       function calcularVuelto() {
         const montoPago = Number(document.getElementById('montoPago').value) || 0;
@@ -157,37 +140,11 @@
         document.getElementById('vuelto').textContent = 'Vuelto: $' + vuelto;
       }
 
-      function obtenerSeleccionados() {
-        const checks = Array.from(document.querySelectorAll('.selectorPedido'));
-        return checks
-          .filter((check) => check.checked)
-          .map((check) => items[Number(check.dataset.index)]);
-      }
-
-      function recalcularSeleccion() {
-        const seleccionados = obtenerSeleccionados();
-
-        const totalTarjeta = seleccionados.reduce((sum, item) => sum + (Number(item.tarjeta) || 0), 0);
-        totalEfectivo = seleccionados.reduce((sum, item) => sum + (Number(item.efectivo) || 0), 0);
-        const totalTransferencia = seleccionados.reduce((sum, item) => sum + (Number(item.transferencia) || 0), 0);
-        const totalGeneral = seleccionados.reduce((sum, item) => sum + (Number(item.totalFila) || 0), 0);
-
-        document.getElementById('totalTarjeta').textContent = totalTarjeta;
-        document.getElementById('totalEfectivo').textContent = totalEfectivo;
-        document.getElementById('totalTransferencia').textContent = totalTransferencia;
-        document.getElementById('totalEfectivoCobro').textContent = totalEfectivo;
-        document.getElementById('totalGeneral').textContent = totalGeneral;
-
-        calcularVuelto();
-      }
-
       function confirmar() {
-        const seleccionados = obtenerSeleccionados();
-        const filas = seleccionados.map((item) => item.fila);
         const montoPago = Number(document.getElementById('montoPago').value) || 0;
 
         if (filas.length === 0) {
-          alert('Tilda al menos un pedido para cobrar.');
+          alert('No hay pedidos marcados en A para cobrar.');
           return;
         }
 
@@ -213,7 +170,7 @@
           });
       }
 
-      recalcularSeleccion();
+      calcularVuelto();
     </script>
   </body>
 </html>
