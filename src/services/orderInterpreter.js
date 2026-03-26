@@ -257,6 +257,8 @@ function getPaymentEntryAmount(entry) {
   const amountPaths = [
     ['amount'],
     ['paid_amount'],
+    ['received_amount'],
+    ['bill_amount'],
     ['total'],
     ['value'],
     ['price']
@@ -317,6 +319,10 @@ function detectPaymentBreakdown(data, payload, paymentStatus) {
   }
 
   if (breakdown.hasExplicitAmounts) {
+    return breakdown;
+  }
+
+  if (entries.length > 0) {
     return breakdown;
   }
 
