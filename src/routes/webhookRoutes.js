@@ -66,10 +66,10 @@ function hasAssignedRider(order = {}) {
   return candidates.some((value) => value && String(value).trim());
 }
 
-async function clearExistingOrders(order) {
-  const existingOrders = await findOrderAcrossSheets(order);
+async function clearExistingOrders(order, existingOrders = null) {
+  const rowsToClear = existingOrders || await findOrderAcrossSheets(order);
 
-  for (const duplicate of existingOrders) {
+  for (const duplicate of rowsToClear) {
     console.log('[WEBHOOK] Se elimina pedido existente de Sheets', {
       numeroPedidoInterno: order.numeroPedidoInterno || null,
       nroPedido: order.nroPedido || null,
@@ -80,7 +80,7 @@ async function clearExistingOrders(order) {
     await clearOrderRow(duplicate.sheetName, duplicate.rowNumber);
   }
 
-  return existingOrders.length;
+  return rowsToClear.length;
 }
 
 router.get('/', (req, res) => {
@@ -143,8 +143,10 @@ router.post('/', async (req, res, next) => {
       throw error;
     }
 
+    const existingOrders = await findOrderAcrossSheets(order);
+
     if (order.riderCancelled) {
-      const clearedRows = await clearExistingOrders(order);
+      const clearedRows = await clearExistingOrders(order, existingOrders);
 
       console.log('[WEBHOOK] Rider cancelado, pedido eliminado de Sheets', {
         numeroPedidoInterno: order.numeroPedidoInterno || null,
@@ -160,24 +162,38 @@ router.post('/', async (req, res, next) => {
       });
     }
 
-    if (!hasAssignedRider(order)) {
-      const clearedRows = await clearExistingOrders(order);
+    const hasRider = hasAssignedRider(order);
+    let assignment = null;
 
-      console.log('[WEBHOOK] Pedido omitido por no tener repartidor asignado aun', {
+    if (!hasRider) {
+      if (existingOrders.length === 0) {
+        console.log('[WEBHOOK] Pedido omitido por no tener repartidor asignado aun', {
+          numeroPedidoInterno: order.numeroPedidoInterno || null,
+          nroPedido: order.nroPedido || null,
+          existingRows: 0
+        });
+
+        return res.status(202).json({
+          ok: true,
+          skipped: true,
+          clearedRows: 0,
+          reason: 'Pedido sin repartidor asignado aun.'
+        });
+      }
+
+      assignment = {
+        courier: null,
+        sheetName: existingOrders[0].sheetName
+      };
+
+      console.log('[WEBHOOK] Update sin rider, se reutiliza hoja existente', {
         numeroPedidoInterno: order.numeroPedidoInterno || null,
         nroPedido: order.nroPedido || null,
-        clearedRows
+        sheetName: assignment.sheetName
       });
-
-      return res.status(202).json({
-        ok: true,
-        skipped: true,
-        clearedRows,
-        reason: 'Pedido sin repartidor asignado aun.'
-      });
+    } else {
+      assignment = assignCourier(order);
     }
-
-    const assignment = assignCourier(order);
 
     if (!assignment.sheetName) {
       console.log('[WEBHOOK] Pedido omitido por rider no mapeado', {
@@ -197,7 +213,6 @@ router.post('/', async (req, res, next) => {
       sheetName: assignment.sheetName
     });
 
-    const existingOrders = await findOrderAcrossSheets(order);
     const existingInTargetSheet = existingOrders.filter(
       (entry) => entry.sheetName === assignment.sheetName
     );

@@ -402,7 +402,16 @@ function detectEnCaminoTimestamp(data, payload) {
     ['delivery_status'],
     ['status'],
     ['order_status'],
-    ['meta_data', 'delivery_status']
+    ['rider_status'],
+    ['state'],
+    ['event'],
+    ['type'],
+    ['action'],
+    ['event_type'],
+    ['topic'],
+    ['meta_data', 'delivery_status'],
+    ['meta_data', 'status'],
+    ['meta_data', 'order_status']
   ];
   const timestampPaths = [
     ['delivery_status_updated_at'],
@@ -426,10 +435,9 @@ function detectEnCaminoTimestamp(data, payload) {
   for (const source of candidateSources) {
     const status = statusPaths
       .map((path) => normalizeStatusText(getNestedValue(source, path)))
-      .find(Boolean);
+      .find((value) => value && enCaminoStatuses.some((keyword) => value.includes(keyword)));
 
     if (!status) continue;
-    if (!enCaminoStatuses.some((keyword) => status.includes(keyword))) continue;
 
     for (const path of timestampPaths) {
       const value = getNestedValue(source, path);
@@ -448,7 +456,16 @@ function detectFinalizadoTimestamp(data, payload) {
     ['delivery_status'],
     ['status'],
     ['order_status'],
-    ['meta_data', 'delivery_status']
+    ['rider_status'],
+    ['state'],
+    ['event'],
+    ['type'],
+    ['action'],
+    ['event_type'],
+    ['topic'],
+    ['meta_data', 'delivery_status'],
+    ['meta_data', 'status'],
+    ['meta_data', 'order_status']
   ];
   const timestampPaths = [
     ['delivery_status_updated_at'],
@@ -475,10 +492,9 @@ function detectFinalizadoTimestamp(data, payload) {
   for (const source of candidateSources) {
     const status = statusPaths
       .map((path) => normalizeStatusText(getNestedValue(source, path)))
-      .find(Boolean);
+      .find((value) => value && finalizadoStatuses.some((keyword) => value.includes(keyword)));
 
     if (!status) continue;
-    if (!finalizadoStatuses.some((keyword) => status.includes(keyword))) continue;
 
     for (const path of timestampPaths) {
       const value = getNestedValue(source, path);
