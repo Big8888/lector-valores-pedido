@@ -1,8 +1,8 @@
 const HOJAS_COBRO = ['Mauro', 'Diogo', 'GIAN', 'LIBRE1'];
 const FILA_INICIO_PEDIDOS = 8;
-const CELDA_BOTON_COBRO = 'N6';
-const RANGO_LIMPIEZA_BOTON_VIEJO = 'N1:O2';
+const RANGO_LIMPIEZA_CONTROLES_VIEJOS = 'N1:O6';
 const TITULO_IMAGEN_COBRO = 'COBROS_BUTTON';
+const COLOR_COBRADO = '#d9ead3';
 const COLUMNAS_COBRO = {
   numeroPedidoInterno: 1, // A
   estadoPago: 2, // B
@@ -17,13 +17,12 @@ const COLUMNAS_COBRO = {
   finalizado: 11, // K
   anotaciones: 12 // L
 };
-const COLOR_COBRADO = '#d9ead3';
 
 function crearMenuCobros() {
   SpreadsheetApp.getUi()
     .createMenu('COBROS')
-      .addItem('Abrir calculadora de cobro', 'abrirVentanaCobro')
-      .addToUi();
+    .addItem('Abrir calculadora de cobro', 'abrirVentanaCobro')
+    .addToUi();
 }
 
 function limpiarBotonesCobroEnHojas() {
@@ -34,35 +33,11 @@ function limpiarBotonesCobroEnHojas() {
     if (!hoja) return;
 
     limpiarBotonesCobro_(hoja);
-    hoja.getRange(RANGO_LIMPIEZA_BOTON_VIEJO).clearContent().clearDataValidations().clearNote().setBackground(null);
-    hoja.getRange(CELDA_BOTON_COBRO).clearContent().clearDataValidations().clearNote().setBackground(null);
-  });
-}
-
-function crearBotonCobrosEnHojas() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const boton = crearImagenBotonCobros_();
-
-  HOJAS_COBRO.forEach((nombreHoja) => {
-    const hoja = ss.getSheetByName(nombreHoja);
-    if (!hoja) return;
-
-    limpiarBotonesCobro_(hoja);
-    hoja.getRange(RANGO_LIMPIEZA_BOTON_VIEJO).clearContent().clearDataValidations().clearNote();
-    hoja.getRange(CELDA_BOTON_COBRO).clearContent().clearDataValidations().setNote('Click sobre el boton verde para abrir cobros.');
-    hoja.setRowHeight(6, 48);
-    hoja.setColumnWidth(14, 180);
-    hoja.setColumnWidth(15, 60);
-
-    const image = hoja.insertImage(boton.copyBlob(), hoja.getRange(CELDA_BOTON_COBRO).getColumn(), hoja.getRange(CELDA_BOTON_COBRO).getRow());
-    image.assignScript('abrirVentanaCobro');
-    image.setAltTextTitle(TITULO_IMAGEN_COBRO);
-    image.setAltTextDescription('Abre la ventana de cobro para esta hoja');
-    image.setAnchorCell(hoja.getRange(CELDA_BOTON_COBRO));
-    image.setAnchorCellXOffset(6);
-    image.setAnchorCellYOffset(4);
-    image.setWidth(210);
-    image.setHeight(44);
+    hoja.getRange(RANGO_LIMPIEZA_CONTROLES_VIEJOS)
+      .clearContent()
+      .clearDataValidations()
+      .clearNote()
+      .setBackground(null);
   });
 }
 
@@ -78,7 +53,7 @@ function abrirVentanaCobro() {
 
   const datos = obtenerPedidosDisponibles_(hoja);
   if (datos.items.length === 0) {
-    ui.alert('No encontré pedidos válidos para cobrar en esta hoja.');
+    ui.alert('No encontre pedidos validos para cobrar en esta hoja.');
     return;
   }
 
@@ -99,10 +74,11 @@ function abrirVentanaCobro() {
 
 function confirmarCobro(payload) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const hoja = ss.getSheetByName(String(payload && payload.sheetName || '').trim());
+  const sheetName = String((payload && payload.sheetName) || '').trim();
+  const hoja = ss.getSheetByName(sheetName);
 
   if (!hoja) {
-    throw new Error('No se encontró la hoja del cobro.');
+    throw new Error('No se encontro la hoja del cobro.');
   }
 
   const filas = Array.isArray(payload && payload.filas)
@@ -112,7 +88,7 @@ function confirmarCobro(payload) {
     : [];
 
   if (filas.length === 0) {
-    throw new Error('No se recibieron filas válidas para cobrar.');
+    throw new Error('No se recibieron filas validas para cobrar.');
   }
 
   const totalEfectivo = toNumberCobro_(payload && payload.totalEfectivo);
@@ -126,9 +102,9 @@ function confirmarCobro(payload) {
     const anotacionCelda = hoja.getRange(fila, COLUMNAS_COBRO.anotaciones);
     const anotacionActual = String(anotacionCelda.getValue() || '').trim();
     const detalleCobro = totalEfectivo > 0
-      ? `COBRADO ${hora} | Efectivo ${totalEfectivo} | Pago ${montoPago} | Vuelto ${vuelto}`
-      : `COBRADO ${hora}`;
-    const nuevaAnotacion = anotacionActual ? `${anotacionActual} | ${detalleCobro}` : detalleCobro;
+      ? 'COBRADO ' + hora + ' | Efectivo ' + totalEfectivo + ' | Pago ' + montoPago + ' | Vuelto ' + vuelto
+      : 'COBRADO ' + hora;
+    const nuevaAnotacion = anotacionActual ? anotacionActual + ' | ' + detalleCobro : detalleCobro;
 
     anotacionCelda.setValue(nuevaAnotacion);
   });
@@ -139,29 +115,52 @@ function confirmarCobro(payload) {
   };
 }
 
+function obtenerPedidosDisponibles_(hoja) {
+  const lastRow = hoja.getLastRow();
+  if (lastRow < FILA_INICIO_PEDIDOS) {
+    return buildCobroVacio_();
+  }
+
+  const rango = hoja.getRange(
+    FILA_INICIO_PEDIDOS,
+    1,
+    lastRow - FILA_INICIO_PEDIDOS + 1,
+    COLUMNAS_COBRO.anotaciones
+  );
+
+  return obtenerCobroSeleccionado_(hoja, rango);
+}
+
 function obtenerCobroSeleccionado_(hoja, rango) {
   const startRow = rango.getRow();
   const numRows = rango.getNumRows();
-  const valores = hoja.getRange(startRow, 1, numRows, COLUMNAS_COBRO.anotaciones).getValues();
+  const valores = hoja
+    .getRange(startRow, 1, numRows, COLUMNAS_COBRO.anotaciones)
+    .getValues();
 
-  const resultado = {
-    items: [],
-    totalTarjeta: 0,
-    totalEfectivo: 0,
-    totalTransferencia: 0,
-    totalGeneral: 0
-  };
+  const resultado = buildCobroVacio_();
 
   valores.forEach((filaValores, index) => {
     const fila = startRow + index;
     if (fila < FILA_INICIO_PEDIDOS) return;
 
-    const numeroPedidoInterno = String(filaValores[COLUMNAS_COBRO.numeroPedidoInterno - 1] || '').trim();
-    const estadoPago = String(filaValores[COLUMNAS_COBRO.estadoPago - 1] || '').trim();
+    const numeroPedidoInterno = String(
+      filaValores[COLUMNAS_COBRO.numeroPedidoInterno - 1] || ''
+    ).trim();
+    const estadoPago = String(
+      filaValores[COLUMNAS_COBRO.estadoPago - 1] || ''
+    ).trim();
+    const anotaciones = String(
+      filaValores[COLUMNAS_COBRO.anotaciones - 1] || ''
+    ).trim();
     const total = toNumberCobro_(filaValores[COLUMNAS_COBRO.total - 1]);
     const tarjeta = toNumberCobro_(filaValores[COLUMNAS_COBRO.tarjeta - 1]);
     const efectivo = toNumberCobro_(filaValores[COLUMNAS_COBRO.efectivo - 1]);
     const transferencia = toNumberCobro_(filaValores[COLUMNAS_COBRO.transferencia - 1]);
+
+    if (/COBRADO/i.test(anotaciones)) {
+      return;
+    }
 
     if (!numeroPedidoInterno && total <= 0 && tarjeta <= 0 && efectivo <= 0 && transferencia <= 0) {
       return;
@@ -188,20 +187,14 @@ function obtenerCobroSeleccionado_(hoja, rango) {
   return resultado;
 }
 
-function obtenerPedidosDisponibles_(hoja) {
-  const lastRow = hoja.getLastRow();
-  if (lastRow < FILA_INICIO_PEDIDOS) {
-    return {
-      items: [],
-      totalTarjeta: 0,
-      totalEfectivo: 0,
-      totalTransferencia: 0,
-      totalGeneral: 0
-    };
-  }
-
-  const rango = hoja.getRange(FILA_INICIO_PEDIDOS, 1, lastRow - FILA_INICIO_PEDIDOS + 1, COLUMNAS_COBRO.anotaciones);
-  return obtenerCobroSeleccionado_(hoja, rango);
+function buildCobroVacio_() {
+  return {
+    items: [],
+    totalTarjeta: 0,
+    totalEfectivo: 0,
+    totalTransferencia: 0,
+    totalGeneral: 0
+  };
 }
 
 function toNumberCobro_(value) {
@@ -224,26 +217,13 @@ function toNumberCobro_(value) {
 }
 
 function limpiarBotonesCobro_(hoja) {
-  const images = hoja.getImages ? hoja.getImages() : [];
+  if (!hoja.getImages) return;
 
+  const images = hoja.getImages();
   images.forEach((image) => {
-    const anchorCell = image.getAnchorCell();
-    const isCobroButton = image.getAltTextTitle && image.getAltTextTitle() === TITULO_IMAGEN_COBRO;
-    const isOnCobroCell = anchorCell && anchorCell.getA1Notation() === CELDA_BOTON_COBRO;
-
-    if (isCobroButton || isOnCobroCell) {
+    const altTitle = image.getAltTextTitle ? image.getAltTextTitle() : '';
+    if (altTitle === TITULO_IMAGEN_COBRO) {
       image.remove();
     }
   });
-}
-
-function crearImagenBotonCobros_() {
-  const svg = [
-    '<svg xmlns="http://www.w3.org/2000/svg" width="420" height="88" viewBox="0 0 420 88">',
-    '<rect x="2" y="2" width="416" height="84" rx="18" fill="#34a853" stroke="#1e7c3b" stroke-width="4"/>',
-    '<text x="210" y="55" text-anchor="middle" font-family="Arial, sans-serif" font-size="32" font-weight="700" fill="#ffffff">ABRIR COBROS</text>',
-    '</svg>'
-  ].join('');
-
-  return Utilities.newBlob(svg, 'image/svg+xml', 'cobros-button.svg');
 }

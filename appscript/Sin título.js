@@ -2,7 +2,7 @@ function onOpen() {
   crearDesplegableMedioPago();
   crearMenuCobros();
   limpiarBotonesCobroEnHojas();
-  SpreadsheetApp.getActiveSpreadsheet().toast('Abrí la calculadora desde el menú COBROS.', 'COBROS', 5);
+  SpreadsheetApp.getActiveSpreadsheet().toast('Abri la calculadora desde el menu COBROS.', 'COBROS', 5);
 }
 
 function onInstall() {
@@ -20,7 +20,6 @@ function crearDesplegableMedioPago() {
     hoja.getRange('K8:K35').clearDataValidations();
 
     const rango = hoja.getRange('I8:I35');
-
     const regla = SpreadsheetApp.newDataValidation()
       .requireValueInList(['Tarjeta', 'Efectivo', 'Transferencia'], true)
       .setAllowInvalid(false)
