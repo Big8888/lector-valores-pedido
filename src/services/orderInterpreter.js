@@ -412,7 +412,6 @@ function detectEnCaminoTimestamp(data, payload) {
   ];
 
   const enCaminoStatuses = [
-    'rider_assigned',
     'on_the_way',
     'on the way',
     'in_route',
