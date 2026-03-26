@@ -337,7 +337,8 @@ function detectPaymentBreakdown(data, payload, paymentStatus) {
     efectivo: 0,
     transferencia: 0,
     hasExplicitAmounts: false,
-    detectedMethods: []
+    detectedMethods: [],
+    explicitAmountTotal: 0
   };
 
   const entries = collectPaymentEntries(data, payload);
@@ -351,6 +352,7 @@ function detectPaymentBreakdown(data, payload, paymentStatus) {
     if (!method || amount <= 0) continue;
 
     breakdown[method] += amount;
+    breakdown.explicitAmountTotal += amount;
     breakdown.hasExplicitAmounts = true;
 
     if (!breakdown.detectedMethods.includes(method)) {
@@ -729,6 +731,12 @@ function interpretOrder(payload = {}) {
   const subtotal = toNumber(findFirstPresent(data, [['combos_price'], ['subtotal']]));
   const delivery = toNumber(findFirstPresent(data, [['delivery_price'], ['delivery_cost']]));
   const total = toNumber(findFirstPresent(data, [['total']])) || subtotal + delivery;
+  const reportedTotalPaid = toNumber(findFirstPresent(data, [
+    ['total_paid'],
+    ['paid_amount'],
+    ['payment', 'paid_amount'],
+    ['payment', 'amount']
+  ]));
   const paymentStatus = detectPaymentStatus(data);
   const paymentBreakdown = detectPaymentBreakdown(data, payload, paymentStatus);
   const paymentMethod = paymentBreakdown.detectedMethods.length > 1
@@ -752,6 +760,10 @@ function interpretOrder(payload = {}) {
     ['total']
   ]));
   const isPartialPayment = ['PARCIAL', 'PARTIAL', 'PARTIALLY_PAID'].includes(asString(paymentStatus).toUpperCase());
+  const explicitPaymentsAreCurrentSnapshot =
+    paymentBreakdown.hasExplicitAmounts &&
+    reportedTotalPaid > 0 &&
+    Math.abs(paymentBreakdown.explicitAmountTotal - reportedTotalPaid) < 0.01;
   const canApplyFullTotalToSingleMethod =
     !paymentBreakdown.hasExplicitAmounts &&
     !isPartialPayment &&
@@ -806,6 +818,9 @@ function interpretOrder(payload = {}) {
     finalizado,
     paymentMethod,
     hasExplicitPaymentAmounts: paymentBreakdown.hasExplicitAmounts,
+    explicitPaymentTotal: paymentBreakdown.explicitAmountTotal,
+    reportedTotalPaid,
+    explicitPaymentsAreCurrentSnapshot,
     paymentStatus,
     paymentDebugTexts,
     paymentDebugFields,

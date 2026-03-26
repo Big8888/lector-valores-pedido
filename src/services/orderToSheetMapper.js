@@ -72,6 +72,7 @@ function mapOrderToSheetRow(order, existingRow = null) {
   const incomingEfectivo = resolveNumber(order.efectivo, null, 0);
   const incomingTransferencia = resolveNumber(order.transferencia, null, 0);
   const hasExplicitPaymentAmounts = Boolean(order.hasExplicitPaymentAmounts);
+  const explicitPaymentsAreCurrentSnapshot = order.explicitPaymentsAreCurrentSnapshot !== false;
   const isUnpaidLike = paymentStatus === 'NO PAGADO' || paymentStatus === 'UNPAID' || paymentStatus === 'PENDIENTE' || paymentStatus === 'PENDING';
 
   const authoritativeAmount = resolveNumber(
@@ -127,7 +128,8 @@ function mapOrderToSheetRow(order, existingRow = null) {
     const shouldMergePartialPayment =
       existingHasPaymentAmounts &&
       incomingPaymentTotal > 0 &&
-      incomingPaymentTotal < authoritativeAmount;
+      incomingPaymentTotal < authoritativeAmount &&
+      !explicitPaymentsAreCurrentSnapshot;
 
     totalValue = 0;
 
