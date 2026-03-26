@@ -21,9 +21,9 @@
       }
 
       .totales {
-        font-size: 18px;
+        font-size: 17px;
         font-weight: bold;
-        margin-top: 6px;
+        margin-top: 4px;
       }
 
       label {
@@ -53,21 +53,35 @@
         color: #0b5394;
       }
 
-      table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-top: 10px;
+      .listaPedidos {
+        max-height: 280px;
+        overflow-y: auto;
       }
 
-      th,
-      td {
+      .pedidoItem {
         border: 1px solid #e5e5e5;
-        padding: 6px;
-        text-align: center;
+        border-radius: 10px;
+        padding: 10px;
+        margin-bottom: 8px;
       }
 
-      th {
-        background: #f5f5f5;
+      .pedidoLabel {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        cursor: pointer;
+      }
+
+      .pedidoTitulo {
+        font-size: 16px;
+        font-weight: bold;
+      }
+
+      .pedidoSub {
+        margin-top: 6px;
+        margin-left: 30px;
+        color: #555;
+        font-size: 13px;
       }
 
       .acciones {
@@ -88,11 +102,11 @@
     <h2>Cobro de pedidos seleccionados</h2>
 
     <div class="box">
-      <div><b>Tarjeta seleccionada:</b> $<span id="totalTarjeta"><?= totalTarjeta ?></span></div>
-      <div><b>Efectivo seleccionado:</b> $<span id="totalEfectivo"><?= totalEfectivo ?></span></div>
-      <div><b>Transferencia seleccionada:</b> $<span id="totalTransferencia"><?= totalTransferencia ?></span></div>
-      <div class="totales">Efectivo a cobrar: $<span id="totalEfectivoCobro"><?= totalEfectivo ?></span></div>
-      <div class="totales">Total general seleccionado: $<span id="totalGeneral"><?= totalGeneral ?></span></div>
+      <div class="totales">Efectivo a cobrar: $<span id="totalEfectivoCobro">0</span></div>
+      <div>Tarjeta: $<span id="totalTarjeta">0</span></div>
+      <div>Efectivo: $<span id="totalEfectivo">0</span></div>
+      <div>Transferencia: $<span id="totalTransferencia">0</span></div>
+      <div>Total seleccionado: $<span id="totalGeneral">0</span></div>
     </div>
 
     <div class="box">
@@ -101,35 +115,18 @@
       <div class="resultado" id="vuelto">Vuelto: $0</div>
     </div>
 
-    <div class="box">
-      <table>
-        <thead>
-          <tr>
-            <th>Fila</th>
-            <th>OK</th>
-            <th>Pedido</th>
-            <th>Estado</th>
-            <th>Tarjeta</th>
-            <th>Efectivo</th>
-            <th>Transfer.</th>
-            <th>Total</th>
-          </tr>
-        </thead>
-        <tbody>
-          <? for (var i = 0; i < items.length; i++) { ?>
-            <tr>
-              <td><?= items[i].fila ?></td>
-              <td><input type="checkbox" class="selectorPedido" data-index="<?= i ?>" oninput="recalcularSeleccion()"></td>
-              <td><?= items[i].numeroPedidoInterno ?></td>
-              <td><?= items[i].estadoPago ?></td>
-              <td>$<?= items[i].tarjeta ?></td>
-              <td>$<?= items[i].efectivo ?></td>
-              <td>$<?= items[i].transferencia ?></td>
-              <td>$<?= items[i].totalFila ?></td>
-            </tr>
-          <? } ?>
-        </tbody>
-      </table>
+    <div class="box listaPedidos">
+      <? for (var i = 0; i < items.length; i++) { ?>
+        <div class="pedidoItem">
+          <label class="pedidoLabel">
+            <input type="checkbox" class="selectorPedido" data-index="<?= i ?>" oninput="recalcularSeleccion()">
+            <span class="pedidoTitulo">Pedido <?= items[i].numeroPedidoInterno || items[i].fila ?> - $<?= items[i].totalFila ?></span>
+          </label>
+          <div class="pedidoSub">
+            Estado: <?= items[i].estadoPago || 'SIN ESTADO' ?> | Tarjeta $<?= items[i].tarjeta ?> | Efectivo $<?= items[i].efectivo ?> | Transferencia $<?= items[i].transferencia ?>
+          </div>
+        </div>
+      <? } ?>
     </div>
 
     <div class="acciones">

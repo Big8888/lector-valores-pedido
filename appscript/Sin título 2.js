@@ -10,6 +10,17 @@ function onEdit(e) {
 
   const fila = e.range.getRow();
   const col = e.range.getColumn();
+  const ROW_BOTON_COBRO = 1;
+  const COL_BOTON_COBRO = 14; // N
+
+  if (fila === ROW_BOTON_COBRO && col === COL_BOTON_COBRO) {
+    const activado = e.range.getValue() === true;
+    if (!activado) return;
+
+    e.range.setValue(false);
+    abrirVentanaCobro();
+    return;
+  }
 
   const FILA_INICIO = 8;
   if (fila < FILA_INICIO) return;

@@ -1,6 +1,7 @@
 const HOJAS_COBRO = ['Mauro', 'Diogo', 'GIAN', 'LIBRE1'];
 const FILA_INICIO_PEDIDOS = 8;
-const RANGO_BOTON_COBRO = 'N1:O2';
+const CELDA_BOTON_COBRO = 'N1';
+const RANGO_ETIQUETA_COBRO = 'O1:Q2';
 const COLUMNAS_COBRO = {
   numeroPedidoInterno: 1, // A
   estadoPago: 2, // B
@@ -31,13 +32,17 @@ function crearBotonCobrosEnHojas() {
     const hoja = ss.getSheetByName(nombreHoja);
     if (!hoja) return;
 
-    const rango = hoja.getRange(RANGO_BOTON_COBRO);
-    const mergedRanges = rango.getMergedRanges();
-    if (mergedRanges.length === 0) {
-      rango.merge();
-    }
-
-    hoja.getRange(RANGO_BOTON_COBRO)
+    hoja.getRange('N1:Q2').breakApart();
+    hoja.getRange(RANGO_ETIQUETA_COBRO).merge();
+    hoja.getRange(CELDA_BOTON_COBRO).insertCheckboxes();
+    hoja.getRange(CELDA_BOTON_COBRO)
+      .setValue(false)
+      .setBackground('#34a853')
+      .setHorizontalAlignment('center')
+      .setVerticalAlignment('middle')
+      .setBorder(true, true, true, true, true, true)
+      .setNote('Tilda esta casilla para abrir la ventana de cobro.');
+    hoja.getRange(RANGO_ETIQUETA_COBRO)
       .setValue('ABRIR COBROS')
       .setBackground('#34a853')
       .setFontColor('#ffffff')
@@ -45,29 +50,9 @@ function crearBotonCobrosEnHojas() {
       .setHorizontalAlignment('center')
       .setVerticalAlignment('middle')
       .setBorder(true, true, true, true, true, true)
-      .setNote('Hace click aca para abrir la ventana de cobro de esta hoja.');
+      .setNote('Tilda la casilla verde de la izquierda para abrir la ventana de cobro.');
+    hoja.setColumnWidth(14, 42);
   });
-}
-
-function manejarBotonCobroSeleccion_(e) {
-  if (!e || !e.range) return;
-
-  const hoja = e.range.getSheet();
-  if (!hoja || !HOJAS_COBRO.includes(hoja.getName())) return;
-
-  const rangoBoton = hoja.getRange(RANGO_BOTON_COBRO);
-  if (!rangosSeSuperponen_(e.range, rangoBoton)) return;
-
-  const props = PropertiesService.getDocumentProperties();
-  const lastOpenAt = Number(props.getProperty('COBROS_LAST_OPEN_AT') || 0);
-  const now = Date.now();
-
-  if (now - lastOpenAt < 1500) {
-    return;
-  }
-
-  props.setProperty('COBROS_LAST_OPEN_AT', String(now));
-  abrirVentanaCobro();
 }
 
 function abrirVentanaCobro() {
@@ -225,21 +210,4 @@ function toNumberCobro_(value) {
   );
 
   return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function rangosSeSuperponen_(rangoA, rangoB) {
-  const aStartRow = rangoA.getRow();
-  const aEndRow = rangoA.getLastRow();
-  const aStartCol = rangoA.getColumn();
-  const aEndCol = rangoA.getLastColumn();
-
-  const bStartRow = rangoB.getRow();
-  const bEndRow = rangoB.getLastRow();
-  const bStartCol = rangoB.getColumn();
-  const bEndCol = rangoB.getLastColumn();
-
-  const filasSuperpuestas = aStartRow <= bEndRow && aEndRow >= bStartRow;
-  const colsSuperpuestas = aStartCol <= bEndCol && aEndCol >= bStartCol;
-
-  return filasSuperpuestas && colsSuperpuestas;
 }

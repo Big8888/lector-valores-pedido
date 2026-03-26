@@ -2,15 +2,11 @@ function onOpen() {
   crearDesplegableMedioPago();
   crearMenuCobros();
   crearBotonCobrosEnHojas();
-  SpreadsheetApp.getActiveSpreadsheet().toast('Boton ABRIR COBROS creado en cada hoja de repartidor.', 'COBROS', 5);
+  SpreadsheetApp.getActiveSpreadsheet().toast('Boton COBROS listo en cada hoja de repartidor.', 'COBROS', 5);
 }
 
 function onInstall() {
   onOpen();
-}
-
-function onSelectionChange(e) {
-  manejarBotonCobroSeleccion_(e);
 }
 
 function crearDesplegableMedioPago() {
