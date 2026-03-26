@@ -14,11 +14,11 @@ function onEdit(e) {
   const FILA_INICIO = 8;
   if (fila < FILA_INICIO) return;
 
-  const COL_TOTAL = 3; // C
-  const COL_TARJETA = 4; // D
-  const COL_EFECTIVO = 5; // E
-  const COL_TRANSFER = 6; // F
-  const COL_SELECTOR = 9; // I
+  const COL_TOTAL = 4; // D
+  const COL_TARJETA = 5; // E
+  const COL_EFECTIVO = 6; // F
+  const COL_TRANSFER = 7; // G
+  const COL_SELECTOR = 10; // J
 
   if (col !== COL_SELECTOR) return;
 

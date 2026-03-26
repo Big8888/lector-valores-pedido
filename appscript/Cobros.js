@@ -1,22 +1,22 @@
 const HOJAS_COBRO = ['Mauro', 'Diogo', 'GIAN', 'LIBRE1'];
 const FILA_INICIO_PEDIDOS = 8;
-const RANGO_LIMPIEZA_CONTROLES_VIEJOS = 'N1:O6';
-const CELDA_BOTON_COBRO = 'N5';
+const RANGO_LIMPIEZA_CONTROLES_VIEJOS = 'O1:P6';
+const CELDA_BOTON_COBRO = 'O5';
 const TITULO_IMAGEN_COBRO = 'COBROS_BUTTON';
 const COLOR_COBRADO = '#d9ead3';
 const COLUMNAS_COBRO = {
-  numeroPedidoInterno: 1, // A
-  estadoPago: 2, // B
-  total: 3, // C
-  tarjeta: 4, // D
-  efectivo: 5, // E
-  transferencia: 6, // F
-  enviosLejanos: 7, // G
-  propinaWeb: 8, // H
-  salidaDinero: 9, // I
-  enCamino: 10, // J
-  finalizado: 11, // K
-  anotaciones: 12 // L
+  numeroPedidoInterno: 2, // B
+  estadoPago: 3, // C
+  total: 4, // D
+  tarjeta: 5, // E
+  efectivo: 6, // F
+  transferencia: 7, // G
+  enviosLejanos: 8, // H
+  propinaWeb: 9, // I
+  salidaDinero: 10, // J
+  enCamino: 11, // K
+  finalizado: 12, // L
+  anotaciones: 13 // M
 };
 
 function crearMenuCobros() {
@@ -60,8 +60,9 @@ function crearBotonCobrosEnHojas() {
 
     hoja.setRowHeight(5, 46);
     hoja.setRowHeight(6, 24);
-    hoja.setColumnWidth(14, 155);
-    hoja.setColumnWidth(15, 65);
+    const botonColumna = hoja.getRange(CELDA_BOTON_COBRO).getColumn();
+    hoja.setColumnWidth(botonColumna, 155);
+    hoja.setColumnWidth(botonColumna + 1, 65);
 
     const image = hoja.insertImage(
       boton.copyBlob(),

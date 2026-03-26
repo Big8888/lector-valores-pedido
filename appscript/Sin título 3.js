@@ -6,6 +6,6 @@ function ocultarColumnasAuxiliares() {
     const hoja = ss.getSheetByName(nombreHoja);
     if (!hoja) return;
 
-    hoja.hideColumns(25, 2); // Y y Z reservadas para futuras ayudas
+    hoja.hideColumns(26, 2); // Z y AA reservadas para futuras ayudas
   });
 }

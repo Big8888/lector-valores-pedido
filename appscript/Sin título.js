@@ -17,9 +17,9 @@ function crearDesplegableMedioPago() {
     const hoja = ss.getSheetByName(nombreHoja);
     if (!hoja) return;
 
-    hoja.getRange('K8:K35').clearDataValidations();
+    hoja.getRange('L8:L35').clearDataValidations();
 
-    const rango = hoja.getRange('I8:I35');
+    const rango = hoja.getRange('J8:J35');
     const regla = SpreadsheetApp.newDataValidation()
       .requireValueInList(['Tarjeta', 'Efectivo', 'Transferencia'], true)
       .setAllowInvalid(false)

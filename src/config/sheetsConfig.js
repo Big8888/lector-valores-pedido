@@ -10,24 +10,24 @@ module.exports = {
     LIBRE: 'LIBRE1'
   },
   columns: {
-    numeroPedidoInterno: 'A',
-    estadoPago: 'B',
-    total: 'C',
-    tarjeta: 'D',
-    efectivo: 'E',
-    transferencia: 'F',
-    enviosLejanos: 'G',
-    propinaWeb: 'H',
-    salidaDinero: 'I',
-    enCamino: 'J',
-    finalizado: 'K',
-    nroPedido: 'U',
-    telefono: 'W',
-    fecha: 'X'
+    numeroPedidoInterno: 'B',
+    estadoPago: 'C',
+    total: 'D',
+    tarjeta: 'E',
+    efectivo: 'F',
+    transferencia: 'G',
+    enviosLejanos: 'H',
+    propinaWeb: 'I',
+    salidaDinero: 'J',
+    enCamino: 'K',
+    finalizado: 'L',
+    nroPedido: 'V',
+    telefono: 'X',
+    fecha: 'Y'
   },
   dataStartRow: 8,
   sheetBounds: {
-    startColumn: 'A',
-    endColumn: 'X'
+    startColumn: 'B',
+    endColumn: 'Y'
   }
 };
