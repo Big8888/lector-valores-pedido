@@ -9,6 +9,7 @@ const OFFSET_X_BOTON_COBRO = 2;
 const OFFSET_Y_BOTON_COBRO = 3;
 const COLOR_COBRADO = '#d9ead3';
 const PREFIJO_CACHE_FILAS_COBRO = 'COBROS_FILAS_';
+const PREFIJO_CACHE_DATOS_COBRO = 'COBROS_DATOS_';
 const COLUMNAS_COBRO = {
   accion: 1, // A
   numeroPedidoInterno: 2, // B
@@ -109,8 +110,15 @@ function abrirVentanaCobro() {
     return;
   }
 
+  const datos = obtenerDatosCobroModal(hoja.getName());
+  if (datos.items.length === 0) {
+    ui.alert('Marca en A los pedidos que queres cobrar y despues toca ABRIR COBROS.');
+    return;
+  }
+
   const template = HtmlService.createTemplateFromFile('CobroModal');
   template.sheetName = hoja.getName();
+  template.initialData = datos;
 
   const html = template.evaluate()
     .setWidth(620)
@@ -127,19 +135,12 @@ function obtenerDatosCobroModal(sheetName) {
     throw new Error('No se encontro la hoja del cobro.');
   }
 
-  const datos = obtenerPedidosSeleccionados_(hoja);
-  if (datos.items.length === 0) {
-    throw new Error('Marca en A los pedidos que queres cobrar y despues toca ABRIR COBROS.');
+  const datosCacheados = getDatosCobroCache_(hoja.getName());
+  if (datosCacheados) {
+    return datosCacheados;
   }
 
-  return {
-    sheetName: hoja.getName(),
-    items: datos.items,
-    totalTarjeta: datos.totalTarjeta,
-    totalEfectivo: datos.totalEfectivo,
-    totalTransferencia: datos.totalTransferencia,
-    totalGeneral: datos.totalGeneral
-  };
+  return refrescarCacheDatosCobro_(hoja);
 }
 
 function confirmarCobro(payload) {
@@ -178,6 +179,7 @@ function confirmarCobro(payload) {
   });
 
   actualizarFilasCobroSeleccionadas_(hoja, filas, false);
+  refrescarCacheDatosCobro_(hoja);
 
   return {
     ok: true,
@@ -215,6 +217,7 @@ function quitarCobro(payload) {
   });
 
   actualizarFilasCobroSeleccionadas_(hoja, filas, false);
+  refrescarCacheDatosCobro_(hoja);
 
   return {
     ok: true,
@@ -352,6 +355,7 @@ function obtenerFilasSeleccionadasCobro_(hoja, lastRow) {
 
 function buildCobroVacio_() {
   return {
+    sheetName: '',
     items: [],
     totalTarjeta: 0,
     totalEfectivo: 0,
@@ -449,6 +453,64 @@ function setFilasCobroSeleccionadasCache_(sheetName, filas) {
 
 function getKeyFilasCobro_(sheetName) {
   return PREFIJO_CACHE_FILAS_COBRO + String(sheetName || '').trim().toUpperCase();
+}
+
+function refrescarCacheDatosCobro_(hoja) {
+  const datos = obtenerPedidosSeleccionados_(hoja);
+  const payload = {
+    sheetName: hoja.getName(),
+    items: datos.items,
+    totalTarjeta: datos.totalTarjeta,
+    totalEfectivo: datos.totalEfectivo,
+    totalTransferencia: datos.totalTransferencia,
+    totalGeneral: datos.totalGeneral
+  };
+
+  setDatosCobroCache_(hoja.getName(), payload);
+  return payload;
+}
+
+function getDatosCobroCache_(sheetName) {
+  const raw = PropertiesService
+    .getDocumentProperties()
+    .getProperty(getKeyDatosCobro_(sheetName));
+
+  if (!raw) return null;
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (!parsed || !Array.isArray(parsed.items)) return null;
+
+    return {
+      sheetName: String(parsed.sheetName || sheetName || '').trim(),
+      items: parsed.items,
+      totalTarjeta: Number(parsed.totalTarjeta) || 0,
+      totalEfectivo: Number(parsed.totalEfectivo) || 0,
+      totalTransferencia: Number(parsed.totalTransferencia) || 0,
+      totalGeneral: Number(parsed.totalGeneral) || 0
+    };
+  } catch (error) {
+    return null;
+  }
+}
+
+function setDatosCobroCache_(sheetName, datos) {
+  const props = PropertiesService.getDocumentProperties();
+  const key = getKeyDatosCobro_(sheetName);
+  const payload = {
+    sheetName: String((datos && datos.sheetName) || sheetName || '').trim(),
+    items: Array.isArray(datos && datos.items) ? datos.items : [],
+    totalTarjeta: Number(datos && datos.totalTarjeta) || 0,
+    totalEfectivo: Number(datos && datos.totalEfectivo) || 0,
+    totalTransferencia: Number(datos && datos.totalTransferencia) || 0,
+    totalGeneral: Number(datos && datos.totalGeneral) || 0
+  };
+
+  props.setProperty(key, JSON.stringify(payload));
+}
+
+function getKeyDatosCobro_(sheetName) {
+  return PREFIJO_CACHE_DATOS_COBRO + String(sheetName || '').trim().toUpperCase();
 }
 
 function limpiarDetalleCobro_(texto) {

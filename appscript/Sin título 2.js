@@ -16,4 +16,5 @@ function onEdit(e) {
 
   const checked = e.range.getValue() === true;
   actualizarFilasCobroSeleccionadas_(hoja, [fila], checked);
+  refrescarCacheDatosCobro_(hoja);
 }
