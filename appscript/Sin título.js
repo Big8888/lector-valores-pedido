@@ -1,6 +1,11 @@
 function onOpen() {
   crearDesplegableMedioPago();
   crearMenuCobros();
+  SpreadsheetApp.getActiveSpreadsheet().toast('Menu COBROS disponible arriba, junto a Ayuda.', 'COBROS', 5);
+}
+
+function onInstall() {
+  onOpen();
 }
 
 function crearDesplegableMedioPago() {

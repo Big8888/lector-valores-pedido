@@ -18,7 +18,7 @@ const COLOR_COBRADO = '#d9ead3';
 
 function crearMenuCobros() {
   SpreadsheetApp.getUi()
-    .createMenu('Cobros')
+    .createMenu('COBROS')
     .addItem('Cobrar seleccionados', 'abrirVentanaCobro')
     .addToUi();
 }
