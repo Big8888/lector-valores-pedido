@@ -1,7 +1,7 @@
 const HOJAS_COBRO = ['Mauro', 'Diogo', 'GIAN', 'LIBRE1'];
 const FILA_INICIO_PEDIDOS = 8;
 const RANGO_LIMPIEZA_CONTROLES_VIEJOS = 'O1:P6';
-const CELDA_BOTON_COBRO = 'O5';
+const CELDA_BOTON_COBRO = 'A7';
 const TITULO_IMAGEN_COBRO = 'COBROS_BUTTON';
 const COLOR_COBRADO = '#d9ead3';
 const COLUMNAS_COBRO = {
@@ -59,25 +59,23 @@ function crearBotonCobrosEnHojas() {
       .clearNote()
       .setBackground(null);
 
-    hoja.setRowHeight(5, 46);
-    hoja.setRowHeight(6, 24);
+    hoja.setRowHeight(7, 34);
     const botonColumna = hoja.getRange(CELDA_BOTON_COBRO).getColumn();
-    hoja.setColumnWidth(botonColumna, 155);
-    hoja.setColumnWidth(botonColumna + 1, 65);
+    hoja.setColumnWidth(botonColumna, 132);
 
     const image = hoja.insertImage(
       boton.copyBlob(),
       hoja.getRange(CELDA_BOTON_COBRO).getColumn(),
       hoja.getRange(CELDA_BOTON_COBRO).getRow(),
-      4,
-      4
+      2,
+      3
     );
 
     image.assignScript('abrirVentanaCobro');
     image.setAltTextTitle(TITULO_IMAGEN_COBRO);
     image.setAltTextDescription('Abre la calculadora de cobro de esta hoja');
-    image.setWidth(210);
-    image.setHeight(38);
+    image.setWidth(126);
+    image.setHeight(26);
   });
 }
 
@@ -276,9 +274,9 @@ function limpiarBotonesCobro_(hoja) {
 
 function crearImagenBotonCobros_() {
   const svg = [
-    '<svg xmlns="http://www.w3.org/2000/svg" width="420" height="76" viewBox="0 0 420 76">',
-    '<rect x="2" y="2" width="416" height="72" rx="18" fill="#34a853" stroke="#1f6f37" stroke-width="4"/>',
-    '<text x="210" y="48" text-anchor="middle" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#ffffff">ABRIR COBROS</text>',
+    '<svg xmlns="http://www.w3.org/2000/svg" width="252" height="52" viewBox="0 0 252 52">',
+    '<rect x="2" y="2" width="248" height="48" rx="14" fill="#34a853" stroke="#1f6f37" stroke-width="4"/>',
+    '<text x="126" y="33" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#ffffff">ABRIR COBROS</text>',
     '</svg>'
   ].join('');
 
