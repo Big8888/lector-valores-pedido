@@ -8,6 +8,7 @@ const ALTO_BOTON_COBRO = 26;
 const OFFSET_X_BOTON_COBRO = 2;
 const OFFSET_Y_BOTON_COBRO = 3;
 const FUNCION_BOTON_EN_HOJA = 'abrirPedidosSeleccionados';
+const URL_BOTON_COBRO = 'https://dummyimage.com/252x52/34a853/ffffff.png&text=ABRIR+COBROS';
 
 function codexPing() {
   return {
@@ -118,7 +119,7 @@ function getBotonesCobro_(hoja) {
 
 function colocarBotonCobroEnHoja_(hoja, celdaBoton) {
   const image = hoja.insertImage(
-    crearImagenBotonCobros_().copyBlob(),
+    URL_BOTON_COBRO,
     celdaBoton.getColumn(),
     celdaBoton.getRow(),
     OFFSET_X_BOTON_COBRO,
@@ -130,15 +131,4 @@ function colocarBotonCobroEnHoja_(hoja, celdaBoton) {
   image.setAltTextDescription('Abre la calculadora de cobro de esta hoja');
   image.setWidth(ANCHO_BOTON_COBRO);
   image.setHeight(ALTO_BOTON_COBRO);
-}
-
-function crearImagenBotonCobros_() {
-  const svg = [
-    '<svg xmlns="http://www.w3.org/2000/svg" width="252" height="52" viewBox="0 0 252 52">',
-    '<rect x="2" y="2" width="248" height="48" rx="14" fill="#34a853" stroke="#1f6f37" stroke-width="4"/>',
-    '<text x="126" y="33" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#ffffff">ABRIR COBROS</text>',
-    '</svg>'
-  ].join('');
-
-  return Utilities.newBlob(svg, 'image/svg+xml', 'cobros-button.svg');
 }
