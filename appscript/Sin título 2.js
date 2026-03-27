@@ -12,8 +12,11 @@ function onEdit(e) {
 
   const fila = e.range.getRow();
   const columna = e.range.getColumn();
-  if (fila < 8 || columna !== 1) return;
 
-  const checked = e.range.getValue() === true;
-  actualizarFilasCobroSeleccionadas_(hoja, [fila], checked);
+  if (fila >= 8 && columna === 1) {
+    const checked = e.range.getValue() === true;
+    actualizarFilasCobroSeleccionadas_(hoja, [fila], checked);
+  }
+
+  manejarEdicionTablaVueltasCompartidas_(e);
 }

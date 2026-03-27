@@ -1,5 +1,6 @@
 function onOpen() {
   crearDesplegableMedioPago();
+  configurarTablaVueltasCompartidas();
   ocultarColumnasAuxiliares();
   crearMenuCobros();
   crearBotonCobrosEnHojas();
