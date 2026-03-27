@@ -1,4 +1,4 @@
-const HOJAS_COBRO = ['Mauro', 'Mauro 1', 'Diogo', 'GIAN', 'LIBRE1'];
+const HOJAS_COBRO = ['Mauro', 'Brisa', 'Diogo', 'GIAN', 'LIBRE1'];
 const FILA_INICIO_PEDIDOS = 8;
 const RANGO_LIMPIEZA_CONTROLES_VIEJOS = 'O1:P6';
 const CELDA_BOTON_COBRO = 'A7';
@@ -93,7 +93,7 @@ function abrirVentanaCobro() {
   const hoja = ss.getActiveSheet();
 
   if (!HOJAS_COBRO.includes(hoja.getName())) {
-    ui.alert('Esta herramienta solo funciona en las hojas Mauro, Mauro 1, Diogo, GIAN y LIBRE1.');
+    ui.alert('Esta herramienta solo funciona en las hojas Mauro, Brisa, Diogo, GIAN y LIBRE1.');
     return;
   }
 

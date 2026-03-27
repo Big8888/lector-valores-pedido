@@ -1,4 +1,4 @@
-const HOJAS_VUELTAS_COMPARTIDAS = ['Mauro', 'Mauro 1', 'Diogo', 'GIAN', 'LIBRE1'];
+const HOJAS_VUELTAS_COMPARTIDAS = ['Mauro', 'Brisa', 'Diogo', 'GIAN', 'LIBRE1'];
 const FILA_BOTONES_VUELTAS = 4;
 const FILA_NOMBRES_VUELTAS = 6;
 const FILA_TITULOS_VUELTAS = 7;

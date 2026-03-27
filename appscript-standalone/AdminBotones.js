@@ -1,5 +1,5 @@
 const TARGET_SPREADSHEET_ID = '1b6thcjNOAbUPKRWSSvqhog2vp6TOk-wbo5GqokPH2hg';
-const HOJAS_REPARTIDORES = ['Mauro', 'Mauro 1', 'Diogo', 'GIAN', 'LIBRE1'];
+const HOJAS_REPARTIDORES = ['Mauro', 'Brisa', 'Diogo', 'GIAN', 'LIBRE1'];
 const CELDA_BOTON = 'A7';
 const RANGO_LIMPIEZA_CONTROLES_VIEJOS = 'O1:P6';
 const TITULO_IMAGEN_COBRO = 'COBROS_BUTTON';
@@ -226,17 +226,44 @@ function configurarTablaVueltasCompartidasEnTodasLasHojas() {
   };
 }
 
-function alinearBotonesDeGianEnMauro1() {
+function renombrarHojaMauro1ABrisa() {
+  const spreadsheet = SpreadsheetApp.openById(TARGET_SPREADSHEET_ID);
+  const hojaBrisa = spreadsheet.getSheetByName('Brisa');
+  if (hojaBrisa) {
+    return {
+      ok: true,
+      renamed: false,
+      hoja: 'Brisa',
+      motivo: 'La hoja Brisa ya existe'
+    };
+  }
+
+  const hojaAnterior = spreadsheet.getSheetByName('Mauro 1');
+  if (!hojaAnterior) {
+    throw new Error('No se encontro la hoja Mauro 1.');
+  }
+
+  hojaAnterior.setName('Brisa');
+
+  return {
+    ok: true,
+    renamed: true,
+    hojaAnterior: 'Mauro 1',
+    hojaNueva: 'Brisa'
+  };
+}
+
+function alinearBotonesDeGianEnBrisa() {
   const spreadsheet = SpreadsheetApp.openById(TARGET_SPREADSHEET_ID);
   const hojaOrigen = spreadsheet.getSheetByName('GIAN');
-  const hojaDestino = spreadsheet.getSheetByName('Mauro 1');
+  const hojaDestino = spreadsheet.getSheetByName('Brisa');
 
   if (!hojaOrigen) {
     throw new Error('No se encontro la hoja GIAN.');
   }
 
   if (!hojaDestino) {
-    throw new Error('No se encontro la hoja Mauro 1.');
+    throw new Error('No se encontro la hoja Brisa.');
   }
 
   for (let columna = 1; columna <= COLUMNA_FIN_VUELTAS; columna += 1) {
@@ -256,7 +283,7 @@ function alinearBotonesDeGianEnMauro1() {
   return {
     ok: true,
     origen: 'GIAN',
-    destino: 'Mauro 1'
+    destino: 'Brisa'
   };
 }
 
