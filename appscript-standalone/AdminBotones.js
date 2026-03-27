@@ -145,26 +145,24 @@ function asegurarBotonCobroEnHoja_(hoja) {
     .setBackground(null);
 
   const celdaBoton = hoja.getRange(CELDA_BOTON);
-  const botonFila = celdaBoton.getRow();
-  const botonColumna = celdaBoton.getColumn();
-
-  const botones = getBotonesCobro_(hoja);
-  const botonEnPosicion = botones.some((image) => {
-    if (!image.getAnchorCell) return false;
-    const anchor = image.getAnchorCell();
-    return anchor && anchor.getRow() === botonFila && anchor.getColumn() === botonColumna;
-  });
-
-  if (botones.length === 1 && botonEnPosicion) {
-    return;
-  }
-
-  limpiarBotonesCobro_(hoja);
+  limpiarBotonesCobroEnPosicion_(hoja, celdaBoton.getRow(), celdaBoton.getColumn());
   colocarBotonCobroEnHoja_(hoja, celdaBoton);
 }
 
 function limpiarBotonesCobro_(hoja) {
   getBotonesCobro_(hoja).forEach((image) => image.remove());
+}
+
+function limpiarBotonesCobroEnPosicion_(hoja, fila, columna) {
+  if (!hoja.getImages) return;
+
+  hoja.getImages().forEach((image) => {
+    if (!image.getAnchorCell) return;
+    const anchor = image.getAnchorCell();
+    if (anchor && anchor.getRow() === fila && anchor.getColumn() === columna) {
+      image.remove();
+    }
+  });
 }
 
 function getBotonesCobro_(hoja) {
