@@ -4,7 +4,7 @@ function onOpen() {
   ocultarColumnasAuxiliares();
   sincronizarNombreHojaEnEncabezados();
   crearMenuCobros();
-  SpreadsheetApp.getActiveSpreadsheet().toast('Marca en A los pedidos a cobrar y usa el boton en A4.', 'COBROS', 5);
+  SpreadsheetApp.getActiveSpreadsheet().toast('Marca en A los pedidos a cobrar y usa el boton en A5.', 'COBROS', 5);
 }
 
 function onInstall() {
@@ -13,7 +13,7 @@ function onInstall() {
 
 function crearDesplegableMedioPago() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const hojasPermitidas = ['Mauro', 'Brisa', 'Diogo', 'GIAN', 'LIBRE1'];
+  const hojasPermitidas = ['Mauro', 'Brisa', 'Diogo', 'GIAN', 'LIBRE1', 'Venta Mostrador'];
 
   hojasPermitidas.forEach((nombreHoja) => {
     const hoja = ss.getSheetByName(nombreHoja);
@@ -23,6 +23,10 @@ function crearDesplegableMedioPago() {
 
     const rangoAccion = hoja.getRange(8, 1, totalRows, 1);
     rangoAccion.insertCheckboxes();
+
+    if (nombreHoja === 'Venta Mostrador') {
+      return;
+    }
 
     hoja.getRange(8, 12, totalRows, 1).clearDataValidations();
 

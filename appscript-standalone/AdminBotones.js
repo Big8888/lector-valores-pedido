@@ -1,5 +1,6 @@
 const TARGET_SPREADSHEET_ID = '1b6thcjNOAbUPKRWSSvqhog2vp6TOk-wbo5GqokPH2hg';
 const HOJAS_REPARTIDORES = ['Mauro', 'Brisa', 'Diogo', 'GIAN', 'LIBRE1'];
+const HOJAS_COBRO = [...HOJAS_REPARTIDORES, 'Venta Mostrador'];
 const CELDA_BOTON = 'A5';
 const RANGO_LIMPIEZA_CONTROLES_VIEJOS = 'O1:P6';
 const TITULO_IMAGEN_COBRO = 'COBROS_BUTTON';
@@ -41,7 +42,7 @@ function recrearBotonesCobrosEnTodasLasHojas() {
   const spreadsheet = SpreadsheetApp.openById(TARGET_SPREADSHEET_ID);
   const resultado = [];
 
-  HOJAS_REPARTIDORES.forEach((nombreHoja) => {
+  HOJAS_COBRO.forEach((nombreHoja) => {
     const hoja = spreadsheet.getSheetByName(nombreHoja);
     if (!hoja) {
       resultado.push({ hoja: nombreHoja, ok: false, motivo: 'Hoja no encontrada' });
@@ -196,7 +197,7 @@ function inspeccionarZonaCobroMauro() {
 function limpiarBotonesCobroEnTodasLasHojas() {
   const spreadsheet = SpreadsheetApp.openById(TARGET_SPREADSHEET_ID);
 
-  HOJAS_REPARTIDORES.forEach((nombreHoja) => {
+  HOJAS_COBRO.forEach((nombreHoja) => {
     const hoja = spreadsheet.getSheetByName(nombreHoja);
     if (!hoja) return;
 
