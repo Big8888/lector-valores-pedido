@@ -348,6 +348,31 @@ function limpiarColumnaVEnTodasLasHojas() {
   };
 }
 
+function sincronizarNombresHojasEnEncabezados() {
+  const spreadsheet = SpreadsheetApp.openById(TARGET_SPREADSHEET_ID);
+  const resultado = [];
+
+  HOJAS_REPARTIDORES.forEach((nombreHoja) => {
+    const hoja = spreadsheet.getSheetByName(nombreHoja);
+    if (!hoja) {
+      resultado.push({ hoja: nombreHoja, ok: false, motivo: 'Hoja no encontrada' });
+      return;
+    }
+
+    hoja.getRange(7, 1).setValue(hoja.getName());
+    hoja.getRange(7, 2).setValue(hoja.getName());
+    const columnaNombre = detectarColumnaNombreHoja_(hoja, HOJAS_REPARTIDORES);
+    hoja.getRange(7, columnaNombre).setValue(hoja.getName());
+    resultado.push({ hoja: nombreHoja, ok: true, columna: columnToLetter_(columnaNombre) });
+  });
+
+  return {
+    ok: true,
+    spreadsheetId: TARGET_SPREADSHEET_ID,
+    resultado
+  };
+}
+
 function sincronizarColumnasPedidoYTransferenciaEnTodasLasHojas() {
   const spreadsheet = SpreadsheetApp.openById(TARGET_SPREADSHEET_ID);
   const resultado = [];
@@ -498,6 +523,16 @@ function normalizeHeaderEstadoAutomatico_(valor) {
     .replace(/\s+/g, ' ')
     .trim()
     .toUpperCase();
+}
+
+function detectarColumnaNombreHoja_(hoja, nombresValidos) {
+  const valores = hoja.getRange(7, 1, 1, 4).getDisplayValues()[0];
+  const indice = valores.findIndex((valor) => {
+    const texto = String(valor || '').trim();
+    return nombresValidos.includes(texto);
+  });
+
+  return indice >= 0 ? indice + 1 : 2;
 }
 
 function sincronizarLayoutVueltasDesdeReferencia_(hojaReferencia, hojaDestino) {

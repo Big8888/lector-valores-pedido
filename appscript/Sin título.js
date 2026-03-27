@@ -2,6 +2,7 @@ function onOpen() {
   crearDesplegableMedioPago();
   configurarColoresEstadoAutomaticosEnHojas();
   ocultarColumnasAuxiliares();
+  sincronizarNombreHojaEnEncabezados();
   crearMenuCobros();
   SpreadsheetApp.getActiveSpreadsheet().toast('Marca en A los pedidos a cobrar y usa el boton en A7.', 'COBROS', 5);
 }
@@ -33,4 +34,29 @@ function crearDesplegableMedioPago() {
 
     rango.setDataValidation(regla);
   });
+}
+
+function sincronizarNombreHojaEnEncabezados() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const hojasPermitidas = ['Mauro', 'Brisa', 'Diogo', 'GIAN', 'LIBRE1'];
+
+  hojasPermitidas.forEach((nombreHoja) => {
+    const hoja = ss.getSheetByName(nombreHoja);
+    if (!hoja) return;
+
+    hoja.getRange(7, 1).setValue(hoja.getName());
+    hoja.getRange(7, 2).setValue(hoja.getName());
+    const columnaNombre = detectarColumnaNombreHoja_(hoja, hojasPermitidas);
+    hoja.getRange(7, columnaNombre).setValue(hoja.getName());
+  });
+}
+
+function detectarColumnaNombreHoja_(hoja, hojasPermitidas) {
+  const valores = hoja.getRange(7, 1, 1, 4).getDisplayValues()[0];
+  const columnaExistente = valores.findIndex((valor) => {
+    const texto = String(valor || '').trim();
+    return hojasPermitidas.includes(texto);
+  });
+
+  return columnaExistente >= 0 ? columnaExistente + 1 : 2;
 }
