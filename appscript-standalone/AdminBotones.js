@@ -77,6 +77,54 @@ function recrearBotonCobroEnHoja(nombreHoja) {
   };
 }
 
+function inspeccionarImagenesEnHoja(nombreHoja) {
+  const hojaBuscada = String(nombreHoja || '').trim();
+  if (!hojaBuscada) {
+    throw new Error('Falta indicar el nombre de la hoja.');
+  }
+
+  const spreadsheet = SpreadsheetApp.openById(TARGET_SPREADSHEET_ID);
+  const hoja = spreadsheet.getSheetByName(hojaBuscada);
+  if (!hoja) {
+    throw new Error('No se encontro la hoja: ' + hojaBuscada);
+  }
+
+  const imagenes = (hoja.getImages ? hoja.getImages() : []).map((image, index) => {
+    const anchor = image.getAnchorCell ? image.getAnchorCell() : null;
+    const altTitle = image.getAltTextTitle ? image.getAltTextTitle() : '';
+    const altDescription = image.getAltTextDescription ? image.getAltTextDescription() : '';
+    const width = image.getWidth ? image.getWidth() : null;
+    const height = image.getHeight ? image.getHeight() : null;
+
+    return {
+      index,
+      altTitle,
+      altDescription,
+      width,
+      height,
+      row: anchor ? anchor.getRow() : null,
+      column: anchor ? anchor.getColumn() : null,
+      inVueltasZone: anchor
+        ? anchor.getRow() >= FILA_BOTONES_VUELTAS &&
+          anchor.getRow() <= FILA_NOMBRES_VUELTAS - 1 &&
+          anchor.getColumn() >= COLUMNA_INICIO_VUELTAS &&
+          anchor.getColumn() <= COLUMNA_FIN_VUELTAS
+        : false
+    };
+  });
+
+  return {
+    ok: true,
+    hoja: hojaBuscada,
+    cantidad: imagenes.length,
+    imagenes
+  };
+}
+
+function inspeccionarImagenesGian() {
+  return inspeccionarImagenesEnHoja('GIAN');
+}
+
 function limpiarBotonesCobroEnTodasLasHojas() {
   const spreadsheet = SpreadsheetApp.openById(TARGET_SPREADSHEET_ID);
 
