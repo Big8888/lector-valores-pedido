@@ -206,6 +206,7 @@ function getBotonesEliminarVueltas_(hoja) {
   if (!hoja.getImages) return [];
 
   return hoja.getImages().filter((image) => {
+    if (isBotonEliminarEnZonaVueltas_(image)) return true;
     const altTitle = image.getAltTextTitle ? image.getAltTextTitle() : '';
     return altTitle.indexOf(TITULO_BOTON_ELIMINAR_PREFIX) === 0;
   });
@@ -222,6 +223,23 @@ function limpiarBotonEliminarVuelta_(hoja, titulo) {
 
 function limpiarBotonesEliminarVueltas_(hoja) {
   getBotonesEliminarVueltas_(hoja).forEach((image) => image.remove());
+}
+
+function isBotonEliminarEnZonaVueltas_(image) {
+  if (!image || !image.getAnchorCell) return false;
+
+  const anchor = image.getAnchorCell();
+  if (!anchor) return false;
+
+  const fila = anchor.getRow();
+  const columna = anchor.getColumn();
+
+  return (
+    fila >= FILA_BOTONES_VUELTAS &&
+    fila <= FILA_NOMBRES_VUELTAS - 1 &&
+    columna >= COLUMNA_INICIO_VUELTAS &&
+    columna <= COLUMNA_FIN_VUELTAS
+  );
 }
 
 function sincronizarLayoutVueltasDesdeReferencia_(hojaReferencia, hojaDestino) {
