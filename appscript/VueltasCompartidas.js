@@ -15,12 +15,15 @@ const URL_BOTON_ELIMINAR = 'https://raw.githubusercontent.com/Big8888/lector-val
 
 function configurarTablaVueltasCompartidas() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const hojaReferencia = ss.getSheetByName('GIAN');
   const nombresRepartidores = HOJAS_VUELTAS_COMPARTIDAS.slice();
   const titulosVueltas = [['VUELTA 1', 'VUELTA 2', 'VUELTA 3', 'VUELTA 4', 'VUELTA 5']];
 
   HOJAS_VUELTAS_COMPARTIDAS.forEach((nombreHoja) => {
     const hoja = ss.getSheetByName(nombreHoja);
     if (!hoja) return;
+
+    sincronizarLayoutVueltasDesdeReferencia_(hojaReferencia, hoja);
 
     const regla = SpreadsheetApp.newDataValidation()
       .requireValueInList(nombresRepartidores, true)
@@ -219,4 +222,16 @@ function limpiarBotonEliminarVuelta_(hoja, titulo) {
 
 function limpiarBotonesEliminarVueltas_(hoja) {
   getBotonesEliminarVueltas_(hoja).forEach((image) => image.remove());
+}
+
+function sincronizarLayoutVueltasDesdeReferencia_(hojaReferencia, hojaDestino) {
+  if (!hojaReferencia || !hojaDestino || hojaReferencia.getName() === hojaDestino.getName()) return;
+
+  for (let columna = COLUMNA_INICIO_VUELTAS; columna <= COLUMNA_FIN_VUELTAS; columna += 1) {
+    hojaDestino.setColumnWidth(columna, hojaReferencia.getColumnWidth(columna));
+  }
+
+  for (let fila = FILA_BOTONES_VUELTAS; fila <= FILA_TITULOS_VUELTAS; fila += 1) {
+    hojaDestino.setRowHeight(fila, hojaReferencia.getRowHeight(fila));
+  }
 }

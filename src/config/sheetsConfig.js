@@ -21,7 +21,7 @@ module.exports = {
     salidaDinero: 'J',
     enCamino: 'K',
     finalizado: 'L',
-    nroPedido: 'V',
+    nroPedido: null,
     telefono: 'X',
     fecha: 'Y'
   },

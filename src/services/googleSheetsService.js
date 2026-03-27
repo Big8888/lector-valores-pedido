@@ -63,7 +63,7 @@ function toNumber(value) {
 }
 
 function getManagedColumns() {
-  return Object.values(sheetsConfig.columns);
+  return Object.values(sheetsConfig.columns).filter(Boolean);
 }
 
 function getColumnRange(sheetName, column, startRow) {
@@ -250,10 +250,12 @@ async function findOrderAcrossSheets(orderOrId) {
 async function writeOrderToSheet(sheetName, row, data) {
   const sheets = await getSheetsClient();
 
-  const updates = Object.entries(sheetsConfig.columns).map(([field, column]) => ({
-    range: `${sheetName}!${column}${row}`,
-    values: [[data[field] ?? '']]
-  }));
+  const updates = Object.entries(sheetsConfig.columns)
+    .filter(([, column]) => Boolean(column))
+    .map(([field, column]) => ({
+      range: `${sheetName}!${column}${row}`,
+      values: [[data[field] ?? '']]
+    }));
 
   console.log('[SHEETS] Escribiendo pedido en hoja', {
     sheetName,
@@ -272,7 +274,8 @@ async function writeOrderToSheet(sheetName, row, data) {
 
 async function getOrderRowSnapshot(sheetName, row) {
   const sheets = await getSheetsClient();
-  const ranges = Object.entries(sheetsConfig.columns).map(([, column]) => `${sheetName}!${column}${row}`);
+  const activeColumns = Object.entries(sheetsConfig.columns).filter(([, column]) => Boolean(column));
+  const ranges = activeColumns.map(([, column]) => `${sheetName}!${column}${row}`);
 
   const res = await sheets.spreadsheets.values.batchGet({
     spreadsheetId: sheetsConfig.spreadsheetId,
@@ -282,7 +285,7 @@ async function getOrderRowSnapshot(sheetName, row) {
   const valueByField = {};
   const valueRanges = res.data.valueRanges || [];
 
-  Object.entries(sheetsConfig.columns).forEach(([field], index) => {
+  activeColumns.forEach(([field], index) => {
     valueByField[field] = valueRanges[index]?.values?.[0]?.[0] ?? '';
   });
 

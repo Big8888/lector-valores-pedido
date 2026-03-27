@@ -12,6 +12,7 @@ const URL_BOTON_COBRO = 'https://raw.githubusercontent.com/Big8888/lector-valore
 const FILA_BOTONES_VUELTAS = 4;
 const FILA_NOMBRES_VUELTAS = 6;
 const FILA_TITULOS_VUELTAS = 7;
+const FILA_DATOS_ESTADO = 8;
 const COLUMNA_INICIO_VUELTAS = 15; // O
 const COLUMNA_FIN_VUELTAS = 19; // S
 const TITULO_BOTON_ELIMINAR_PREFIX = 'DELETE_VUELTA_';
@@ -20,6 +21,8 @@ const ALTO_BOTON_ELIMINAR = 24;
 const OFFSET_X_BOTON_ELIMINAR = 2;
 const OFFSET_Y_BOTON_ELIMINAR = 4;
 const URL_BOTON_ELIMINAR = 'https://raw.githubusercontent.com/Big8888/lector-valores-pedido/main/assets/limpiar-button.png';
+const COLOR_EN_CAMINO = '#93c47d';
+const COLOR_FINALIZADO = '#6fa8dc';
 
 function codexPing() {
   return {
@@ -91,6 +94,7 @@ function limpiarBotonesCobroEnTodasLasHojas() {
 
 function configurarTablaVueltasCompartidasEnTodasLasHojas() {
   const spreadsheet = SpreadsheetApp.openById(TARGET_SPREADSHEET_ID);
+  const hojaReferencia = spreadsheet.getSheetByName('GIAN');
   const nombresRepartidores = HOJAS_REPARTIDORES.slice();
   const titulosVueltas = [['VUELTA 1', 'VUELTA 2', 'VUELTA 3', 'VUELTA 4', 'VUELTA 5']];
   const resultado = [];
@@ -101,6 +105,8 @@ function configurarTablaVueltasCompartidasEnTodasLasHojas() {
       resultado.push({ hoja: nombreHoja, ok: false, motivo: 'Hoja no encontrada' });
       return;
     }
+
+    sincronizarLayoutVueltasDesdeReferencia_(hojaReferencia, hoja);
 
     const regla = SpreadsheetApp.newDataValidation()
       .requireValueInList(nombresRepartidores, true)
@@ -169,6 +175,154 @@ function alinearBotonesDeGianEnMauro1() {
     origen: 'GIAN',
     destino: 'Mauro 1'
   };
+}
+
+function inspeccionarEncabezadosEstado(nombreHoja) {
+  const spreadsheet = SpreadsheetApp.openById(TARGET_SPREADSHEET_ID);
+  const hoja = spreadsheet.getSheetByName(String(nombreHoja || '').trim());
+  if (!hoja) {
+    throw new Error('No se encontro la hoja.');
+  }
+
+  const ultimaColumna = Math.max(hoja.getLastColumn(), 20);
+  const valores = hoja.getRange(7, 1, 1, ultimaColumna).getDisplayValues()[0];
+
+  return valores.map((valor, index) => ({
+    columna: index + 1,
+    letra: columnToLetter_(index + 1),
+    valor
+  }));
+}
+
+function configurarColoresEstadoAutomaticosEnTodasLasHojas() {
+  const spreadsheet = SpreadsheetApp.openById(TARGET_SPREADSHEET_ID);
+  const resultado = [];
+
+  HOJAS_REPARTIDORES.forEach((nombreHoja) => {
+    const hoja = spreadsheet.getSheetByName(nombreHoja);
+    if (!hoja) {
+      resultado.push({ hoja: nombreHoja, ok: false, motivo: 'Hoja no encontrada' });
+      return;
+    }
+
+    configurarColoresEstadoAutomaticosEnHoja_(hoja);
+    resultado.push({ hoja: nombreHoja, ok: true });
+  });
+
+  return {
+    ok: true,
+    spreadsheetId: TARGET_SPREADSHEET_ID,
+    resultado
+  };
+}
+
+function limpiarColumnaVEnTodasLasHojas() {
+  const spreadsheet = SpreadsheetApp.openById(TARGET_SPREADSHEET_ID);
+  const resultado = [];
+
+  HOJAS_REPARTIDORES.forEach((nombreHoja) => {
+    const hoja = spreadsheet.getSheetByName(nombreHoja);
+    if (!hoja) {
+      resultado.push({ hoja: nombreHoja, ok: false, motivo: 'Hoja no encontrada' });
+      return;
+    }
+
+    hoja.getRange('V8:V').clearContent();
+    resultado.push({ hoja: nombreHoja, ok: true });
+  });
+
+  return {
+    ok: true,
+    spreadsheetId: TARGET_SPREADSHEET_ID,
+    resultado
+  };
+}
+
+function columnToLetter_(column) {
+  let current = Number(column);
+  let letter = '';
+  while (current > 0) {
+    const temp = (current - 1) % 26;
+    letter = String.fromCharCode(temp + 65) + letter;
+    current = (current - temp - 1) / 26;
+  }
+  return letter;
+}
+
+function configurarColoresEstadoAutomaticosEnHoja_(hoja) {
+  const columnasEstado = getColumnasEstadoAutomatico_(hoja);
+  const ultimaFila = Math.max(hoja.getMaxRows(), FILA_DATOS_ESTADO);
+  const reglasActuales = hoja.getConditionalFormatRules() || [];
+
+  const reglasFiltradas = reglasActuales.filter((regla) => {
+    const rangos = regla.getRanges ? regla.getRanges() : [];
+
+    return !rangos.some((rango) => {
+      if (rango.getSheet().getName() !== hoja.getName()) return false;
+
+      const columna = rango.getColumn();
+      const fila = rango.getRow();
+      const filas = rango.getNumRows();
+      const coincideColumnaEstado =
+        columna === columnasEstado.enCamino || columna === columnasEstado.finalizado;
+
+      return coincideColumnaEstado && fila === FILA_DATOS_ESTADO && filas === ultimaFila - FILA_DATOS_ESTADO + 1;
+    });
+  });
+
+  if (columnasEstado.enCamino > 0) {
+    reglasFiltradas.push(
+      SpreadsheetApp.newConditionalFormatRule()
+        .whenCellNotEmpty()
+        .setBackground(COLOR_EN_CAMINO)
+        .setRanges([hoja.getRange(FILA_DATOS_ESTADO, columnasEstado.enCamino, ultimaFila - FILA_DATOS_ESTADO + 1, 1)])
+        .build()
+    );
+  }
+
+  if (columnasEstado.finalizado > 0) {
+    reglasFiltradas.push(
+      SpreadsheetApp.newConditionalFormatRule()
+        .whenCellNotEmpty()
+        .setBackground(COLOR_FINALIZADO)
+        .setRanges([hoja.getRange(FILA_DATOS_ESTADO, columnasEstado.finalizado, ultimaFila - FILA_DATOS_ESTADO + 1, 1)])
+        .build()
+    );
+  }
+
+  hoja.setConditionalFormatRules(reglasFiltradas);
+}
+
+function getColumnasEstadoAutomatico_(hoja) {
+  const ultimaColumna = Math.max(hoja.getLastColumn(), 12);
+  const encabezados = hoja
+    .getRange(FILA_TITULOS_VUELTAS, 1, 1, ultimaColumna)
+    .getDisplayValues()[0]
+    .map((valor) => normalizeHeaderEstadoAutomatico_(valor));
+
+  return {
+    enCamino: encabezados.findIndex((valor) => valor === 'EN CAMINO') + 1,
+    finalizado: encabezados.findIndex((valor) => valor === 'FINALIZADO') + 1
+  };
+}
+
+function normalizeHeaderEstadoAutomatico_(valor) {
+  return String(valor || '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toUpperCase();
+}
+
+function sincronizarLayoutVueltasDesdeReferencia_(hojaReferencia, hojaDestino) {
+  if (!hojaReferencia || !hojaDestino || hojaReferencia.getName() === hojaDestino.getName()) return;
+
+  for (let columna = COLUMNA_INICIO_VUELTAS; columna <= COLUMNA_FIN_VUELTAS; columna += 1) {
+    hojaDestino.setColumnWidth(columna, hojaReferencia.getColumnWidth(columna));
+  }
+
+  for (let fila = FILA_BOTONES_VUELTAS; fila <= FILA_TITULOS_VUELTAS; fila += 1) {
+    hojaDestino.setRowHeight(fila, hojaReferencia.getRowHeight(fila));
+  }
 }
 
 function asegurarBotonCobroEnHoja_(hoja) {
