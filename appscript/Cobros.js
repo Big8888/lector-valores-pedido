@@ -3,10 +3,11 @@ const FILA_INICIO_PEDIDOS = 8;
 const RANGO_LIMPIEZA_CONTROLES_VIEJOS = 'O1:P6';
 const CELDA_BOTON_COBRO = 'A7';
 const TITULO_IMAGEN_COBRO = 'COBROS_BUTTON';
-const ANCHO_BOTON_COBRO = 126;
-const ALTO_BOTON_COBRO = 26;
+const ANCHO_BOTON_COBRO = 175;
+const ALTO_BOTON_COBRO = 50;
 const OFFSET_X_BOTON_COBRO = 2;
 const OFFSET_Y_BOTON_COBRO = 3;
+const URL_BOTON_COBRO = 'https://raw.githubusercontent.com/Big8888/lector-valores-pedido/main/assets/abrir-cobro-button.png';
 const COLOR_COBRADO = '#d9ead3';
 const PREFIJO_CACHE_FILAS_COBRO = 'COBROS_FILAS_';
 const COLUMNAS_COBRO = {
@@ -503,9 +504,8 @@ function getBotonesCobro_(hoja) {
 }
 
 function colocarBotonCobroEnHoja_(hoja, celdaBoton) {
-  const boton = crearImagenBotonCobros_();
   const image = hoja.insertImage(
-    boton.copyBlob(),
+    URL_BOTON_COBRO,
     celdaBoton.getColumn(),
     celdaBoton.getRow(),
     OFFSET_X_BOTON_COBRO,
@@ -517,15 +517,4 @@ function colocarBotonCobroEnHoja_(hoja, celdaBoton) {
   image.setAltTextDescription('Abre la calculadora de cobro de esta hoja');
   image.setWidth(ANCHO_BOTON_COBRO);
   image.setHeight(ALTO_BOTON_COBRO);
-}
-
-function crearImagenBotonCobros_() {
-  const svg = [
-    '<svg xmlns="http://www.w3.org/2000/svg" width="252" height="52" viewBox="0 0 252 52">',
-    '<rect x="2" y="2" width="248" height="48" rx="14" fill="#34a853" stroke="#1f6f37" stroke-width="4"/>',
-    '<text x="126" y="33" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="700" fill="#ffffff">ABRIR COBROS</text>',
-    '</svg>'
-  ].join('');
-
-  return Utilities.newBlob(svg, 'image/svg+xml', 'cobros-button.svg');
 }
