@@ -137,6 +137,40 @@ function configurarTablaVueltasCompartidasEnTodasLasHojas() {
   };
 }
 
+function alinearBotonesDeGianEnMauro1() {
+  const spreadsheet = SpreadsheetApp.openById(TARGET_SPREADSHEET_ID);
+  const hojaOrigen = spreadsheet.getSheetByName('GIAN');
+  const hojaDestino = spreadsheet.getSheetByName('Mauro 1');
+
+  if (!hojaOrigen) {
+    throw new Error('No se encontro la hoja GIAN.');
+  }
+
+  if (!hojaDestino) {
+    throw new Error('No se encontro la hoja Mauro 1.');
+  }
+
+  for (let columna = 1; columna <= COLUMNA_FIN_VUELTAS; columna += 1) {
+    hojaDestino.setColumnWidth(columna, hojaOrigen.getColumnWidth(columna));
+  }
+
+  for (let fila = 1; fila <= FILA_TITULOS_VUELTAS; fila += 1) {
+    hojaDestino.setRowHeight(fila, hojaOrigen.getRowHeight(fila));
+  }
+
+  limpiarBotonesCobroEnPosicion_(hojaDestino, hojaDestino.getRange(CELDA_BOTON).getRow(), hojaDestino.getRange(CELDA_BOTON).getColumn());
+  colocarBotonCobroEnHoja_(hojaDestino, hojaDestino.getRange(CELDA_BOTON));
+
+  limpiarBotonesEliminarVueltas_(hojaDestino);
+  asegurarBotonesEliminarVueltasEnHoja_(hojaDestino);
+
+  return {
+    ok: true,
+    origen: 'GIAN',
+    destino: 'Mauro 1'
+  };
+}
+
 function asegurarBotonCobroEnHoja_(hoja) {
   hoja.getRange(RANGO_LIMPIEZA_CONTROLES_VIEJOS)
     .clearContent()
