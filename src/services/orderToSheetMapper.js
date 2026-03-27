@@ -92,7 +92,7 @@ function mapOrderToSheetRow(order, existingRow = null) {
     ''
   );
   const finalizado = resolveText(
-    '',
+    order.finalizado ? formatHora(order.finalizado) : '',
     existingRow?.finalizado,
     ''
   );

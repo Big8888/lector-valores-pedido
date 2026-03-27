@@ -690,15 +690,12 @@ function detectFinalizadoTimestamp(data, payload) {
   ];
 
   const finalizadoStatuses = [
-    'delivered',
-    'deliver',
-    'delivery_completed',
-    'delivery complete',
-    'entregado',
     'completed',
     'complete',
     'finalized',
     'finalizado',
+    'finished',
+    'finish',
     'closed',
     'done'
   ];
@@ -758,7 +755,7 @@ function interpretOrder(payload = {}) {
   const enviosLejanos = delivery;
   const propinaWeb = detectPropinaWeb(data, payload);
   const enCamino = detectEnCaminoTimestamp(data, payload);
-  const finalizado = '';
+  const finalizado = detectFinalizadoTimestamp(data, payload);
   const importe = toNumber(findFirstPresent(data, [
     ['amount'],
     ['meta_data', 'assigned_payment', 'amount'],
