@@ -4,7 +4,7 @@ function onOpen() {
   ocultarColumnasAuxiliares();
   sincronizarNombreHojaEnEncabezados();
   crearMenuCobros();
-  SpreadsheetApp.getActiveSpreadsheet().toast('Marca en A los pedidos a cobrar y usa el boton en A7.', 'COBROS', 5);
+  SpreadsheetApp.getActiveSpreadsheet().toast('Marca en A los pedidos a cobrar y usa el boton en A4.', 'COBROS', 5);
 }
 
 function onInstall() {
