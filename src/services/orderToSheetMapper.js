@@ -86,27 +86,16 @@ function mapOrderToSheetRow(order, existingRow = null) {
     ? resolveNumber(existingRow?.propinaWeb, 0, 0)
     : resolveNumber(order.propinaWeb, 0, 0);
   const enCaminoFormatted = order.enCamino ? formatHora(order.enCamino) : '';
-
-  const enCamino = order.finalizado
-    ? resolveText(existingRow?.enCamino, '', '')
-    : resolveText(
-        enCaminoFormatted,
-        existingRow?.enCamino,
-        ''
-      );
-
-  const shouldClearFalseFinalizado =
-    !order.finalizado &&
-    existingRow?.finalizado &&
-    existingRow.finalizado === (enCaminoFormatted || existingRow?.enCamino || '');
-
-  const finalizado = shouldClearFalseFinalizado
-    ? ''
-    : resolveText(
-        order.finalizado ? formatHora(order.finalizado) : '',
-        existingRow?.finalizado,
-        ''
-      );
+  const enCamino = resolveText(
+    enCaminoFormatted,
+    existingRow?.enCamino,
+    ''
+  );
+  const finalizado = resolveText(
+    '',
+    existingRow?.finalizado,
+    ''
+  );
 
   const existingTarjeta = resolveNumber(existingRow?.tarjeta, 0, 0);
   const existingEfectivo = resolveNumber(existingRow?.efectivo, 0, 0);
@@ -161,7 +150,8 @@ function mapOrderToSheetRow(order, existingRow = null) {
     salidaDinero: order.salidaDinero || existingRow?.salidaDinero || '',
     enCamino,
     finalizado,
-    nroPedido: order.nroPedido || existingRow?.nroPedido || '',
+    numeroPedidoVisible: order.numeroPedidoInterno || existingRow?.numeroPedidoInterno || '',
+    importeTransferenciaVisible: transferenciaValue > 0 ? transferenciaValue : '',
     telefono: asPlainText(order.telefono),
     fecha: formatFecha(order.fecha)
   };

@@ -758,7 +758,7 @@ function interpretOrder(payload = {}) {
   const enviosLejanos = delivery;
   const propinaWeb = detectPropinaWeb(data, payload);
   const enCamino = detectEnCaminoTimestamp(data, payload);
-  const finalizado = detectFinalizadoTimestamp(data, payload);
+  const finalizado = '';
   const importe = toNumber(findFirstPresent(data, [
     ['amount'],
     ['meta_data', 'assigned_payment', 'amount'],

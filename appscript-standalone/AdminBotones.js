@@ -23,6 +23,9 @@ const OFFSET_Y_BOTON_ELIMINAR = 4;
 const URL_BOTON_ELIMINAR = 'https://raw.githubusercontent.com/Big8888/lector-valores-pedido/main/assets/limpiar-button.png';
 const COLOR_EN_CAMINO = '#93c47d';
 const COLOR_FINALIZADO = '#6fa8dc';
+const COLOR_ESTADO_PENDIENTE = '#ea4335';
+const COLOR_ESTADO_PAGADO = '#fff2cc';
+const COLOR_ESTADO_PARCIAL = '#ea4335';
 
 function codexPing() {
   return {
@@ -238,6 +241,46 @@ function limpiarColumnaVEnTodasLasHojas() {
   };
 }
 
+function sincronizarColumnasPedidoYTransferenciaEnTodasLasHojas() {
+  const spreadsheet = SpreadsheetApp.openById(TARGET_SPREADSHEET_ID);
+  const resultado = [];
+
+  HOJAS_REPARTIDORES.forEach((nombreHoja) => {
+    const hoja = spreadsheet.getSheetByName(nombreHoja);
+    if (!hoja) {
+      resultado.push({ hoja: nombreHoja, ok: false, motivo: 'Hoja no encontrada' });
+      return;
+    }
+
+    const ultimaFila = hoja.getLastRow();
+    if (ultimaFila < FILA_DATOS_ESTADO) {
+      resultado.push({ hoja: nombreHoja, ok: true, filas: 0 });
+      return;
+    }
+
+    const cantidadFilas = ultimaFila - FILA_DATOS_ESTADO + 1;
+    const valores = hoja.getRange(FILA_DATOS_ESTADO, 2, cantidadFilas, 6).getValues();
+    const datosVW = valores.map((fila) => {
+      const numeroPedido = fila[0] || '';
+      const transferencia = Number(fila[5]) || 0;
+
+      return [
+        numeroPedido,
+        transferencia > 0 ? transferencia : ''
+      ];
+    });
+
+    hoja.getRange(FILA_DATOS_ESTADO, 22, cantidadFilas, 2).setValues(datosVW);
+    resultado.push({ hoja: nombreHoja, ok: true, filas: cantidadFilas });
+  });
+
+  return {
+    ok: true,
+    spreadsheetId: TARGET_SPREADSHEET_ID,
+    resultado
+  };
+}
+
 function columnToLetter_(column) {
   let current = Number(column);
   let letter = '';
@@ -264,11 +307,47 @@ function configurarColoresEstadoAutomaticosEnHoja_(hoja) {
       const fila = rango.getRow();
       const filas = rango.getNumRows();
       const coincideColumnaEstado =
-        columna === columnasEstado.enCamino || columna === columnasEstado.finalizado;
+        columna === columnasEstado.estadoPago ||
+        columna === columnasEstado.enCamino ||
+        columna === columnasEstado.finalizado;
 
       return coincideColumnaEstado && fila === FILA_DATOS_ESTADO && filas === ultimaFila - FILA_DATOS_ESTADO + 1;
     });
   });
+
+  if (columnasEstado.estadoPago > 0) {
+    const rangoEstadoPago = hoja.getRange(
+      FILA_DATOS_ESTADO,
+      columnasEstado.estadoPago,
+      ultimaFila - FILA_DATOS_ESTADO + 1,
+      1
+    );
+    const letraEstadoPago = columnToLetter_(columnasEstado.estadoPago);
+
+    reglasFiltradas.push(
+      SpreadsheetApp.newConditionalFormatRule()
+        .whenFormulaSatisfied(`=UPPER(TRIM(${letraEstadoPago}${FILA_DATOS_ESTADO}))="NO PAGADO"`)
+        .setBackground(COLOR_ESTADO_PENDIENTE)
+        .setRanges([rangoEstadoPago])
+        .build()
+    );
+
+    reglasFiltradas.push(
+      SpreadsheetApp.newConditionalFormatRule()
+        .whenFormulaSatisfied(`=UPPER(TRIM(${letraEstadoPago}${FILA_DATOS_ESTADO}))="PAGADO"`)
+        .setBackground(COLOR_ESTADO_PAGADO)
+        .setRanges([rangoEstadoPago])
+        .build()
+    );
+
+    reglasFiltradas.push(
+      SpreadsheetApp.newConditionalFormatRule()
+        .whenFormulaSatisfied(`=UPPER(TRIM(${letraEstadoPago}${FILA_DATOS_ESTADO}))="PARCIAL"`)
+        .setBackground(COLOR_ESTADO_PARCIAL)
+        .setRanges([rangoEstadoPago])
+        .build()
+    );
+  }
 
   if (columnasEstado.enCamino > 0) {
     reglasFiltradas.push(
@@ -301,6 +380,7 @@ function getColumnasEstadoAutomatico_(hoja) {
     .map((valor) => normalizeHeaderEstadoAutomatico_(valor));
 
   return {
+    estadoPago: encabezados.findIndex((valor) => valor === 'ESTADO DE PAGO') + 1,
     enCamino: encabezados.findIndex((valor) => valor === 'EN CAMINO') + 1,
     finalizado: encabezados.findIndex((valor) => valor === 'FINALIZADO') + 1
   };
@@ -407,8 +487,7 @@ function asegurarBotonesEliminarVueltasEnHoja_(hoja) {
     image.assignScript(scriptName);
     image.setAltTextTitle(titulo);
     image.setAltTextDescription('Elimina la vuelta y corre las siguientes a la izquierda');
-    image.setWidth(ANCHO_BOTON_ELIMINAR);
-    image.setHeight(ALTO_BOTON_ELIMINAR);
+    ajustarBotonEliminarACelda_(hoja, image, FILA_BOTONES_VUELTAS, columna);
   }
 }
 
@@ -450,4 +529,14 @@ function isBotonEliminarEnZonaVueltas_(image) {
     columna >= COLUMNA_INICIO_VUELTAS &&
     columna <= COLUMNA_FIN_VUELTAS
   );
+}
+
+function ajustarBotonEliminarACelda_(hoja, image, fila, columna) {
+  const anchoCelda = hoja.getColumnWidth(columna);
+  const altoCelda = hoja.getRowHeight(fila);
+  const ancho = Math.max(20, anchoCelda - (OFFSET_X_BOTON_ELIMINAR * 2));
+  const alto = Math.max(18, altoCelda - (OFFSET_Y_BOTON_ELIMINAR * 2));
+
+  image.setWidth(ancho);
+  image.setHeight(alto);
 }

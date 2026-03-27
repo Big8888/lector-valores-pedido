@@ -197,8 +197,7 @@ function asegurarBotonesEliminarVueltasEnHoja_(hoja) {
     image.assignScript(scriptName);
     image.setAltTextTitle(titulo);
     image.setAltTextDescription('Elimina la vuelta y corre las siguientes a la izquierda');
-    image.setWidth(ANCHO_BOTON_ELIMINAR);
-    image.setHeight(ALTO_BOTON_ELIMINAR);
+    ajustarBotonEliminarACelda_(hoja, image, FILA_BOTONES_VUELTAS, columna);
   }
 }
 
@@ -240,6 +239,16 @@ function isBotonEliminarEnZonaVueltas_(image) {
     columna >= COLUMNA_INICIO_VUELTAS &&
     columna <= COLUMNA_FIN_VUELTAS
   );
+}
+
+function ajustarBotonEliminarACelda_(hoja, image, fila, columna) {
+  const anchoCelda = hoja.getColumnWidth(columna);
+  const altoCelda = hoja.getRowHeight(fila);
+  const ancho = Math.max(20, anchoCelda - (OFFSET_X_BOTON_ELIMINAR * 2));
+  const alto = Math.max(18, altoCelda - (OFFSET_Y_BOTON_ELIMINAR * 2));
+
+  image.setWidth(ancho);
+  image.setHeight(alto);
 }
 
 function sincronizarLayoutVueltasDesdeReferencia_(hojaReferencia, hojaDestino) {
