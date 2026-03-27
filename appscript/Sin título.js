@@ -12,7 +12,7 @@ function onInstall() {
 
 function crearDesplegableMedioPago() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const hojasPermitidas = ['Mauro', 'Diogo', 'GIAN', 'LIBRE1'];
+  const hojasPermitidas = ['Mauro', 'Mauro 1', 'Diogo', 'GIAN', 'LIBRE1'];
 
   hojasPermitidas.forEach((nombreHoja) => {
     const hoja = ss.getSheetByName(nombreHoja);

@@ -1,14 +1,14 @@
 const TARGET_SPREADSHEET_ID = '1b6thcjNOAbUPKRWSSvqhog2vp6TOk-wbo5GqokPH2hg';
-const HOJAS_REPARTIDORES = ['Mauro', 'Diogo', 'GIAN', 'LIBRE1'];
+const HOJAS_REPARTIDORES = ['Mauro', 'Mauro 1', 'Diogo', 'GIAN', 'LIBRE1'];
 const CELDA_BOTON = 'A7';
 const RANGO_LIMPIEZA_CONTROLES_VIEJOS = 'O1:P6';
 const TITULO_IMAGEN_COBRO = 'COBROS_BUTTON';
 const ANCHO_BOTON_COBRO = 126;
-const ALTO_BOTON_COBRO = 26;
+const ALTO_BOTON_COBRO = 52;
 const OFFSET_X_BOTON_COBRO = 2;
 const OFFSET_Y_BOTON_COBRO = 3;
 const FUNCION_BOTON_EN_HOJA = 'abrirPedidosSeleccionados';
-const URL_BOTON_COBRO = 'https://dummyimage.com/252x52/34a853/ffffff.png&text=ABRIR+COBROS';
+const URL_BOTON_COBRO = 'https://dummyimage.com/252x104/d8c57a/241d0d.png&text=COBRAR';
 
 function codexPing() {
   return {

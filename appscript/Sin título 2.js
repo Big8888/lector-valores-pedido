@@ -8,7 +8,7 @@ function onEdit(e) {
   if (!hoja) return;
 
   const nombreHoja = hoja.getName();
-  if (!['Mauro', 'Diogo', 'GIAN', 'LIBRE1'].includes(nombreHoja)) return;
+  if (!['Mauro', 'Mauro 1', 'Diogo', 'GIAN', 'LIBRE1'].includes(nombreHoja)) return;
 
   const fila = e.range.getRow();
   const columna = e.range.getColumn();
