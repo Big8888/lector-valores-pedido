@@ -12,6 +12,7 @@ const ALTO_BOTON_ELIMINAR = 24;
 const OFFSET_X_BOTON_ELIMINAR = 2;
 const OFFSET_Y_BOTON_ELIMINAR = 4;
 const URL_BOTON_ELIMINAR = 'https://raw.githubusercontent.com/Big8888/lector-valores-pedido/main/assets/limpiar-button.png';
+let BOTON_ELIMINAR_BLOB = null;
 
 function configurarTablaVueltasCompartidas() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -187,7 +188,7 @@ function asegurarBotonesEliminarVueltasEnHoja_(hoja) {
     limpiarBotonEliminarVuelta_(hoja, titulo);
 
     const image = hoja.insertImage(
-      URL_BOTON_ELIMINAR,
+      getBotonEliminarBlob_(),
       celda.getColumn(),
       celda.getRow(),
       OFFSET_X_BOTON_ELIMINAR,
@@ -249,6 +250,14 @@ function ajustarBotonEliminarACelda_(hoja, image, fila, columna) {
 
   image.setWidth(ancho);
   image.setHeight(alto);
+}
+
+function getBotonEliminarBlob_() {
+  if (!BOTON_ELIMINAR_BLOB) {
+    BOTON_ELIMINAR_BLOB = UrlFetchApp.fetch(URL_BOTON_ELIMINAR).getBlob().setName('limpiar-button.png');
+  }
+
+  return BOTON_ELIMINAR_BLOB.copyBlob();
 }
 
 function sincronizarLayoutVueltasDesdeReferencia_(hojaReferencia, hojaDestino) {

@@ -26,6 +26,8 @@ const COLOR_FINALIZADO = '#6fa8dc';
 const COLOR_ESTADO_PENDIENTE = '#ea4335';
 const COLOR_ESTADO_PAGADO = '#fff2cc';
 const COLOR_ESTADO_PARCIAL = '#ea4335';
+let BOTON_COBRO_BLOB = null;
+let BOTON_ELIMINAR_BLOB = null;
 
 function codexPing() {
   return {
@@ -123,6 +125,36 @@ function inspeccionarImagenesEnHoja(nombreHoja) {
 
 function inspeccionarImagenesGian() {
   return inspeccionarImagenesEnHoja('GIAN');
+}
+
+function inspeccionarImagenesMauro() {
+  return inspeccionarImagenesEnHoja('Mauro');
+}
+
+function inspeccionarZonaVueltasMauro() {
+  const spreadsheet = SpreadsheetApp.openById(TARGET_SPREADSHEET_ID);
+  const hoja = spreadsheet.getSheetByName('Mauro');
+  if (!hoja) {
+    throw new Error('No se encontro la hoja Mauro.');
+  }
+
+  const columnas = [];
+  for (let columna = COLUMNA_INICIO_VUELTAS; columna <= COLUMNA_FIN_VUELTAS; columna += 1) {
+    columnas.push({
+      columna,
+      letra: columnToLetter_(columna),
+      width: hoja.getColumnWidth(columna),
+      row4Height: hoja.getRowHeight(FILA_BOTONES_VUELTAS),
+      row6Height: hoja.getRowHeight(FILA_NOMBRES_VUELTAS),
+      row7Height: hoja.getRowHeight(FILA_TITULOS_VUELTAS)
+    });
+  }
+
+  return {
+    ok: true,
+    hoja: 'Mauro',
+    columnas
+  };
 }
 
 function limpiarBotonesCobroEnTodasLasHojas() {
@@ -460,8 +492,8 @@ function asegurarBotonCobroEnHoja_(hoja) {
     .clearNote()
     .setBackground(null);
 
+  limpiarBotonesCobro_(hoja);
   const celdaBoton = hoja.getRange(CELDA_BOTON);
-  limpiarBotonesCobroEnPosicion_(hoja, celdaBoton.getRow(), celdaBoton.getColumn());
   colocarBotonCobroEnHoja_(hoja, celdaBoton);
 }
 
@@ -485,6 +517,7 @@ function getBotonesCobro_(hoja) {
   if (!hoja.getImages) return [];
 
   return hoja.getImages().filter((image) => {
+    if (isBotonCobroEnZona_(image)) return true;
     const altTitle = image.getAltTextTitle ? image.getAltTextTitle() : '';
     return altTitle === TITULO_IMAGEN_COBRO;
   });
@@ -492,7 +525,7 @@ function getBotonesCobro_(hoja) {
 
 function colocarBotonCobroEnHoja_(hoja, celdaBoton) {
   const image = hoja.insertImage(
-    URL_BOTON_COBRO,
+    getBotonCobroBlob_(),
     celdaBoton.getColumn(),
     celdaBoton.getRow(),
     OFFSET_X_BOTON_COBRO,
@@ -525,7 +558,7 @@ function asegurarBotonesEliminarVueltasEnHoja_(hoja) {
     limpiarBotonEliminarVuelta_(hoja, titulo);
 
     const image = hoja.insertImage(
-      URL_BOTON_ELIMINAR,
+      getBotonEliminarBlob_(),
       celda.getColumn(),
       celda.getRow(),
       OFFSET_X_BOTON_ELIMINAR,
@@ -587,4 +620,29 @@ function ajustarBotonEliminarACelda_(hoja, image, fila, columna) {
 
   image.setWidth(ancho);
   image.setHeight(alto);
+}
+
+function getBotonCobroBlob_() {
+  if (!BOTON_COBRO_BLOB) {
+    BOTON_COBRO_BLOB = UrlFetchApp.fetch(URL_BOTON_COBRO).getBlob().setName('abrir-cobro-button.png');
+  }
+
+  return BOTON_COBRO_BLOB.copyBlob();
+}
+
+function getBotonEliminarBlob_() {
+  if (!BOTON_ELIMINAR_BLOB) {
+    BOTON_ELIMINAR_BLOB = UrlFetchApp.fetch(URL_BOTON_ELIMINAR).getBlob().setName('limpiar-button.png');
+  }
+
+  return BOTON_ELIMINAR_BLOB.copyBlob();
+}
+
+function isBotonCobroEnZona_(image) {
+  if (!image || !image.getAnchorCell) return false;
+
+  const anchor = image.getAnchorCell();
+  if (!anchor) return false;
+
+  return anchor.getColumn() <= 2 && anchor.getRow() >= 5 && anchor.getRow() <= 7;
 }

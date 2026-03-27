@@ -10,6 +10,7 @@ const OFFSET_Y_BOTON_COBRO = 3;
 const URL_BOTON_COBRO = 'https://raw.githubusercontent.com/Big8888/lector-valores-pedido/main/assets/abrir-cobro-button.png';
 const COLOR_COBRADO = '#d9ead3';
 const PREFIJO_CACHE_FILAS_COBRO = 'COBROS_FILAS_';
+let BOTON_COBRO_BLOB = null;
 const COLUMNAS_COBRO = {
   accion: 1, // A
   numeroPedidoInterno: 2, // B
@@ -81,8 +82,8 @@ function asegurarBotonCobroEnHoja_(hoja) {
     .clearNote()
     .setBackground(null);
 
+  limpiarBotonesCobro_(hoja);
   const celdaBoton = hoja.getRange(CELDA_BOTON_COBRO);
-  limpiarBotonesCobroEnPosicion_(hoja, celdaBoton.getRow(), celdaBoton.getColumn());
   colocarBotonCobroEnHoja_(hoja, celdaBoton);
 }
 
@@ -496,6 +497,7 @@ function getBotonesCobro_(hoja) {
   if (!hoja.getImages) return [];
 
   return hoja.getImages().filter((image) => {
+    if (isBotonCobroEnZona_(image)) return true;
     const altTitle = image.getAltTextTitle ? image.getAltTextTitle() : '';
     return altTitle === TITULO_IMAGEN_COBRO;
   });
@@ -503,7 +505,7 @@ function getBotonesCobro_(hoja) {
 
 function colocarBotonCobroEnHoja_(hoja, celdaBoton) {
   const image = hoja.insertImage(
-    URL_BOTON_COBRO,
+    getBotonCobroBlob_(),
     celdaBoton.getColumn(),
     celdaBoton.getRow(),
     OFFSET_X_BOTON_COBRO,
@@ -515,4 +517,21 @@ function colocarBotonCobroEnHoja_(hoja, celdaBoton) {
   image.setAltTextDescription('Abre la calculadora de cobro de esta hoja');
   image.setWidth(ANCHO_BOTON_COBRO);
   image.setHeight(ALTO_BOTON_COBRO);
+}
+
+function getBotonCobroBlob_() {
+  if (!BOTON_COBRO_BLOB) {
+    BOTON_COBRO_BLOB = UrlFetchApp.fetch(URL_BOTON_COBRO).getBlob().setName('abrir-cobro-button.png');
+  }
+
+  return BOTON_COBRO_BLOB.copyBlob();
+}
+
+function isBotonCobroEnZona_(image) {
+  if (!image || !image.getAnchorCell) return false;
+
+  const anchor = image.getAnchorCell();
+  if (!anchor) return false;
+
+  return anchor.getColumn() <= 2 && anchor.getRow() >= 5 && anchor.getRow() <= 7;
 }
