@@ -247,6 +247,15 @@ function normalizeServiceTypeText(value) {
   return '';
 }
 
+function prioritizeServiceTypes(types) {
+  const normalizedTypes = Array.from(new Set((types || []).filter(Boolean)));
+
+  if (normalizedTypes.includes('pickup')) return 'pickup';
+  if (normalizedTypes.includes('local')) return 'local';
+  if (normalizedTypes.includes('delivery')) return 'delivery';
+  return '';
+}
+
 function detectServiceType(data, payload) {
   const candidatePaths = [
     ['service_type'],
@@ -259,28 +268,51 @@ function detectServiceType(data, payload) {
     ['order_mode'],
     ['meta_data', 'service_type'],
     ['meta_data', 'service'],
-    ['meta_data', 'order_type']
+    ['meta_data', 'order_type'],
+    ['meta_data', 'service_name'],
+    ['meta_data', 'service_mode'],
+    ['order_fulfillment_type'],
+    ['fulfillment_type'],
+    ['fulfillment'],
+    ['channel'],
+    ['sales_channel']
   ];
+  const directMatches = [];
 
   for (const path of candidatePaths) {
     const normalized = normalizeServiceTypeText(getNestedValue(data, path));
-    if (normalized) return normalized;
+    if (normalized) directMatches.push(normalized);
   }
 
   if (payload !== data) {
     for (const path of candidatePaths) {
       const normalized = normalizeServiceTypeText(getNestedValue(payload, path));
-      if (normalized) return normalized;
+      if (normalized) directMatches.push(normalized);
     }
   }
 
+  const directWinner = prioritizeServiceTypes(directMatches);
+  if (directWinner) return directWinner;
+
   const flattenedTexts = getAllPayloadTexts(data, payload);
+  const textMatches = [];
   for (const text of flattenedTexts) {
     const normalized = normalizeServiceTypeText(text);
-    if (normalized) return normalized;
+    if (normalized) textMatches.push(normalized);
   }
 
-  return 'delivery';
+  const textWinner = prioritizeServiceTypes(textMatches);
+  if (textWinner) return textWinner;
+
+  const hasDeliveryStatus = hasValue(data.delivery_status) || hasValue(payload && payload.delivery_status);
+  const hasRider = hasValue(data.rider && data.rider.name) || hasValue(payload && payload.rider && payload.rider.name);
+  const hasAddress = hasValue(data.address && data.address.address) || hasValue(data.address && data.address.street);
+
+  if (hasDeliveryStatus || hasRider || hasAddress) {
+    return 'delivery';
+  }
+
+  return 'local';
 }
 
 function formatServiceLabel(serviceType) {
