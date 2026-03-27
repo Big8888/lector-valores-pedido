@@ -1,6 +1,6 @@
 const TARGET_SPREADSHEET_ID = '1b6thcjNOAbUPKRWSSvqhog2vp6TOk-wbo5GqokPH2hg';
 const HOJAS_REPARTIDORES = ['Mauro', 'Brisa', 'Diogo', 'GIAN', 'LIBRE1'];
-const CELDA_BOTON = 'A4';
+const CELDA_BOTON = 'A5';
 const RANGO_LIMPIEZA_CONTROLES_VIEJOS = 'O1:P6';
 const TITULO_IMAGEN_COBRO = 'COBROS_BUTTON';
 const ANCHO_BOTON_COBRO = 185;
@@ -155,6 +155,42 @@ function inspeccionarZonaVueltasMauro() {
     hoja: 'Mauro',
     columnas
   };
+}
+
+function inspeccionarZonaCobroEnHoja(nombreHoja) {
+  const spreadsheet = SpreadsheetApp.openById(TARGET_SPREADSHEET_ID);
+  const hoja = spreadsheet.getSheetByName(String(nombreHoja || '').trim());
+  if (!hoja) {
+    throw new Error('No se encontro la hoja.');
+  }
+
+  const merged = hoja.getRange('A1:A8').getMergedRanges().map((rango) => ({
+    a1: rango.getA1Notation(),
+    row: rango.getRow(),
+    column: rango.getColumn(),
+    numRows: rango.getNumRows(),
+    numColumns: rango.getNumColumns()
+  }));
+
+  const rows = [];
+  for (let fila = 1; fila <= 8; fila += 1) {
+    rows.push({
+      fila,
+      height: hoja.getRowHeight(fila),
+      valueA: hoja.getRange(fila, 1).getDisplayValue()
+    });
+  }
+
+  return {
+    ok: true,
+    hoja: hoja.getName(),
+    merged,
+    rows
+  };
+}
+
+function inspeccionarZonaCobroMauro() {
+  return inspeccionarZonaCobroEnHoja('Mauro');
 }
 
 function limpiarBotonesCobroEnTodasLasHojas() {
