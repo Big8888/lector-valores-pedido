@@ -1,6 +1,6 @@
 ﻿const express = require('express');
 const { interpretOrder } = require('../services/orderInterpreter');
-const { assignCourier } = require('../services/courierAssigner');
+const { assignCourier, isCounterSale } = require('../services/courierAssigner');
 const { mapOrderToSheetRow } = require('../services/orderToSheetMapper');
 const {
   getNextEmptyRow,
@@ -123,6 +123,8 @@ router.post('/', async (req, res, next) => {
     console.log('[WEBHOOK] Pedido interpretado', {
       numeroPedidoInterno: order.numeroPedidoInterno || null,
       nroPedido: order.nroPedido || null,
+      serviceType: order.serviceType || null,
+      serviceLabel: order.serviceLabel || null,
       total: order.total || 0,
       totalSinMetodo: order.totalSinMetodo || 0,
       tarjeta: order.tarjeta || 0,
@@ -163,9 +165,19 @@ router.post('/', async (req, res, next) => {
     }
 
     const hasRider = hasAssignedRider(order);
+    const counterSale = isCounterSale(order);
     let assignment = null;
 
-    if (!hasRider) {
+    if (counterSale) {
+      assignment = assignCourier(order);
+
+      console.log('[WEBHOOK] Pedido de mostrador detectado, se envia a hoja fija', {
+        numeroPedidoInterno: order.numeroPedidoInterno || null,
+        nroPedido: order.nroPedido || null,
+        serviceType: order.serviceType || null,
+        sheetName: assignment.sheetName
+      });
+    } else if (!hasRider) {
       if (existingOrders.length === 0) {
         console.log('[WEBHOOK] Pedido omitido por no tener repartidor asignado aun', {
           numeroPedidoInterno: order.numeroPedidoInterno || null,
@@ -256,11 +268,11 @@ router.post('/', async (req, res, next) => {
         await clearOrderRow(duplicate.sheetName, duplicate.rowNumber);
       }
 
-      mappedRow = mapOrderToSheetRow(order, existingSnapshot);
+      mappedRow = mapOrderToSheetRow(order, existingSnapshot, assignment.sheetName);
       await writeOrderToSheet(assignment.sheetName, rowNumber, mappedRow);
     } else {
       rowNumber = await getNextEmptyRow(assignment.sheetName);
-      mappedRow = mapOrderToSheetRow(order);
+      mappedRow = mapOrderToSheetRow(order, null, assignment.sheetName);
       await writeOrderToSheet(assignment.sheetName, rowNumber, mappedRow);
     }
 

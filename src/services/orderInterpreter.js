@@ -200,6 +200,95 @@ function normalizePaymentMethodText(value) {
   return '';
 }
 
+function normalizeServiceTypeText(value) {
+  const normalized = asString(value)
+    .toLowerCase()
+    .replace(/[_-]/g, ' ')
+    .trim();
+
+  if (!normalized) return '';
+
+  if (
+    normalized.includes('delivery') ||
+    normalized.includes('envio') ||
+    normalized.includes('domicilio')
+  ) {
+    return 'delivery';
+  }
+
+  if (
+    normalized.includes('pickup') ||
+    normalized.includes('pick up') ||
+    normalized.includes('take away') ||
+    normalized.includes('takeaway') ||
+    normalized.includes('take out') ||
+    normalized.includes('takeout') ||
+    normalized.includes('retiro') ||
+    normalized.includes('retirar') ||
+    normalized.includes('para retirar')
+  ) {
+    return 'pickup';
+  }
+
+  if (
+    normalized.includes('dine in') ||
+    normalized.includes('dinein') ||
+    normalized.includes('on premise') ||
+    normalized.includes('on premises') ||
+    normalized.includes('in store') ||
+    normalized.includes('en el local') ||
+    normalized === 'local' ||
+    normalized.includes('salon') ||
+    normalized.includes('salón')
+  ) {
+    return 'local';
+  }
+
+  return '';
+}
+
+function detectServiceType(data, payload) {
+  const candidatePaths = [
+    ['service_type'],
+    ['serviceType'],
+    ['service'],
+    ['service_name'],
+    ['service_mode'],
+    ['order_type'],
+    ['orderType'],
+    ['order_mode'],
+    ['meta_data', 'service_type'],
+    ['meta_data', 'service'],
+    ['meta_data', 'order_type']
+  ];
+
+  for (const path of candidatePaths) {
+    const normalized = normalizeServiceTypeText(getNestedValue(data, path));
+    if (normalized) return normalized;
+  }
+
+  if (payload !== data) {
+    for (const path of candidatePaths) {
+      const normalized = normalizeServiceTypeText(getNestedValue(payload, path));
+      if (normalized) return normalized;
+    }
+  }
+
+  const flattenedTexts = getAllPayloadTexts(data, payload);
+  for (const text of flattenedTexts) {
+    const normalized = normalizeServiceTypeText(text);
+    if (normalized) return normalized;
+  }
+
+  return 'delivery';
+}
+
+function formatServiceLabel(serviceType) {
+  if (serviceType === 'pickup') return 'PARA RETIRAR';
+  if (serviceType === 'local') return 'EN EL LOCAL';
+  return 'DELIVERY';
+}
+
 function collectPaymentEntries(data, payload) {
   const dataPaymentArrays = [
     data.payments,
@@ -661,6 +750,76 @@ function detectEnCaminoTimestamp(data, payload) {
   return '';
 }
 
+function detectPedidoListoTimestamp(data, payload) {
+  const candidateSources = [data, payload];
+  const directTimestampPaths = [
+    ['ready_at'],
+    ['ready_for_pickup_at'],
+    ['ready_to_pickup_at'],
+    ['prepared_at'],
+    ['preparation_completed_at'],
+    ['meta_data', 'ready_at'],
+    ['meta_data', 'ready_for_pickup_at'],
+    ['meta_data', 'prepared_at']
+  ];
+  const statusPaths = [
+    ['delivery_status'],
+    ['status'],
+    ['order_status'],
+    ['rider_status'],
+    ['state'],
+    ['event'],
+    ['type'],
+    ['action'],
+    ['event_type'],
+    ['topic'],
+    ['meta_data', 'delivery_status'],
+    ['meta_data', 'status'],
+    ['meta_data', 'order_status']
+  ];
+  const fallbackTimestampPaths = [
+    ['status_updated_at'],
+    ['updated_at'],
+    ['delivery_status_updated_at'],
+    ['meta_data', 'status_updated_at'],
+    ['meta_data', 'updated_at'],
+    ['meta_data', 'delivery_status_updated_at']
+  ];
+
+  for (const source of candidateSources) {
+    for (const path of directTimestampPaths) {
+      const value = getNestedValue(source, path);
+      if (hasValue(value)) return value;
+    }
+  }
+
+  const listoStatuses = [
+    'ready',
+    'ready for pickup',
+    'ready_for_pickup',
+    'ready to pickup',
+    'ready_to_pickup',
+    'listo'
+  ];
+
+  for (const source of candidateSources) {
+    const status = statusPaths
+      .map((path) => normalizeStatusText(getNestedValue(source, path)))
+      .find((value) => value && listoStatuses.some((keyword) => value.includes(keyword)));
+
+    if (!status) continue;
+
+    for (const path of fallbackTimestampPaths) {
+      const value = getNestedValue(source, path);
+      if (hasValue(value)) return value;
+    }
+
+    return new Date().toISOString();
+  }
+
+  return '';
+}
+
 function detectFinalizadoTimestamp(data, payload) {
   const candidateSources = [data, payload];
   const statusPaths = [
@@ -751,10 +910,13 @@ function interpretOrder(payload = {}) {
   const fecha = asString(findFirstPresent(data, [['created_at'], ['updated_at']])) || new Date().toISOString();
   const numeroPedidoInterno = asString(data.daily_id ?? '');
   const riderCancelled = detectRiderCancelled(data, payload, repartidor);
+  const serviceType = detectServiceType(data, payload);
+  const serviceLabel = formatServiceLabel(serviceType);
 
   const enviosLejanos = delivery;
   const propinaWeb = detectPropinaWeb(data, payload);
   const enCamino = detectEnCaminoTimestamp(data, payload);
+  const pedidoListo = detectPedidoListoTimestamp(data, payload);
   const finalizado = detectFinalizadoTimestamp(data, payload);
   const importe = toNumber(findFirstPresent(data, [
     ['amount'],
@@ -803,6 +965,8 @@ function interpretOrder(payload = {}) {
     repartidor,
     riderCancelled,
     riderHint: repartidor,
+    serviceType,
+    serviceLabel,
     cliente,
     direccion,
     productos,
@@ -817,6 +981,7 @@ function interpretOrder(payload = {}) {
     enviosLejanos,
     propinaWeb,
     enCamino,
+    pedidoListo,
     finalizado,
     paymentMethod,
     hasExplicitPaymentAmounts: paymentBreakdown.hasExplicitAmounts,

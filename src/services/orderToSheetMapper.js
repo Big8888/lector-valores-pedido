@@ -64,7 +64,11 @@ function resolveText(incomingValue, fallbackValue, defaultValue = '') {
   return defaultValue;
 }
 
-function mapOrderToSheetRow(order, existingRow = null) {
+function isCounterSheet(sheetName) {
+  return sheetName === sheetsConfig.counterSheetName;
+}
+
+function mapOrderToSheetRow(order, existingRow = null, sheetName = '') {
   const paymentMethod = String(order.paymentMethod || '').trim().toLowerCase();
   const hasPaymentMethod = paymentMethod && paymentMethod !== 'no_especificado';
   const paymentStatus = String(order.paymentStatus || order.estadoPago || '').trim().toUpperCase();
@@ -86,9 +90,15 @@ function mapOrderToSheetRow(order, existingRow = null) {
     ? resolveNumber(existingRow?.propinaWeb, 0, 0)
     : resolveNumber(order.propinaWeb, 0, 0);
   const enCaminoFormatted = order.enCamino ? formatHora(order.enCamino) : '';
+  const pedidoListoFormatted = order.pedidoListo ? formatHora(order.pedidoListo) : '';
   const enCamino = resolveText(
     enCaminoFormatted,
     existingRow?.enCamino,
+    ''
+  );
+  const pedidoListo = resolveText(
+    pedidoListoFormatted,
+    existingRow?.pedidoListo,
     ''
   );
   const finalizado = resolveText(
@@ -136,6 +146,26 @@ function mapOrderToSheetRow(order, existingRow = null) {
     tarjetaValue = existingTarjeta;
     efectivoValue = existingEfectivo;
     transferenciaValue = existingTransferencia;
+  }
+
+  if (isCounterSheet(sheetName)) {
+    return {
+      serviceLabel: resolveText(order.serviceLabel, existingRow?.serviceLabel, ''),
+      numeroPedidoInterno: order.numeroPedidoInterno || '',
+      estadoPago: order.paymentStatus || order.estadoPago || '',
+      total: totalValue,
+      tarjeta: tarjetaValue,
+      efectivo: efectivoValue,
+      transferencia: transferenciaValue,
+      propinaWeb,
+      pedidoListo,
+      finalizado,
+      anotaciones: resolveText(order.notas, existingRow?.anotaciones, ''),
+      numeroPedidoVisible: order.numeroPedidoInterno || existingRow?.numeroPedidoInterno || '',
+      importeTransferenciaVisible: transferenciaValue > 0 ? transferenciaValue : '',
+      telefono: asPlainText(order.telefono),
+      fecha: formatFecha(order.fecha)
+    };
   }
 
   return {

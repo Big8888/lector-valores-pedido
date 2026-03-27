@@ -2,6 +2,7 @@
 
 const riderSheets = sheetsConfig && sheetsConfig.riderSheets ? sheetsConfig.riderSheets : {};
 const availableCouriers = Object.keys(riderSheets);
+const counterSheetName = sheetsConfig && sheetsConfig.counterSheetName ? sheetsConfig.counterSheetName : 'Venta Mostrador';
 
 function normalizeName(value) {
   return String(value || '')
@@ -30,7 +31,19 @@ function resolveCourierName(order = {}) {
   return '';
 }
 
+function isCounterSale(order = {}) {
+  const serviceType = String(order.serviceType || '').trim().toLowerCase();
+  return serviceType === 'pickup' || serviceType === 'local';
+}
+
 function assignCourier(order = {}) {
+  if (isCounterSale(order)) {
+    return {
+      courier: null,
+      sheetName: counterSheetName
+    };
+  }
+
   const riderName = resolveCourierName(order);
   const normalizedRider = normalizeName(riderName);
 
@@ -50,5 +63,6 @@ function assignCourier(order = {}) {
 }
 
 module.exports = {
-  assignCourier
+  assignCourier,
+  isCounterSale
 };

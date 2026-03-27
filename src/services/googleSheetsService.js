@@ -49,7 +49,24 @@ async function getSheetsClient() {
 }
 
 function getUniqueSheetNames() {
-  return [...new Set(Object.values(sheetsConfig.riderSheets || {}))];
+  return [
+    ...new Set([
+      ...Object.values(sheetsConfig.riderSheets || {}),
+      ...Object.keys(sheetsConfig.sheetProfiles || {})
+    ])
+  ];
+}
+
+function getSheetProfile(sheetName) {
+  const profile = sheetsConfig.sheetProfiles && sheetsConfig.sheetProfiles[sheetName]
+    ? sheetsConfig.sheetProfiles[sheetName]
+    : null;
+
+  return {
+    dataStartRow: profile && profile.dataStartRow ? profile.dataStartRow : sheetsConfig.dataStartRow,
+    sheetBounds: profile && profile.sheetBounds ? profile.sheetBounds : sheetsConfig.sheetBounds,
+    columns: profile && profile.columns ? profile.columns : sheetsConfig.columns
+  };
 }
 
 function normalizeCell(value) {
@@ -64,6 +81,11 @@ function toNumber(value) {
 
 function getManagedColumns() {
   return Object.values(sheetsConfig.columns).filter(Boolean);
+}
+
+function getManagedColumnsForSheet(sheetName) {
+  const profile = getSheetProfile(sheetName);
+  return Object.values(profile.columns).filter(Boolean);
 }
 
 function getColumnRange(sheetName, column, startRow) {
@@ -157,11 +179,12 @@ function getLookupMatch({ orderLookup, primaryValue, legacyValue, rowDayKey }) {
 
 async function getNextEmptyRow(sheetName) {
   const sheets = await getSheetsClient();
-  const startRow = sheetsConfig.dataStartRow;
+  const profile = getSheetProfile(sheetName);
+  const startRow = profile.dataStartRow;
 
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: sheetsConfig.spreadsheetId,
-    range: getColumnRange(sheetName, sheetsConfig.columns.numeroPedidoInterno, startRow)
+    range: getColumnRange(sheetName, profile.columns.numeroPedidoInterno, startRow)
   });
 
   const values = res.data.values || [];
@@ -189,14 +212,15 @@ async function findOrderRowsInSheet(sheetName, orderOrId) {
   }
 
   const sheets = await getSheetsClient();
+  const profile = getSheetProfile(sheetName);
   const ranges = [
-    getColumnRange(sheetName, sheetsConfig.columns.numeroPedidoInterno, sheetsConfig.dataStartRow),
-    getColumnRange(sheetName, sheetsConfig.columns.fecha, sheetsConfig.dataStartRow)
+    getColumnRange(sheetName, profile.columns.numeroPedidoInterno, profile.dataStartRow),
+    getColumnRange(sheetName, profile.columns.fecha, profile.dataStartRow)
   ];
 
-  const hasLegacyColumn = Boolean(sheetsConfig.columns.nroPedido);
+  const hasLegacyColumn = Boolean(profile.columns.numeroPedidoVisible);
   if (hasLegacyColumn) {
-    ranges.push(getColumnRange(sheetName, sheetsConfig.columns.nroPedido, sheetsConfig.dataStartRow));
+    ranges.push(getColumnRange(sheetName, profile.columns.numeroPedidoVisible, profile.dataStartRow));
   }
 
   const res = await sheets.spreadsheets.values.batchGet({
@@ -221,7 +245,7 @@ async function findOrderRowsInSheet(sheetName, orderOrId) {
     if (getLookupMatch({ orderLookup, primaryValue, legacyValue, rowDayKey })) {
       matchedRows.push({
         sheetName,
-        rowNumber: sheetsConfig.dataStartRow + index
+        rowNumber: profile.dataStartRow + index
       });
     }
   }
@@ -249,8 +273,9 @@ async function findOrderAcrossSheets(orderOrId) {
 
 async function writeOrderToSheet(sheetName, row, data) {
   const sheets = await getSheetsClient();
+  const profile = getSheetProfile(sheetName);
 
-  const updates = Object.entries(sheetsConfig.columns)
+  const updates = Object.entries(profile.columns)
     .filter(([, column]) => Boolean(column))
     .map(([field, column]) => ({
       range: `${sheetName}!${column}${row}`,
@@ -274,7 +299,8 @@ async function writeOrderToSheet(sheetName, row, data) {
 
 async function getOrderRowSnapshot(sheetName, row) {
   const sheets = await getSheetsClient();
-  const activeColumns = Object.entries(sheetsConfig.columns).filter(([, column]) => Boolean(column));
+  const profile = getSheetProfile(sheetName);
+  const activeColumns = Object.entries(profile.columns).filter(([, column]) => Boolean(column));
   const ranges = activeColumns.map(([, column]) => `${sheetName}!${column}${row}`);
 
   const res = await sheets.spreadsheets.values.batchGet({
@@ -290,6 +316,7 @@ async function getOrderRowSnapshot(sheetName, row) {
   });
 
   return {
+    serviceLabel: normalizeCell(valueByField.serviceLabel),
     numeroPedidoInterno: normalizeCell(valueByField.numeroPedidoInterno),
     estadoPago: normalizeCell(valueByField.estadoPago),
     total: toNumber(valueByField.total),
@@ -300,8 +327,10 @@ async function getOrderRowSnapshot(sheetName, row) {
     propinaWeb: toNumber(valueByField.propinaWeb),
     salidaDinero: normalizeCell(valueByField.salidaDinero),
     enCamino: normalizeCell(valueByField.enCamino),
+    pedidoListo: normalizeCell(valueByField.pedidoListo),
     finalizado: normalizeCell(valueByField.finalizado),
-    nroPedido: normalizeCell(valueByField.nroPedido),
+    anotaciones: normalizeCell(valueByField.anotaciones),
+    numeroPedidoVisible: normalizeCell(valueByField.numeroPedidoVisible),
     telefono: normalizeCell(valueByField.telefono),
     fecha: normalizeCell(valueByField.fecha)
   };
@@ -309,7 +338,7 @@ async function getOrderRowSnapshot(sheetName, row) {
 
 async function clearOrderRow(sheetName, row) {
   const sheets = await getSheetsClient();
-  const ranges = getManagedColumns().map((column) => `${sheetName}!${column}${row}`);
+  const ranges = getManagedColumnsForSheet(sheetName).map((column) => `${sheetName}!${column}${row}`);
 
   console.log('[SHEETS] Limpiando fila existente', {
     sheetName,
