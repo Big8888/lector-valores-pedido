@@ -3,8 +3,8 @@ const HOJAS_REPARTIDORES = ['Mauro', 'Mauro 1', 'Diogo', 'GIAN', 'LIBRE1'];
 const CELDA_BOTON = 'A7';
 const RANGO_LIMPIEZA_CONTROLES_VIEJOS = 'O1:P6';
 const TITULO_IMAGEN_COBRO = 'COBROS_BUTTON';
-const ANCHO_BOTON_COBRO = 175;
-const ALTO_BOTON_COBRO = 50;
+const ANCHO_BOTON_COBRO = 185;
+const ALTO_BOTON_COBRO = 55;
 const OFFSET_X_BOTON_COBRO = 2;
 const OFFSET_Y_BOTON_COBRO = 3;
 const FUNCION_BOTON_EN_HOJA = 'abrirPedidosSeleccionados';
@@ -15,11 +15,11 @@ const FILA_TITULOS_VUELTAS = 7;
 const COLUMNA_INICIO_VUELTAS = 15; // O
 const COLUMNA_FIN_VUELTAS = 19; // S
 const TITULO_BOTON_ELIMINAR_PREFIX = 'DELETE_VUELTA_';
-const ANCHO_BOTON_ELIMINAR = 42;
-const ALTO_BOTON_ELIMINAR = 22;
+const ANCHO_BOTON_ELIMINAR = 72;
+const ALTO_BOTON_ELIMINAR = 24;
 const OFFSET_X_BOTON_ELIMINAR = 2;
 const OFFSET_Y_BOTON_ELIMINAR = 4;
-const URL_BOTON_ELIMINAR = 'https://dummyimage.com/84x44/c0392b/ffffff.png&text=X';
+const URL_BOTON_ELIMINAR = 'https://raw.githubusercontent.com/Big8888/lector-valores-pedido/main/assets/limpiar-button.png';
 
 function codexPing() {
   return {
@@ -125,6 +125,7 @@ function configurarTablaVueltasCompartidasEnTodasLasHojas() {
       )
       .setValues(titulosVueltas);
 
+    limpiarBotonesEliminarVueltas_(hoja);
     asegurarBotonesEliminarVueltasEnHoja_(hoja);
     resultado.push({ hoja: nombreHoja, ok: true });
   });
@@ -241,4 +242,8 @@ function limpiarBotonEliminarVuelta_(hoja, titulo) {
       return altTitle === titulo;
     })
     .forEach((image) => image.remove());
+}
+
+function limpiarBotonesEliminarVueltas_(hoja) {
+  getBotonesEliminarVueltas_(hoja).forEach((image) => image.remove());
 }
