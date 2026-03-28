@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const express = require('express');
+const pedidosYaWebhookRoutes = require('./routes/pedidosYaWebhookRoutes');
 const webhookRoutes = require('./routes/webhookRoutes');
 
 const app = express();
@@ -27,6 +28,7 @@ app.get('/health', (req, res) => {
   });
 });
 
+app.use('/webhook/pedidosya', pedidosYaWebhookRoutes);
 app.use('/webhook', webhookRoutes);
 
 app.use((req, res) => {

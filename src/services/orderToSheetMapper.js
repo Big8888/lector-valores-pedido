@@ -64,8 +64,23 @@ function resolveText(incomingValue, fallbackValue, defaultValue = '') {
   return defaultValue;
 }
 
+function mergeText(incomingValue, fallbackValue, separator = ' | ') {
+  const incoming = String(incomingValue || '').trim();
+  const fallback = String(fallbackValue || '').trim();
+
+  if (incoming && fallback && incoming !== fallback) {
+    return `${fallback}${separator}${incoming}`;
+  }
+
+  return incoming || fallback || '';
+}
+
 function isCounterSheet(sheetName) {
   return sheetName === sheetsConfig.counterSheetName;
+}
+
+function isPedidosYaSheet(sheetName) {
+  return sheetName === sheetsConfig.pedidosYaSheetName;
 }
 
 function mapOrderToSheetRow(order, existingRow = null, sheetName = '') {
@@ -169,6 +184,51 @@ function mapOrderToSheetRow(order, existingRow = null, sheetName = '') {
       importeTransferenciaVisible: transferenciaValue > 0 ? transferenciaValue : '',
       telefono: asPlainText(order.telefono),
       fecha: formatFecha(order.fecha)
+    };
+  }
+
+  if (isPedidosYaSheet(sheetName)) {
+    let pedidosYaTarjeta = 0;
+    let pedidosYaEfectivo = 0;
+    let pedidosYaTransferencia = 0;
+
+    if (hasExplicitPaymentAmounts) {
+      pedidosYaTarjeta = incomingTarjeta;
+      pedidosYaEfectivo = incomingEfectivo;
+      pedidosYaTransferencia = incomingTransferencia;
+    } else if (paymentMethod === 'tarjeta') {
+      pedidosYaTarjeta = authoritativeAmount;
+    } else if (paymentMethod === 'efectivo') {
+      pedidosYaEfectivo = authoritativeAmount;
+    } else if (paymentMethod === 'transferencia') {
+      pedidosYaTransferencia = authoritativeAmount;
+    } else if (existingHasPaymentAmounts) {
+      pedidosYaTarjeta = existingTarjeta;
+      pedidosYaEfectivo = existingEfectivo;
+      pedidosYaTransferencia = existingTransferencia;
+    }
+
+    return {
+      numeroPedidoInterno: resolveText(
+        order.numeroPedidoInterno,
+        existingRow?.numeroPedidoInterno,
+        ''
+      ),
+      estadoPago: resolveText(order.paymentStatus || order.estadoPago, existingRow?.estadoPago, ''),
+      tarjeta: pedidosYaTarjeta,
+      efectivo: pedidosYaEfectivo,
+      pedidoListo,
+      estadoPedido: resolveText(order.estadoPedido, existingRow?.estadoPedido, ''),
+      anotaciones: mergeText(order.notas, existingRow?.anotaciones),
+      datosTransferencia: pedidosYaTransferencia > 0 ? 'TRANSFERENCIA' : '',
+      numeroPedidoVisible: resolveText(
+        order.nroPedido,
+        existingRow?.numeroPedidoVisible,
+        order.numeroPedidoInterno || existingRow?.numeroPedidoInterno || ''
+      ),
+      importeTransferenciaVisible: pedidosYaTransferencia > 0 ? pedidosYaTransferencia : '',
+      telefono: resolveText(asPlainText(order.telefono), existingRow?.telefono, ''),
+      fecha: resolveText(order.fecha ? formatFecha(order.fecha) : '', existingRow?.fecha, '')
     };
   }
 

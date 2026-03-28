@@ -2,6 +2,7 @@ module.exports = {
   spreadsheetId: '1b6thcjNOAbUPKRWSSvqhog2vp6TOk-wbo5GqokPH2hg',
   timeZone: process.env.ORDER_TIMEZONE || 'America/Montevideo',
   counterSheetName: 'Venta Mostrador',
+  pedidosYaSheetName: 'Pedidos Ya',
   riderSheets: {
     MAURO: 'Mauro',
     MAURICIO: 'Mauro',
@@ -56,6 +57,27 @@ module.exports = {
         importeTransferenciaVisible: 'O',
         telefono: 'P',
         fecha: 'Q'
+      }
+    },
+    'Pedidos Ya': {
+      dataStartRow: 8,
+      sheetBounds: {
+        startColumn: 'A',
+        endColumn: 'N'
+      },
+      columns: {
+        numeroPedidoInterno: 'B',
+        estadoPago: 'C',
+        tarjeta: 'D',
+        efectivo: 'E',
+        pedidoListo: 'F',
+        estadoPedido: 'G',
+        anotaciones: 'H',
+        datosTransferencia: 'J',
+        numeroPedidoVisible: 'K',
+        importeTransferenciaVisible: 'L',
+        telefono: 'M',
+        fecha: 'N'
       }
     }
   }
