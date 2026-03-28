@@ -874,10 +874,18 @@ function detectFinalizadoTimestamp(data, payload) {
     ['completed_at'],
     ['finished_at'],
     ['delivered_at'],
+    ['fulfilled_at'],
+    ['served_at'],
     ['closed_at'],
     ['status_updated_at'],
     ['updated_at'],
-    ['meta_data', 'delivery_status_updated_at']
+    ['meta_data', 'delivery_status_updated_at'],
+    ['meta_data', 'completed_at'],
+    ['meta_data', 'finished_at'],
+    ['meta_data', 'delivered_at'],
+    ['meta_data', 'fulfilled_at'],
+    ['meta_data', 'served_at'],
+    ['meta_data', 'closed_at']
   ];
 
   const finalizadoStatuses = [
@@ -887,6 +895,12 @@ function detectFinalizadoTimestamp(data, payload) {
     'finalizado',
     'finished',
     'finish',
+    'delivered',
+    'deliver',
+    'entregado',
+    'fulfilled',
+    'serve',
+    'served',
     'closed',
     'done'
   ];

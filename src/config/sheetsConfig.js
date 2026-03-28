@@ -5,6 +5,7 @@ module.exports = {
   riderSheets: {
     MAURO: 'Mauro',
     MAURICIO: 'Mauro',
+    BRISA: 'Brisa',
     DIOGO: 'Diogo',
     GIAN: 'GIAN',
     LIBRE1: 'LIBRE1',
