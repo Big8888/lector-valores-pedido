@@ -72,6 +72,20 @@ function inferPaymentMethod(rawMethod) {
   return 'tarjeta';
 }
 
+function inferSalesChannel(lines) {
+  const text = lines.join(' ').toUpperCase();
+
+  if (text.includes('DELIVERY')) {
+    return 'Domicilio';
+  }
+
+  if (text.includes('PICK UP') || text.includes('PICKUP AT') || text.includes('LOCAL')) {
+    return 'Local';
+  }
+
+  return '';
+}
+
 function parseDateTime(dateText, timeText) {
   const dateMatch = String(dateText || '')
     .trim()
@@ -185,6 +199,7 @@ async function parsePedidosYaPdf(filePath) {
 
   const storePhone = storeNameIndex >= 0 ? (lines[storeNameIndex + 3] || '').trim() : '';
   const paymentMethod = inferPaymentMethod(rawPaymentMethod);
+  const salesChannel = inferSalesChannel(lines);
   const total = parseMoney(totalRaw);
   const isoFecha = parseDateTime(dateLine, rawPickupTime);
   const status = parseStatus(rawStatus);
@@ -204,19 +219,6 @@ async function parsePedidosYaPdf(filePath) {
   const tarjeta = paymentMethod === 'tarjeta' ? total : 0;
   const efectivo = paymentMethod === 'efectivo' ? total : 0;
   const transferencia = paymentMethod === 'transferencia' ? total : 0;
-  const extraNotes = [];
-
-  if (customerInfo) {
-    extraNotes.push(`PDF: ${customerInfo}`);
-  }
-
-  if (rawPaymentMethod) {
-    extraNotes.push(`Pago PDF: ${rawPaymentMethod}`);
-  }
-
-  if (storePhone) {
-    extraNotes.push(`Telefono local: ${storePhone}`);
-  }
 
   return {
     rawText,
@@ -231,8 +233,8 @@ async function parsePedidosYaPdf(filePath) {
     efectivo,
     transferencia,
     pedidoListo: isoFecha,
-    estadoPedido: 'PICK UP | PDF IMPORTADO',
-    notas: extraNotes.join(' | '),
+    estadoPedido: salesChannel,
+    notas: '',
     telefono: '',
     fecha: isoFecha || dateLine
   };

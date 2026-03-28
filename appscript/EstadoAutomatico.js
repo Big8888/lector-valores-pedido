@@ -1,4 +1,4 @@
-const HOJAS_ESTADO_AUTOMATICO = ['Mauro', 'Brisa', 'Diogo', 'GIAN', 'LIBRE1'];
+const HOJAS_ESTADO_AUTOMATICO = ['Mauro', 'Brisa', 'Diogo', 'GIAN', 'LIBRE1', 'Lector PedidosYa'];
 const FILA_ENCABEZADOS_ESTADO = 7;
 const FILA_DATOS_ESTADO = 8;
 const COLOR_EN_CAMINO = '#93c47d';
@@ -6,6 +6,8 @@ const COLOR_FINALIZADO = '#6fa8dc';
 const COLOR_ESTADO_PENDIENTE = '#ea4335';
 const COLOR_ESTADO_PAGADO = '#fff2cc';
 const COLOR_ESTADO_PARCIAL = '#ea4335';
+const COLOR_ESTADO_PEDIDO_LOCAL = '#d9ead3';
+const COLOR_ESTADO_PEDIDO_DOMICILIO = '#cfe2f3';
 
 function configurarColoresEstadoAutomaticosEnHojas() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -36,7 +38,8 @@ function configurarColoresEstadoAutomaticosEnHoja_(hoja) {
       const coincideColumnaEstado =
         columna === columnasEstado.estadoPago ||
         columna === columnasEstado.enCamino ||
-        columna === columnasEstado.finalizado;
+        columna === columnasEstado.finalizado ||
+        columna === columnasEstado.estadoPedido;
 
       return coincideColumnaEstado && fila === FILA_DATOS_ESTADO && filas === ultimaFila - FILA_DATOS_ESTADO + 1;
     });
@@ -96,6 +99,32 @@ function configurarColoresEstadoAutomaticosEnHoja_(hoja) {
     );
   }
 
+  if (columnasEstado.estadoPedido > 0) {
+    const rangoEstadoPedido = hoja.getRange(
+      FILA_DATOS_ESTADO,
+      columnasEstado.estadoPedido,
+      ultimaFila - FILA_DATOS_ESTADO + 1,
+      1
+    );
+    const letraEstadoPedido = columnToLetterEstadoAutomatico_(columnasEstado.estadoPedido);
+
+    reglasFiltradas.push(
+      SpreadsheetApp.newConditionalFormatRule()
+        .whenFormulaSatisfied(`=UPPER(TRIM(${letraEstadoPedido}${FILA_DATOS_ESTADO}))="LOCAL"`)
+        .setBackground(COLOR_ESTADO_PEDIDO_LOCAL)
+        .setRanges([rangoEstadoPedido])
+        .build()
+    );
+
+    reglasFiltradas.push(
+      SpreadsheetApp.newConditionalFormatRule()
+        .whenFormulaSatisfied(`=UPPER(TRIM(${letraEstadoPedido}${FILA_DATOS_ESTADO}))="DOMICILIO"`)
+        .setBackground(COLOR_ESTADO_PEDIDO_DOMICILIO)
+        .setRanges([rangoEstadoPedido])
+        .build()
+    );
+  }
+
   hoja.setConditionalFormatRules(reglasFiltradas);
 }
 
@@ -109,7 +138,8 @@ function getColumnasEstadoAutomatico_(hoja) {
   return {
     estadoPago: encabezados.findIndex((valor) => valor === 'ESTADO DE PAGO') + 1,
     enCamino: encabezados.findIndex((valor) => valor === 'EN CAMINO') + 1,
-    finalizado: encabezados.findIndex((valor) => valor === 'FINALIZADO') + 1
+    finalizado: encabezados.findIndex((valor) => valor === 'FINALIZADO') + 1,
+    estadoPedido: encabezados.findIndex((valor) => valor === 'ESTADO DE PEDIDO') + 1
   };
 }
 

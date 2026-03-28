@@ -212,6 +212,10 @@ function mapOrderToSheetRow(order, existingRow = null, sheetName = '') {
       pedidosYaTransferencia = existingTransferencia;
     }
 
+    const anotacionesValue = isPedidosYaPdfSheet(sheetName)
+      ? ''
+      : mergeText(order.notas, existingRow?.anotaciones);
+
     return {
       numeroPedidoInterno: resolveText(
         order.numeroPedidoInterno,
@@ -223,7 +227,7 @@ function mapOrderToSheetRow(order, existingRow = null, sheetName = '') {
       efectivo: pedidosYaEfectivo,
       pedidoListo,
       estadoPedido: resolveText(order.estadoPedido, existingRow?.estadoPedido, ''),
-      anotaciones: mergeText(order.notas, existingRow?.anotaciones),
+      anotaciones: anotacionesValue,
       datosTransferencia: pedidosYaTransferencia > 0 ? 'TRANSFERENCIA' : '',
       numeroPedidoVisible: resolveText(
         order.nroPedido,
