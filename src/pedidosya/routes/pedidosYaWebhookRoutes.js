@@ -1,17 +1,17 @@
 const express = require('express');
-const sheetsConfig = require('../config/sheetsConfig');
+const sheetsConfig = require('../../config/sheetsConfig');
 const { validatePedidosYaJwt } = require('../services/pedidosYaAuth');
 const {
   interpretPedidosYaOrder,
   interpretPedidosYaStatusUpdate
 } = require('../services/pedidosYaInterpreter');
-const { mapOrderToSheetRow } = require('../services/orderToSheetMapper');
+const { mapOrderToSheetRow } = require('../../services/orderToSheetMapper');
 const {
   getNextEmptyRow,
   writeOrderToSheet,
   findOrderAcrossSheets,
   getOrderRowSnapshot
-} = require('../services/googleSheetsService');
+} = require('../../services/googleSheetsService');
 
 const router = express.Router();
 

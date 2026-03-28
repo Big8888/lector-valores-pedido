@@ -1,6 +1,6 @@
 const crypto = require('crypto');
 const express = require('express');
-const pedidosYaWebhookRoutes = require('./routes/pedidosYaWebhookRoutes');
+const pedidosYaWebhookRoutes = require('./pedidosya/routes/pedidosYaWebhookRoutes');
 const webhookRoutes = require('./routes/webhookRoutes');
 
 const app = express();
