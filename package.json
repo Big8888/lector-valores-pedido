@@ -4,10 +4,12 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "validate": "node scripts/validate.js"
+    "validate": "node scripts/validate.js",
+    "pedidosya:pdf": "node scripts/importPedidosYaPdf.js"
   },
   "dependencies": {
     "express": "^4.19.2",
-    "googleapis": "^144.0.0"
+    "googleapis": "^144.0.0",
+    "pdf-parse": "^2.4.5"
   }
 }

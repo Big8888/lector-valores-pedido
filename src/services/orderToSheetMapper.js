@@ -83,6 +83,10 @@ function isPedidosYaSheet(sheetName) {
   return sheetName === sheetsConfig.pedidosYaSheetName;
 }
 
+function isPedidosYaPdfSheet(sheetName) {
+  return sheetName === sheetsConfig.pedidosYaPdfSheetName;
+}
+
 function mapOrderToSheetRow(order, existingRow = null, sheetName = '') {
   const paymentMethod = String(order.paymentMethod || '').trim().toLowerCase();
   const hasPaymentMethod = paymentMethod && paymentMethod !== 'no_especificado';
@@ -187,7 +191,7 @@ function mapOrderToSheetRow(order, existingRow = null, sheetName = '') {
     };
   }
 
-  if (isPedidosYaSheet(sheetName)) {
+  if (isPedidosYaSheet(sheetName) || isPedidosYaPdfSheet(sheetName)) {
     let pedidosYaTarjeta = 0;
     let pedidosYaEfectivo = 0;
     let pedidosYaTransferencia = 0;

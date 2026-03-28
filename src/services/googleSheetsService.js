@@ -360,6 +360,7 @@ module.exports = {
   getNextEmptyRow,
   writeOrderToSheet,
   findOrderAcrossSheets,
+  findOrderRowsInSheet,
   clearOrderRow,
   getOrderRowSnapshot,
   buildDayKey

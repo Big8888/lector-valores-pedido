@@ -3,6 +3,7 @@ module.exports = {
   timeZone: process.env.ORDER_TIMEZONE || 'America/Montevideo',
   counterSheetName: 'Venta Mostrador',
   pedidosYaSheetName: 'Pedidos Ya',
+  pedidosYaPdfSheetName: 'Lector PedidosYa',
   riderSheets: {
     MAURO: 'Mauro',
     MAURICIO: 'Mauro',
@@ -60,6 +61,27 @@ module.exports = {
       }
     },
     'Pedidos Ya': {
+      dataStartRow: 8,
+      sheetBounds: {
+        startColumn: 'A',
+        endColumn: 'N'
+      },
+      columns: {
+        numeroPedidoInterno: 'B',
+        estadoPago: 'C',
+        tarjeta: 'D',
+        efectivo: 'E',
+        pedidoListo: 'F',
+        estadoPedido: 'G',
+        anotaciones: 'H',
+        datosTransferencia: 'J',
+        numeroPedidoVisible: 'K',
+        importeTransferenciaVisible: 'L',
+        telefono: 'M',
+        fecha: 'N'
+      }
+    },
+    'Lector PedidosYa': {
       dataStartRow: 8,
       sheetBounds: {
         startColumn: 'A',
