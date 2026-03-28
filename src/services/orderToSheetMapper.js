@@ -161,7 +161,11 @@ function mapOrderToSheetRow(order, existingRow = null, sheetName = '') {
       pedidoListo,
       finalizado,
       anotaciones: resolveText(order.notas, existingRow?.anotaciones, ''),
-      numeroPedidoVisible: order.numeroPedidoInterno || existingRow?.numeroPedidoInterno || '',
+      numeroPedidoVisible: resolveText(
+        order.nroPedido,
+        existingRow?.numeroPedidoVisible,
+        order.numeroPedidoInterno || existingRow?.numeroPedidoInterno || ''
+      ),
       importeTransferenciaVisible: transferenciaValue > 0 ? transferenciaValue : '',
       telefono: asPlainText(order.telefono),
       fecha: formatFecha(order.fecha)
