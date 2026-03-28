@@ -412,23 +412,32 @@ function isCanceledPaymentEntry(entry) {
   return cancellationMarkers.some((path) => hasValue(getNestedValue(entry, path)));
 }
 
-function getPaymentEntryAmount(entry) {
-  const amountPaths = [
-    ['amount'],
-    ['paid_amount'],
-    ['received_amount'],
-    ['bill_amount'],
-    ['total'],
-    ['value'],
-    ['price']
-  ];
+function getPaymentEntryAmount(entry, method = '') {
+  const billAmount = toNumber(getNestedValue(entry, ['bill_amount']));
+  const receivedAmount = toNumber(getNestedValue(entry, ['received_amount']));
+  const paidAmount = toNumber(getNestedValue(entry, ['paid_amount']));
+  const directAmount = toNumber(getNestedValue(entry, ['amount']));
+  const totalAmount = toNumber(getNestedValue(entry, ['total']));
+  const valueAmount = toNumber(getNestedValue(entry, ['value']));
+  const priceAmount = toNumber(getNestedValue(entry, ['price']));
 
-  for (const path of amountPaths) {
-    const amount = toNumber(getNestedValue(entry, path));
-    if (amount > 0) return amount;
+  if (method === 'efectivo') {
+    if (billAmount > 0) return billAmount;
+    if (paidAmount > 0) return paidAmount;
+    if (receivedAmount > 0) return receivedAmount;
   }
 
-  return 0;
+  const amountCandidates = [
+    directAmount,
+    paidAmount,
+    billAmount,
+    receivedAmount,
+    totalAmount,
+    valueAmount,
+    priceAmount
+  ];
+
+  return amountCandidates.find((amount) => amount > 0) || 0;
 }
 
 function findPaymentAmountFromText(data, payload) {
@@ -468,7 +477,7 @@ function detectPaymentBreakdown(data, payload, paymentStatus) {
     if (isCanceledPaymentEntry(entry)) continue;
 
     const method = getPaymentEntryMethod(entry);
-    const amount = getPaymentEntryAmount(entry);
+    const amount = getPaymentEntryAmount(entry, method);
 
     if (!method || amount <= 0) continue;
 
