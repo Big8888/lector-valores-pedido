@@ -5,7 +5,8 @@
   "scripts": {
     "start": "node src/server.js",
     "validate": "node scripts/validate.js",
-    "pedidosya:pdf": "node scripts/importPedidosYaPdf.js"
+    "pedidosya:pdf": "node scripts/importPedidosYaPdf.js",
+    "pedidosya:pdf:watch": "node scripts/watchPedidosYaPdf.js"
   },
   "dependencies": {
     "express": "^4.19.2",
