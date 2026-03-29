@@ -219,8 +219,12 @@ async function findOrderRowsInSheet(sheetName, orderOrId) {
   ];
 
   const hasLegacyColumn = Boolean(profile.columns.numeroPedidoVisible);
+  const hasTrackingColumn = Boolean(profile.columns.nroPedidoTracking);
   if (hasLegacyColumn) {
     ranges.push(getColumnRange(sheetName, profile.columns.numeroPedidoVisible, profile.dataStartRow));
+  }
+  if (hasTrackingColumn) {
+    ranges.push(getColumnRange(sheetName, profile.columns.nroPedidoTracking, profile.dataStartRow));
   }
 
   const res = await sheets.spreadsheets.values.batchGet({
@@ -232,14 +236,17 @@ async function findOrderRowsInSheet(sheetName, orderOrId) {
   const primaryValues = valueRanges[0]?.values || [];
   const fechaValues = valueRanges[1]?.values || [];
   const legacyValues = hasLegacyColumn ? valueRanges[2]?.values || [] : [];
+  const trackingValues = hasTrackingColumn
+    ? valueRanges[hasLegacyColumn ? 3 : 2]?.values || []
+    : [];
 
   const matchedRows = [];
-  const maxLength = Math.max(primaryValues.length, fechaValues.length, legacyValues.length);
+  const maxLength = Math.max(primaryValues.length, fechaValues.length, legacyValues.length, trackingValues.length);
 
   for (let index = 0; index < maxLength; index += 1) {
     const primaryValue = normalizeCell(primaryValues[index]?.[0]);
     const fechaValue = normalizeCell(fechaValues[index]?.[0]);
-    const legacyValue = normalizeCell(legacyValues[index]?.[0]);
+    const legacyValue = normalizeCell(legacyValues[index]?.[0]) || normalizeCell(trackingValues[index]?.[0]);
     const rowDayKey = parseSheetDayKey(fechaValue);
 
     if (getLookupMatch({ orderLookup, primaryValue, legacyValue, rowDayKey })) {
@@ -333,6 +340,7 @@ async function getOrderRowSnapshot(sheetName, row) {
     anotaciones: normalizeCell(valueByField.anotaciones),
     datosTransferencia: normalizeCell(valueByField.datosTransferencia),
     numeroPedidoVisible: normalizeCell(valueByField.numeroPedidoVisible),
+    nroPedidoTracking: normalizeCell(valueByField.nroPedidoTracking),
     importeTransferenciaVisible: toNumber(valueByField.importeTransferenciaVisible),
     telefono: normalizeCell(valueByField.telefono),
     fecha: normalizeCell(valueByField.fecha)

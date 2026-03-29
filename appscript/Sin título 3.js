@@ -6,6 +6,6 @@ function ocultarColumnasAuxiliares() {
     const hoja = ss.getSheetByName(nombreHoja);
     if (!hoja) return;
 
-    hoja.hideColumns(28, 2); // AB y AC reservadas para respaldos internos
+    hoja.hideColumns(28, 3); // AB y AC para respaldos internos, AD para tracking tecnico
   });
 }

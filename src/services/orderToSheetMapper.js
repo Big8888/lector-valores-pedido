@@ -185,6 +185,7 @@ function mapOrderToSheetRow(order, existingRow = null, sheetName = '') {
         existingRow?.numeroPedidoVisible,
         order.numeroPedidoInterno || existingRow?.numeroPedidoInterno || ''
       ),
+      nroPedidoTracking: resolveText(order.nroPedido, existingRow?.nroPedidoTracking, ''),
       importeTransferenciaVisible: transferenciaValue > 0 ? transferenciaValue : '',
       telefono: asPlainText(order.telefono),
       fecha: formatFecha(order.fecha)
@@ -234,6 +235,7 @@ function mapOrderToSheetRow(order, existingRow = null, sheetName = '') {
         existingRow?.numeroPedidoVisible,
         order.numeroPedidoInterno || existingRow?.numeroPedidoInterno || ''
       ),
+      nroPedidoTracking: resolveText(order.nroPedido, existingRow?.nroPedidoTracking, ''),
       importeTransferenciaVisible: pedidosYaTransferencia > 0 ? pedidosYaTransferencia : '',
       telefono: resolveText(asPlainText(order.telefono), existingRow?.telefono, ''),
       fecha: resolveText(order.fecha ? formatFecha(order.fecha) : '', existingRow?.fecha, '')
@@ -253,6 +255,7 @@ function mapOrderToSheetRow(order, existingRow = null, sheetName = '') {
     enCamino,
     finalizado,
     numeroPedidoVisible: order.numeroPedidoInterno || existingRow?.numeroPedidoInterno || '',
+    nroPedidoTracking: resolveText(order.nroPedido, existingRow?.nroPedidoTracking, ''),
     importeTransferenciaVisible: transferenciaValue > 0 ? transferenciaValue : '',
     telefono: asPlainText(order.telefono),
     fecha: formatFecha(order.fecha)

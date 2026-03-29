@@ -28,7 +28,8 @@ module.exports = {
     numeroPedidoVisible: 'V',
     importeTransferenciaVisible: 'W',
     telefono: 'X',
-    fecha: 'Y'
+    fecha: 'Y',
+    nroPedidoTracking: 'AD'
   },
   dataStartRow: 8,
   sheetBounds: {
@@ -57,7 +58,8 @@ module.exports = {
         numeroPedidoVisible: 'N',
         importeTransferenciaVisible: 'O',
         telefono: 'P',
-        fecha: 'Q'
+        fecha: 'Q',
+        nroPedidoTracking: 'AD'
       }
     },
     'Pedidos Ya': {
@@ -78,7 +80,8 @@ module.exports = {
         numeroPedidoVisible: 'K',
         importeTransferenciaVisible: 'L',
         telefono: 'M',
-        fecha: 'N'
+        fecha: 'N',
+        nroPedidoTracking: 'AD'
       }
     },
     'Lector PedidosYa': {
@@ -99,7 +102,8 @@ module.exports = {
         numeroPedidoVisible: 'K',
         importeTransferenciaVisible: 'L',
         telefono: 'M',
-        fecha: 'N'
+        fecha: 'N',
+        nroPedidoTracking: 'AD'
       }
     }
   }
