@@ -733,6 +733,24 @@ function normalizeStatusText(value) {
   return asString(value).toLowerCase().trim();
 }
 
+function normalizeStatusForMatch(value) {
+  return normalizeStatusText(value)
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function statusMatchesKeyword(value, keyword) {
+  const normalizedValue = normalizeStatusForMatch(value);
+  const normalizedKeyword = normalizeStatusForMatch(keyword);
+
+  if (!normalizedValue || !normalizedKeyword) return false;
+  if (normalizedValue === normalizedKeyword) return true;
+  if (normalizedValue.startsWith(`${normalizedKeyword} `)) return true;
+  if (normalizedValue.endsWith(` ${normalizedKeyword}`)) return true;
+  return normalizedValue.includes(` ${normalizedKeyword} `);
+}
+
 function detectEnCaminoTimestamp(data, payload) {
   const candidateSources = [data, payload];
   const statusPaths = [
@@ -905,10 +923,8 @@ function detectFinalizadoTimestamp(data, payload) {
     'finished',
     'finish',
     'delivered',
-    'deliver',
     'entregado',
     'fulfilled',
-    'serve',
     'served',
     'closed',
     'done'
@@ -917,7 +933,7 @@ function detectFinalizadoTimestamp(data, payload) {
   for (const source of candidateSources) {
     const status = statusPaths
       .map((path) => normalizeStatusText(getNestedValue(source, path)))
-      .find((value) => value && finalizadoStatuses.some((keyword) => value.includes(keyword)));
+      .find((value) => value && finalizadoStatuses.some((keyword) => statusMatchesKeyword(value, keyword)));
 
     if (!status) continue;
 
