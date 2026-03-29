@@ -57,6 +57,10 @@ function getUniqueSheetNames() {
   ];
 }
 
+function getRiderSheetNames() {
+  return [...new Set(Object.values(sheetsConfig.riderSheets || {}))];
+}
+
 function getSheetProfile(sheetName) {
   const profile = sheetsConfig.sheetProfiles && sheetsConfig.sheetProfiles[sheetName]
     ? sheetsConfig.sheetProfiles[sheetName]
@@ -71,6 +75,10 @@ function getSheetProfile(sheetName) {
 
 function normalizeCell(value) {
   return String(value || '').trim().replace(/^'/, '');
+}
+
+function normalizePhone(value) {
+  return String(value || '').replace(/[^\d+]/g, '').trim();
 }
 
 function toNumber(value) {
@@ -285,6 +293,95 @@ async function findOrderAcrossSheets(orderOrId) {
   });
 }
 
+async function findOrderRowsByPhoneAndDayInSheet(sheetName, order = {}) {
+  const normalizedPhone = normalizePhone(order.telefono);
+  const orderDayKey = buildDayKey(order.fecha);
+  const orderTotal = Number(order.total) || 0;
+
+  if (!normalizedPhone || !orderDayKey) {
+    return [];
+  }
+
+  const sheets = await getSheetsClient();
+  const profile = getSheetProfile(sheetName);
+  const ranges = [
+    getColumnRange(sheetName, profile.columns.telefono, profile.dataStartRow),
+    getColumnRange(sheetName, profile.columns.fecha, profile.dataStartRow)
+  ];
+
+  if (profile.columns.total) ranges.push(getColumnRange(sheetName, profile.columns.total, profile.dataStartRow));
+  if (profile.columns.tarjeta) ranges.push(getColumnRange(sheetName, profile.columns.tarjeta, profile.dataStartRow));
+  if (profile.columns.efectivo) ranges.push(getColumnRange(sheetName, profile.columns.efectivo, profile.dataStartRow));
+  if (profile.columns.transferencia) ranges.push(getColumnRange(sheetName, profile.columns.transferencia, profile.dataStartRow));
+
+  const res = await sheets.spreadsheets.values.batchGet({
+    spreadsheetId: sheetsConfig.spreadsheetId,
+    ranges
+  });
+
+  const valueRanges = res.data.valueRanges || [];
+  const telefonoValues = valueRanges[0]?.values || [];
+  const fechaValues = valueRanges[1]?.values || [];
+  const totalValues = valueRanges[2]?.values || [];
+  const tarjetaValues = valueRanges[3]?.values || [];
+  const efectivoValues = valueRanges[4]?.values || [];
+  const transferenciaValues = valueRanges[5]?.values || [];
+
+  const matchedRows = [];
+  const maxLength = Math.max(
+    telefonoValues.length,
+    fechaValues.length,
+    totalValues.length,
+    tarjetaValues.length,
+    efectivoValues.length,
+    transferenciaValues.length
+  );
+
+  for (let index = 0; index < maxLength; index += 1) {
+    const rowPhone = normalizePhone(telefonoValues[index]?.[0]);
+    const rowDayKey = parseSheetDayKey(fechaValues[index]?.[0]);
+
+    if (!rowPhone || rowPhone !== normalizedPhone || rowDayKey !== orderDayKey) {
+      continue;
+    }
+
+    const rowTotal =
+      toNumber(totalValues[index]?.[0]) +
+      toNumber(tarjetaValues[index]?.[0]) +
+      toNumber(efectivoValues[index]?.[0]) +
+      toNumber(transferenciaValues[index]?.[0]);
+
+    if (orderTotal > 0 && rowTotal > 0 && Math.abs(rowTotal - orderTotal) > 0.01) {
+      continue;
+    }
+
+    matchedRows.push({
+      sheetName,
+      rowNumber: profile.dataStartRow + index
+    });
+  }
+
+  return matchedRows;
+}
+
+async function findOrderAcrossRiderSheetsByPhoneAndDay(order) {
+  const riderSheets = getRiderSheetNames();
+  const matches = [];
+
+  for (const sheetName of riderSheets) {
+    const rows = await findOrderRowsByPhoneAndDayInSheet(sheetName, order);
+    matches.push(...rows);
+  }
+
+  return matches.sort((left, right) => {
+    if (left.sheetName === right.sheetName) {
+      return left.rowNumber - right.rowNumber;
+    }
+
+    return left.sheetName.localeCompare(right.sheetName);
+  });
+}
+
 async function writeOrderToSheet(sheetName, row, data) {
   const sheets = await getSheetsClient();
   const profile = getSheetProfile(sheetName);
@@ -375,6 +472,7 @@ module.exports = {
   getNextEmptyRow,
   writeOrderToSheet,
   findOrderAcrossSheets,
+  findOrderAcrossRiderSheetsByPhoneAndDay,
   findOrderRowsInSheet,
   clearOrderRow,
   getOrderRowSnapshot,

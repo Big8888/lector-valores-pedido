@@ -6,6 +6,7 @@ const {
   getNextEmptyRow,
   writeOrderToSheet,
   findOrderAcrossSheets,
+  findOrderAcrossRiderSheetsByPhoneAndDay,
   clearOrderRow,
   getOrderRowSnapshot
 } = require('../services/googleSheetsService');
@@ -145,7 +146,7 @@ router.post('/', async (req, res, next) => {
       throw error;
     }
 
-    const existingOrders = await findOrderAcrossSheets(order);
+    let existingOrders = await findOrderAcrossSheets(order);
 
     if (order.riderCancelled) {
       const clearedRows = await clearExistingOrders(order, existingOrders);
@@ -167,6 +168,29 @@ router.post('/', async (req, res, next) => {
     const hasRider = hasAssignedRider(order);
     const counterSale = isCounterSale(order);
     let assignment = null;
+
+    if (existingOrders.length === 0 && !counterSale && !hasRider && order.telefono) {
+      const fallbackMatches = await findOrderAcrossRiderSheetsByPhoneAndDay(order);
+
+      if (fallbackMatches.length === 1) {
+        existingOrders = fallbackMatches;
+
+        console.log('[WEBHOOK] Fallback por telefono y dia encontro fila existente', {
+          numeroPedidoInterno: order.numeroPedidoInterno || null,
+          nroPedido: order.nroPedido || null,
+          telefono: order.telefono || null,
+          sheetName: fallbackMatches[0].sheetName,
+          rowNumber: fallbackMatches[0].rowNumber
+        });
+      } else if (fallbackMatches.length > 1) {
+        console.log('[WEBHOOK] Fallback por telefono y dia ambiguo, no se usa', {
+          numeroPedidoInterno: order.numeroPedidoInterno || null,
+          nroPedido: order.nroPedido || null,
+          telefono: order.telefono || null,
+          candidates: fallbackMatches
+        });
+      }
+    }
 
     if (counterSale) {
       assignment = assignCourier(order);
