@@ -157,8 +157,14 @@ function buildOrderLookup(orderOrId) {
   };
 }
 
-function getLookupMatch({ orderLookup, primaryValue, legacyValue, rowDayKey }) {
-  if (orderLookup.nroPedido && legacyValue && orderLookup.nroPedido === legacyValue) {
+function getLookupMatch({ orderLookup, primaryValue, legacyValue, trackingValue, rowDayKey }) {
+  if (
+    orderLookup.nroPedido &&
+    (
+      (legacyValue && orderLookup.nroPedido === legacyValue) ||
+      (trackingValue && orderLookup.nroPedido === trackingValue)
+    )
+  ) {
     return true;
   }
 
@@ -246,10 +252,11 @@ async function findOrderRowsInSheet(sheetName, orderOrId) {
   for (let index = 0; index < maxLength; index += 1) {
     const primaryValue = normalizeCell(primaryValues[index]?.[0]);
     const fechaValue = normalizeCell(fechaValues[index]?.[0]);
-    const legacyValue = normalizeCell(legacyValues[index]?.[0]) || normalizeCell(trackingValues[index]?.[0]);
+    const legacyValue = normalizeCell(legacyValues[index]?.[0]);
+    const trackingValue = normalizeCell(trackingValues[index]?.[0]);
     const rowDayKey = parseSheetDayKey(fechaValue);
 
-    if (getLookupMatch({ orderLookup, primaryValue, legacyValue, rowDayKey })) {
+    if (getLookupMatch({ orderLookup, primaryValue, legacyValue, trackingValue, rowDayKey })) {
       matchedRows.push({
         sheetName,
         rowNumber: profile.dataStartRow + index
@@ -371,5 +378,9 @@ module.exports = {
   findOrderRowsInSheet,
   clearOrderRow,
   getOrderRowSnapshot,
-  buildDayKey
+  buildDayKey,
+  __internals: {
+    buildOrderLookup,
+    getLookupMatch
+  }
 };

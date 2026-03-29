@@ -1,6 +1,7 @@
 const TARGET_SPREADSHEET_ID = '1b6thcjNOAbUPKRWSSvqhog2vp6TOk-wbo5GqokPH2hg';
 const HOJAS_REPARTIDORES = ['Mauro', 'Brisa', 'Diogo', 'GIAN', 'LIBRE1'];
 const HOJAS_COBRO = [...HOJAS_REPARTIDORES, 'Venta Mostrador'];
+const HOJAS_ESTADO_AUTOMATICO = [...HOJAS_REPARTIDORES, 'Venta Mostrador'];
 const CELDA_BOTON = 'A5';
 const RANGO_LIMPIEZA_CONTROLES_VIEJOS = 'O1:P6';
 const TITULO_IMAGEN_COBRO = 'COBROS_BUTTON';
@@ -345,7 +346,7 @@ function configurarColoresEstadoAutomaticosEnTodasLasHojas() {
   const spreadsheet = SpreadsheetApp.openById(TARGET_SPREADSHEET_ID);
   const resultado = [];
 
-  HOJAS_REPARTIDORES.forEach((nombreHoja) => {
+  HOJAS_ESTADO_AUTOMATICO.forEach((nombreHoja) => {
     const hoja = spreadsheet.getSheetByName(nombreHoja);
     if (!hoja) {
       resultado.push({ hoja: nombreHoja, ok: false, motivo: 'Hoja no encontrada' });
@@ -478,6 +479,7 @@ function configurarColoresEstadoAutomaticosEnHoja_(hoja) {
       const coincideColumnaEstado =
         columna === columnasEstado.estadoPago ||
         columna === columnasEstado.enCamino ||
+        columna === columnasEstado.pedidoListo ||
         columna === columnasEstado.finalizado;
 
       return coincideColumnaEstado && fila === FILA_DATOS_ESTADO && filas === ultimaFila - FILA_DATOS_ESTADO + 1;
@@ -528,6 +530,16 @@ function configurarColoresEstadoAutomaticosEnHoja_(hoja) {
     );
   }
 
+  if (columnasEstado.pedidoListo > 0) {
+    reglasFiltradas.push(
+      SpreadsheetApp.newConditionalFormatRule()
+        .whenCellNotEmpty()
+        .setBackground(COLOR_EN_CAMINO)
+        .setRanges([hoja.getRange(FILA_DATOS_ESTADO, columnasEstado.pedidoListo, ultimaFila - FILA_DATOS_ESTADO + 1, 1)])
+        .build()
+    );
+  }
+
   if (columnasEstado.finalizado > 0) {
     reglasFiltradas.push(
       SpreadsheetApp.newConditionalFormatRule()
@@ -551,6 +563,7 @@ function getColumnasEstadoAutomatico_(hoja) {
   return {
     estadoPago: encabezados.findIndex((valor) => valor === 'ESTADO DE PAGO') + 1,
     enCamino: encabezados.findIndex((valor) => valor === 'EN CAMINO') + 1,
+    pedidoListo: encabezados.findIndex((valor) => valor === 'PEDIDO LISTO') + 1,
     finalizado: encabezados.findIndex((valor) => valor === 'FINALIZADO') + 1
   };
 }

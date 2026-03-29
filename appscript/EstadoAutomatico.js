@@ -1,4 +1,4 @@
-const HOJAS_ESTADO_AUTOMATICO = ['Mauro', 'Brisa', 'Diogo', 'GIAN', 'LIBRE1', 'Lector PedidosYa'];
+const HOJAS_ESTADO_AUTOMATICO = ['Mauro', 'Brisa', 'Diogo', 'GIAN', 'LIBRE1', 'Venta Mostrador', 'Lector PedidosYa'];
 const FILA_ENCABEZADOS_ESTADO = 7;
 const FILA_DATOS_ESTADO = 8;
 const COLOR_EN_CAMINO = '#93c47d';
@@ -38,6 +38,7 @@ function configurarColoresEstadoAutomaticosEnHoja_(hoja) {
       const coincideColumnaEstado =
         columna === columnasEstado.estadoPago ||
         columna === columnasEstado.enCamino ||
+        columna === columnasEstado.pedidoListo ||
         columna === columnasEstado.finalizado ||
         columna === columnasEstado.estadoPedido;
 
@@ -85,6 +86,16 @@ function configurarColoresEstadoAutomaticosEnHoja_(hoja) {
         .whenCellNotEmpty()
         .setBackground(COLOR_EN_CAMINO)
         .setRanges([hoja.getRange(FILA_DATOS_ESTADO, columnasEstado.enCamino, ultimaFila - FILA_DATOS_ESTADO + 1, 1)])
+        .build()
+    );
+  }
+
+  if (columnasEstado.pedidoListo > 0) {
+    reglasFiltradas.push(
+      SpreadsheetApp.newConditionalFormatRule()
+        .whenCellNotEmpty()
+        .setBackground(COLOR_EN_CAMINO)
+        .setRanges([hoja.getRange(FILA_DATOS_ESTADO, columnasEstado.pedidoListo, ultimaFila - FILA_DATOS_ESTADO + 1, 1)])
         .build()
     );
   }
@@ -138,6 +149,7 @@ function getColumnasEstadoAutomatico_(hoja) {
   return {
     estadoPago: encabezados.findIndex((valor) => valor === 'ESTADO DE PAGO') + 1,
     enCamino: encabezados.findIndex((valor) => valor === 'EN CAMINO') + 1,
+    pedidoListo: encabezados.findIndex((valor) => valor === 'PEDIDO LISTO') + 1,
     finalizado: encabezados.findIndex((valor) => valor === 'FINALIZADO') + 1,
     estadoPedido: encabezados.findIndex((valor) => valor === 'ESTADO DE PEDIDO') + 1
   };
