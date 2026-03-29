@@ -101,10 +101,26 @@ assert.strictEqual(
 
 assert.strictEqual(
   shouldSearchRiderlessUpdate({
+    paymentStatus: 'UNPAID',
+    paymentMethod: 'tarjeta',
+    hasExplicitPaymentAmounts: true,
+    explicitPaymentsAreCurrentSnapshot: false,
+    reportedTotalPaid: 0,
+    enCamino: '',
+    finalizado: '',
+    pedidoListo: ''
+  }),
+  false,
+  'Un update riderless impago con metodo asignado no debe disparar barrido completo por si solo.'
+);
+
+assert.strictEqual(
+  shouldSearchRiderlessUpdate({
     paymentStatus: 'PAGADO',
     paymentMethod: 'efectivo',
     hasExplicitPaymentAmounts: true,
     explicitPaymentsAreCurrentSnapshot: true,
+    reportedTotalPaid: 966,
     enCamino: '',
     finalizado: '',
     pedidoListo: ''

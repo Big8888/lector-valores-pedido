@@ -6,6 +6,7 @@ const {
   getNextEmptyRow,
   writeOrderToSheet,
   findOrderAcrossSheets,
+  findOrderAcrossRiderSheets,
   findOrderRowsInSheet,
   findOrderAcrossRiderSheetsByPhoneAndDay,
   clearOrderRow,
@@ -154,15 +155,11 @@ function shouldSearchRiderlessUpdate(order = {}) {
     return true;
   }
 
-  if (order.hasExplicitPaymentAmounts || order.explicitPaymentsAreCurrentSnapshot) {
+  if ((Number(order.reportedTotalPaid) || 0) > 0) {
     return true;
   }
 
-  if (['PAGADO', 'PARCIAL', 'PENDIENTE'].includes(normalizeText(order.paymentStatus).toUpperCase())) {
-    return true;
-  }
-
-  if (order.paymentMethod && order.paymentMethod !== 'no_especificado') {
+  if (['PAGADO', 'PARCIAL', 'PAID', 'PARTIAL', 'PARTIALLY_PAID'].includes(normalizeText(order.paymentStatus).toUpperCase())) {
     return true;
   }
 
@@ -355,7 +352,7 @@ router.post('/', async (req, res, next) => {
         existingOrders = await findOrderRowsInSheet(assignment.sheetName, order);
 
         if (existingOrders.length === 0) {
-          existingOrders = await findOrderAcrossSheets(order);
+          existingOrders = await findOrderAcrossRiderSheets(order);
         }
 
         console.log('[WEBHOOK] Pedido de mostrador detectado, se envia a hoja fija', {
@@ -390,7 +387,7 @@ router.post('/', async (req, res, next) => {
         }
 
         if (existingOrders.length === 0) {
-          existingOrders = await findOrderAcrossSheets(order);
+          existingOrders = await findOrderAcrossRiderSheets(order);
         }
       } else {
         if (cachedSheetName) {
@@ -446,8 +443,8 @@ router.post('/', async (req, res, next) => {
           }
         }
 
-        if (existingOrders.length === 0) {
-          existingOrders = await findOrderAcrossSheets(order);
+        if (existingOrders.length === 0 && shouldSearchRiderlessUpdate(order)) {
+          existingOrders = await findOrderAcrossRiderSheets(order);
         }
 
         if (existingOrders.length === 0) {

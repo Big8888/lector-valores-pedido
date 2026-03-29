@@ -277,6 +277,11 @@ async function findOrderRowsInSheet(sheetName, orderOrId) {
 
 async function findOrderAcrossSheets(orderOrId) {
   const uniqueSheets = getUniqueSheetNames();
+  return findOrderAcrossSheetNames(orderOrId, uniqueSheets);
+}
+
+async function findOrderAcrossSheetNames(orderOrId, sheetNames = []) {
+  const uniqueSheets = [...new Set((sheetNames || []).filter(Boolean))];
   const matches = [];
 
   for (const sheetName of uniqueSheets) {
@@ -291,6 +296,11 @@ async function findOrderAcrossSheets(orderOrId) {
 
     return left.sheetName.localeCompare(right.sheetName);
   });
+}
+
+async function findOrderAcrossRiderSheets(orderOrId) {
+  const riderSheets = getRiderSheetNames();
+  return findOrderAcrossSheetNames(orderOrId, riderSheets);
 }
 
 async function findOrderRowsByPhoneAndDayInSheet(sheetName, order = {}) {
@@ -472,6 +482,8 @@ module.exports = {
   getNextEmptyRow,
   writeOrderToSheet,
   findOrderAcrossSheets,
+  findOrderAcrossSheetNames,
+  findOrderAcrossRiderSheets,
   findOrderAcrossRiderSheetsByPhoneAndDay,
   findOrderRowsInSheet,
   clearOrderRow,
