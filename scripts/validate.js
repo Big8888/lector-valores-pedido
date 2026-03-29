@@ -11,10 +11,14 @@ require('../src/pedidosya-pdf/services/pedidosYaPdfParser');
 require('../src/pedidosya-pdf/services/pedidosYaPdfImporter');
 require('../src/services/orderToSheetMapper');
 require('../src/pedidosya/routes/pedidosYaWebhookRoutes');
-require('../src/routes/webhookRoutes');
+const webhookRoutes = require('../src/routes/webhookRoutes');
 require('../src/server');
 
 const { buildOrderLookup, getLookupMatch } = googleSheetsService.__internals;
+const {
+  getOrderCacheKeys,
+  shouldSearchRiderlessUpdate
+} = webhookRoutes.__internals;
 
 const orderLookup = buildOrderLookup({
   numeroPedidoInterno: '14',
@@ -64,6 +68,49 @@ assert.strictEqual(
   interpretOrder(finalizadoPayload).finalizado,
   '2026-03-28T22:11:00.000Z',
   'El finalizado no debe reutilizar el delivery_status_updated_at viejo cuando el estado final llega por otro campo.'
+);
+
+assert.deepStrictEqual(
+  getOrderCacheKeys({
+    numeroPedidoInterno: '66',
+    nroPedido: 'UY-4591213326',
+    telefono: '+598 99325771',
+    fecha: '2026-03-29T02:10:46.000Z'
+  }),
+  [
+    'nro:UY-4591213326',
+    'interno:66@2026-03-28',
+    'phone:+59899325771@2026-03-28'
+  ],
+  'Las claves de cache deben incluir tracking, numero interno y telefono por dia.'
+);
+
+assert.strictEqual(
+  shouldSearchRiderlessUpdate({
+    paymentStatus: 'NO PAGADO',
+    paymentMethod: 'no_especificado',
+    hasExplicitPaymentAmounts: false,
+    explicitPaymentsAreCurrentSnapshot: false,
+    enCamino: '',
+    finalizado: '',
+    pedidoListo: ''
+  }),
+  false,
+  'Un update riderless pendiente y sin cambios relevantes no debe disparar barrido completo.'
+);
+
+assert.strictEqual(
+  shouldSearchRiderlessUpdate({
+    paymentStatus: 'PAGADO',
+    paymentMethod: 'efectivo',
+    hasExplicitPaymentAmounts: true,
+    explicitPaymentsAreCurrentSnapshot: true,
+    enCamino: '',
+    finalizado: '',
+    pedidoListo: ''
+  }),
+  true,
+  'Un update riderless con pago relevante si debe buscar fila existente.'
 );
 
 console.log('VALIDACION_OK');
