@@ -6,6 +6,7 @@ const {
   getNextEmptyRow,
   writeOrderToSheet,
   findOrderAcrossSheets,
+  findOrderRowsInSheet,
   findOrderAcrossRiderSheetsByPhoneAndDay,
   clearOrderRow,
   getOrderRowSnapshot
@@ -146,9 +147,8 @@ router.post('/', async (req, res, next) => {
       throw error;
     }
 
-    let existingOrders = await findOrderAcrossSheets(order);
-
     if (order.riderCancelled) {
+      const existingOrders = await findOrderAcrossSheets(order);
       const clearedRows = await clearExistingOrders(order, existingOrders);
 
       console.log('[WEBHOOK] Rider cancelado, pedido eliminado de Sheets', {
@@ -168,32 +168,15 @@ router.post('/', async (req, res, next) => {
     const hasRider = hasAssignedRider(order);
     const counterSale = isCounterSale(order);
     let assignment = null;
-
-    if (existingOrders.length === 0 && !counterSale && !hasRider && order.telefono) {
-      const fallbackMatches = await findOrderAcrossRiderSheetsByPhoneAndDay(order);
-
-      if (fallbackMatches.length === 1) {
-        existingOrders = fallbackMatches;
-
-        console.log('[WEBHOOK] Fallback por telefono y dia encontro fila existente', {
-          numeroPedidoInterno: order.numeroPedidoInterno || null,
-          nroPedido: order.nroPedido || null,
-          telefono: order.telefono || null,
-          sheetName: fallbackMatches[0].sheetName,
-          rowNumber: fallbackMatches[0].rowNumber
-        });
-      } else if (fallbackMatches.length > 1) {
-        console.log('[WEBHOOK] Fallback por telefono y dia ambiguo, no se usa', {
-          numeroPedidoInterno: order.numeroPedidoInterno || null,
-          nroPedido: order.nroPedido || null,
-          telefono: order.telefono || null,
-          candidates: fallbackMatches
-        });
-      }
-    }
+    let existingOrders = [];
 
     if (counterSale) {
       assignment = assignCourier(order);
+      existingOrders = await findOrderRowsInSheet(assignment.sheetName, order);
+
+      if (existingOrders.length === 0) {
+        existingOrders = await findOrderAcrossSheets(order);
+      }
 
       console.log('[WEBHOOK] Pedido de mostrador detectado, se envia a hoja fija', {
         numeroPedidoInterno: order.numeroPedidoInterno || null,
@@ -201,7 +184,53 @@ router.post('/', async (req, res, next) => {
         serviceType: order.serviceType || null,
         sheetName: assignment.sheetName
       });
-    } else if (!hasRider) {
+    } else if (hasRider) {
+      assignment = assignCourier(order);
+
+      if (!assignment.sheetName) {
+        console.log('[WEBHOOK] Pedido omitido por rider no mapeado', {
+          nroPedido: order.nroPedido,
+          rider: order.repartidor || order.riderHint || null
+        });
+
+        return res.status(202).json({
+          ok: true,
+          skipped: true,
+          reason: 'Pedido con rider asignado pero no mapeado a una hoja.'
+        });
+      }
+
+      existingOrders = await findOrderRowsInSheet(assignment.sheetName, order);
+
+      if (existingOrders.length === 0) {
+        existingOrders = await findOrderAcrossSheets(order);
+      }
+    } else {
+      existingOrders = await findOrderAcrossSheets(order);
+
+      if (existingOrders.length === 0 && order.telefono) {
+        const fallbackMatches = await findOrderAcrossRiderSheetsByPhoneAndDay(order);
+
+        if (fallbackMatches.length === 1) {
+          existingOrders = fallbackMatches;
+
+          console.log('[WEBHOOK] Fallback por telefono y dia encontro fila existente', {
+            numeroPedidoInterno: order.numeroPedidoInterno || null,
+            nroPedido: order.nroPedido || null,
+            telefono: order.telefono || null,
+            sheetName: fallbackMatches[0].sheetName,
+            rowNumber: fallbackMatches[0].rowNumber
+          });
+        } else if (fallbackMatches.length > 1) {
+          console.log('[WEBHOOK] Fallback por telefono y dia ambiguo, no se usa', {
+            numeroPedidoInterno: order.numeroPedidoInterno || null,
+            nroPedido: order.nroPedido || null,
+            telefono: order.telefono || null,
+            candidates: fallbackMatches
+          });
+        }
+      }
+
       if (existingOrders.length === 0) {
         console.log('[WEBHOOK] Pedido omitido por no tener repartidor asignado aun', {
           numeroPedidoInterno: order.numeroPedidoInterno || null,
@@ -226,21 +255,6 @@ router.post('/', async (req, res, next) => {
         numeroPedidoInterno: order.numeroPedidoInterno || null,
         nroPedido: order.nroPedido || null,
         sheetName: assignment.sheetName
-      });
-    } else {
-      assignment = assignCourier(order);
-    }
-
-    if (!assignment.sheetName) {
-      console.log('[WEBHOOK] Pedido omitido por rider no mapeado', {
-        nroPedido: order.nroPedido,
-        rider: order.repartidor || order.riderHint || null
-      });
-
-      return res.status(202).json({
-        ok: true,
-        skipped: true,
-        reason: 'Pedido con rider asignado pero no mapeado a una hoja.'
       });
     }
 
