@@ -1,13 +1,13 @@
 const assert = require('assert');
 
-require('../src/config/sheetsConfig');
+const sheetsConfig = require('../src/config/sheetsConfig');
 require('../src/pedidosya-pdf/config/pedidosYaPdfConfig');
 require('../src/services/courierAssigner');
 const googleSheetsService = require('../src/services/googleSheetsService');
 const { interpretOrder } = require('../src/services/orderInterpreter');
 require('../src/pedidosya/services/pedidosYaAuth');
 require('../src/pedidosya/services/pedidosYaInterpreter');
-require('../src/pedidosya-pdf/services/pedidosYaPdfParser');
+const pedidosYaPdfParser = require('../src/pedidosya-pdf/services/pedidosYaPdfParser');
 require('../src/pedidosya-pdf/services/pedidosYaPdfImporter');
 require('../src/services/orderToSheetMapper');
 require('../src/pedidosya/routes/pedidosYaWebhookRoutes');
@@ -19,6 +19,7 @@ const {
   getOrderCacheKeys,
   shouldSearchRiderlessUpdate
 } = webhookRoutes.__internals;
+const { inferSalesChannel } = pedidosYaPdfParser.__internals;
 
 const orderLookup = buildOrderLookup({
   numeroPedidoInterno: '14',
@@ -127,6 +128,24 @@ assert.strictEqual(
   }),
   true,
   'Un update riderless con pago relevante si debe buscar fila existente.'
+);
+
+assert.strictEqual(
+  inferSalesChannel(['Pedido', 'PICK UP', 'PICKUP AT']),
+  'delivery',
+  'En Lector PedidosYa, PICK UP debe traducirse a delivery.'
+);
+
+assert.strictEqual(
+  inferSalesChannel(['Pedido', 'LOCAL']),
+  'local',
+  'En Lector PedidosYa, LOCAL debe mantenerse como local.'
+);
+
+assert.strictEqual(
+  Boolean(sheetsConfig.sheetProfiles['Venta Mostrador'].columns.serviceLabel),
+  false,
+  'Venta Mostrador no debe escribir datos en la columna A.'
 );
 
 console.log('VALIDACION_OK');

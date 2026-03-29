@@ -76,11 +76,15 @@ function inferSalesChannel(lines) {
   const text = lines.join(' ').toUpperCase();
 
   if (text.includes('DELIVERY')) {
-    return 'Domicilio';
+    return 'delivery';
   }
 
-  if (text.includes('PICK UP') || text.includes('PICKUP AT') || text.includes('LOCAL')) {
-    return 'Local';
+  if (text.includes('PICK UP') || text.includes('PICKUP AT')) {
+    return 'delivery';
+  }
+
+  if (text.includes('LOCAL')) {
+    return 'local';
   }
 
   return '';
@@ -241,5 +245,8 @@ async function parsePedidosYaPdf(filePath) {
 }
 
 module.exports = {
-  parsePedidosYaPdf
+  parsePedidosYaPdf,
+  __internals: {
+    inferSalesChannel
+  }
 };

@@ -169,7 +169,6 @@ function mapOrderToSheetRow(order, existingRow = null, sheetName = '') {
 
   if (isCounterSheet(sheetName)) {
     return {
-      serviceLabel: resolveText(order.serviceLabel, existingRow?.serviceLabel, ''),
       numeroPedidoInterno: order.numeroPedidoInterno || '',
       estadoPago: order.paymentStatus || order.estadoPago || '',
       total: totalValue,

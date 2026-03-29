@@ -40,11 +40,10 @@ module.exports = {
     'Venta Mostrador': {
       dataStartRow: 8,
       sheetBounds: {
-        startColumn: 'A',
+        startColumn: 'B',
         endColumn: 'Q'
       },
       columns: {
-        serviceLabel: 'A',
         numeroPedidoInterno: 'B',
         estadoPago: 'C',
         total: 'D',
