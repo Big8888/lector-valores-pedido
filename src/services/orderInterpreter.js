@@ -881,8 +881,25 @@ function detectPedidoListoTimestamp(data, payload) {
 
 function detectFinalizadoTimestamp(data, payload) {
   const candidateSources = [data, payload];
-  const statusPaths = [
+  const explicitTimestampPaths = [
+    ['completed_at'],
+    ['finished_at'],
+    ['delivered_at'],
+    ['fulfilled_at'],
+    ['served_at'],
+    ['closed_at'],
+    ['meta_data', 'completed_at'],
+    ['meta_data', 'finished_at'],
+    ['meta_data', 'delivered_at'],
+    ['meta_data', 'fulfilled_at'],
+    ['meta_data', 'served_at'],
+    ['meta_data', 'closed_at']
+  ];
+  const deliveryStatusPaths = [
     ['delivery_status'],
+    ['meta_data', 'delivery_status']
+  ];
+  const genericStatusPaths = [
     ['status'],
     ['order_status'],
     ['rider_status'],
@@ -892,27 +909,8 @@ function detectFinalizadoTimestamp(data, payload) {
     ['action'],
     ['event_type'],
     ['topic'],
-    ['meta_data', 'delivery_status'],
     ['meta_data', 'status'],
     ['meta_data', 'order_status']
-  ];
-  const timestampPaths = [
-    ['delivery_status_updated_at'],
-    ['completed_at'],
-    ['finished_at'],
-    ['delivered_at'],
-    ['fulfilled_at'],
-    ['served_at'],
-    ['closed_at'],
-    ['status_updated_at'],
-    ['updated_at'],
-    ['meta_data', 'delivery_status_updated_at'],
-    ['meta_data', 'completed_at'],
-    ['meta_data', 'finished_at'],
-    ['meta_data', 'delivered_at'],
-    ['meta_data', 'fulfilled_at'],
-    ['meta_data', 'served_at'],
-    ['meta_data', 'closed_at']
   ];
 
   const finalizadoStatuses = [
@@ -931,18 +929,44 @@ function detectFinalizadoTimestamp(data, payload) {
   ];
 
   for (const source of candidateSources) {
-    const status = statusPaths
-      .map((path) => normalizeStatusText(getNestedValue(source, path)))
-      .find((value) => value && finalizadoStatuses.some((keyword) => statusMatchesKeyword(value, keyword)));
-
-    if (!status) continue;
-
-    for (const path of timestampPaths) {
+    for (const path of explicitTimestampPaths) {
       const value = getNestedValue(source, path);
       if (hasValue(value)) return value;
     }
+  }
 
-    return new Date().toISOString();
+  for (const source of candidateSources) {
+    const hasFinalDeliveryStatus = deliveryStatusPaths
+      .map((path) => normalizeStatusText(getNestedValue(source, path)))
+      .some((value) => value && finalizadoStatuses.some((keyword) => statusMatchesKeyword(value, keyword)));
+
+    if (hasFinalDeliveryStatus) {
+      const deliveryTimestamp = findFirstPresent(source, [
+        ['delivery_status_updated_at'],
+        ['meta_data', 'delivery_status_updated_at']
+      ]);
+
+      if (hasValue(deliveryTimestamp)) {
+        return deliveryTimestamp;
+      }
+    }
+  }
+
+  for (const source of candidateSources) {
+    const hasFinalGenericStatus = genericStatusPaths
+      .map((path) => normalizeStatusText(getNestedValue(source, path)))
+      .some((value) => value && finalizadoStatuses.some((keyword) => statusMatchesKeyword(value, keyword)));
+
+    if (hasFinalGenericStatus) {
+      const genericTimestamp = findFirstPresent(source, [
+        ['status_updated_at'],
+        ['meta_data', 'status_updated_at']
+      ]);
+
+      if (hasValue(genericTimestamp)) {
+        return genericTimestamp;
+      }
+    }
   }
 
   return '';
