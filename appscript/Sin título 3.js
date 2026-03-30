@@ -12,6 +12,17 @@ function ocultarColumnasAuxiliares() {
 
 const HOJAS_COBRO_PROTEGIDAS = ['Mauro', 'Brisa', 'Diogo', 'GIAN', 'LIBRE1', 'Venta Mostrador', 'Lector Pedidosya'];
 const RANGO_TICKS_COBRO_A1 = 'A8:A';
+const HOJAS_REPARTIDORES_PROTECCION = ['Mauro', 'Brisa', 'Diogo', 'GIAN', 'LIBRE1'];
+const RANGOS_EDITABLES_REPARTIDORES_A1 = [
+  'A8:A',
+  'G2',
+  'K4:L4',
+  'M2',
+  'J8:J88',
+  'M8:M76',
+  'O6:S6',
+  'O8:S96'
+];
 
 function sincronizarNumeroPedidoVisibleEnVentaMostrador() {
   const hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Venta Mostrador');
@@ -123,6 +134,37 @@ function habilitarTicksCobroEnHojasProtegidas() {
   return {
     ok: true,
     rangoTick: RANGO_TICKS_COBRO_A1,
+    resultado
+  };
+}
+
+function aplicarProteccionEnHojasRepartidores() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const resultado = [];
+
+  HOJAS_REPARTIDORES_PROTECCION.forEach((nombreHoja) => {
+    const hoja = ss.getSheetByName(nombreHoja);
+    if (!hoja) {
+      resultado.push({ hoja: nombreHoja, ok: false, motivo: 'Hoja no encontrada' });
+      return;
+    }
+
+    const protecciones = hoja.getProtections(SpreadsheetApp.ProtectionType.SHEET);
+    const protection = protecciones[0] || hoja.protect();
+    const rangosEditables = RANGOS_EDITABLES_REPARTIDORES_A1.map((a1) => hoja.getRange(a1));
+
+    protection.setUnprotectedRanges(rangosEditables);
+
+    resultado.push({
+      hoja: nombreHoja,
+      ok: true,
+      proteccionesHoja: protecciones.length || 1,
+      rangosEditables: RANGOS_EDITABLES_REPARTIDORES_A1
+    });
+  });
+
+  return {
+    ok: true,
     resultado
   };
 }
