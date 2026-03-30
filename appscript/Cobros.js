@@ -1,4 +1,4 @@
-const HOJAS_COBRO = ['Mauro', 'Brisa', 'Diogo', 'GIAN', 'LIBRE1', 'Venta Mostrador', 'Lector PedidosYa'];
+const HOJAS_COBRO = ['Mauro', 'Brisa', 'Diogo', 'GIAN', 'LIBRE1', 'Venta Mostrador', 'Lector Pedidosya'];
 const FILA_INICIO_PEDIDOS = 8;
 const RANGO_LIMPIEZA_CONTROLES_VIEJOS = 'O1:P6';
 const CELDA_BOTON_COBRO = 'A5';
@@ -38,7 +38,7 @@ const PERFILES_COBRO = {
     backupFondos: 29, // AC
     visibleEndColumn: 11
   },
-  'Lector PedidosYa': {
+  'Lector Pedidosya': {
     accion: 1, // A
     numeroPedidoInterno: 2, // B
     estadoPago: 3, // C
@@ -121,7 +121,7 @@ function abrirVentanaCobro() {
   const hoja = ss.getActiveSheet();
 
   if (!HOJAS_COBRO.includes(hoja.getName())) {
-    ui.alert('Esta herramienta solo funciona en las hojas Mauro, Brisa, Diogo, GIAN, LIBRE1, Venta Mostrador y Lector PedidosYa.');
+    ui.alert('Esta herramienta solo funciona en las hojas Mauro, Brisa, Diogo, GIAN, LIBRE1, Venta Mostrador y Lector Pedidosya.');
     return;
   }
 

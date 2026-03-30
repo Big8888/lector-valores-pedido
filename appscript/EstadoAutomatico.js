@@ -1,4 +1,4 @@
-const HOJAS_ESTADO_AUTOMATICO = ['Mauro', 'Brisa', 'Diogo', 'GIAN', 'LIBRE1', 'Venta Mostrador', 'Lector PedidosYa'];
+const HOJAS_ESTADO_AUTOMATICO = ['Mauro', 'Brisa', 'Diogo', 'GIAN', 'LIBRE1', 'Venta Mostrador', 'Lector Pedidosya'];
 const FILA_ENCABEZADOS_ESTADO = 7;
 const FILA_DATOS_ESTADO = 8;
 const COLOR_EN_CAMINO = '#93c47d';

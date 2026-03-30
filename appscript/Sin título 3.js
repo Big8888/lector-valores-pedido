@@ -1,6 +1,6 @@
 function ocultarColumnasAuxiliares() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const hojasPermitidas = ['Mauro', 'Brisa', 'Diogo', 'GIAN', 'LIBRE1', 'Venta Mostrador', 'Lector PedidosYa'];
+  const hojasPermitidas = ['Mauro', 'Brisa', 'Diogo', 'GIAN', 'LIBRE1', 'Venta Mostrador', 'Lector Pedidosya'];
 
   hojasPermitidas.forEach((nombreHoja) => {
     const hoja = ss.getSheetByName(nombreHoja);
