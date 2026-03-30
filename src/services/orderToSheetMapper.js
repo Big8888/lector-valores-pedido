@@ -168,8 +168,14 @@ function mapOrderToSheetRow(order, existingRow = null, sheetName = '') {
   }
 
   if (isCounterSheet(sheetName)) {
+    const numeroPedidoInterno = resolveText(
+      order.numeroPedidoInterno,
+      existingRow?.numeroPedidoInterno,
+      ''
+    );
+
     return {
-      numeroPedidoInterno: order.numeroPedidoInterno || '',
+      numeroPedidoInterno,
       estadoPago: order.paymentStatus || order.estadoPago || '',
       total: totalValue,
       tarjeta: tarjetaValue,
@@ -179,11 +185,7 @@ function mapOrderToSheetRow(order, existingRow = null, sheetName = '') {
       pedidoListo,
       finalizado,
       anotaciones: resolveText(order.notas, existingRow?.anotaciones, ''),
-      numeroPedidoVisible: resolveText(
-        order.nroPedido,
-        existingRow?.numeroPedidoVisible,
-        order.numeroPedidoInterno || existingRow?.numeroPedidoInterno || ''
-      ),
+      numeroPedidoVisible: numeroPedidoInterno,
       nroPedidoTracking: resolveText(order.nroPedido, existingRow?.nroPedidoTracking, ''),
       importeTransferenciaVisible: transferenciaValue > 0 ? transferenciaValue : '',
       telefono: asPlainText(order.telefono),
