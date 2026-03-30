@@ -1,4 +1,4 @@
-const HOJAS_COBRO = ['Mauro', 'Brisa', 'Diogo', 'GIAN', 'LIBRE1', 'Venta Mostrador'];
+const HOJAS_COBRO = ['Mauro', 'Brisa', 'Diogo', 'GIAN', 'LIBRE1', 'Venta Mostrador', 'Lector PedidosYa'];
 const FILA_INICIO_PEDIDOS = 8;
 const RANGO_LIMPIEZA_CONTROLES_VIEJOS = 'O1:P6';
 const CELDA_BOTON_COBRO = 'A5';
@@ -37,6 +37,19 @@ const PERFILES_COBRO = {
     backupAnotacion: 28, // AB
     backupFondos: 29, // AC
     visibleEndColumn: 11
+  },
+  'Lector PedidosYa': {
+    accion: 1, // A
+    numeroPedidoInterno: 2, // B
+    estadoPago: 3, // C
+    total: null,
+    tarjeta: 4, // D
+    efectivo: 5, // E
+    transferencia: 12, // L
+    anotaciones: 8, // H
+    backupAnotacion: 28, // AB
+    backupFondos: 29, // AC
+    visibleEndColumn: 14
   }
 };
 
@@ -108,7 +121,7 @@ function abrirVentanaCobro() {
   const hoja = ss.getActiveSheet();
 
   if (!HOJAS_COBRO.includes(hoja.getName())) {
-    ui.alert('Esta herramienta solo funciona en las hojas Mauro, Brisa, Diogo, GIAN, LIBRE1 y Venta Mostrador.');
+    ui.alert('Esta herramienta solo funciona en las hojas Mauro, Brisa, Diogo, GIAN, LIBRE1, Venta Mostrador y Lector PedidosYa.');
     return;
   }
 
@@ -285,8 +298,9 @@ function obtenerCobroSeleccionadoPorFilas_(hoja, filasSeleccionadas, perfil) {
   const filaMinima = filasOrdenadas[0];
   const filaMaxima = filasOrdenadas[filasOrdenadas.length - 1];
   const cantidadFilas = filaMaxima - filaMinima + 1;
+  const ultimaColumnaLectura = getUltimaColumnaLecturaCobro_(perfil);
   const valoresBase = hoja
-    .getRange(filaMinima, 1, cantidadFilas, perfil.transferencia)
+    .getRange(filaMinima, 1, cantidadFilas, ultimaColumnaLectura)
     .getValues();
   const anotaciones = hoja
     .getRange(filaMinima, perfil.anotaciones, cantidadFilas, 1)
@@ -298,15 +312,15 @@ function obtenerCobroSeleccionadoPorFilas_(hoja, filasSeleccionadas, perfil) {
     const anotacionFila = String((anotaciones[indice] && anotaciones[indice][0]) || '').trim();
 
     const numeroPedidoInterno = String(
-      filaValores[perfil.numeroPedidoInterno - 1] || ''
+      getValorCobroEnColumna_(filaValores, perfil.numeroPedidoInterno) || ''
     ).trim();
     const estadoPago = String(
-      filaValores[perfil.estadoPago - 1] || ''
+      getValorCobroEnColumna_(filaValores, perfil.estadoPago) || ''
     ).trim();
-    const total = toNumberCobro_(filaValores[perfil.total - 1]);
-    const tarjeta = toNumberCobro_(filaValores[perfil.tarjeta - 1]);
-    const efectivo = toNumberCobro_(filaValores[perfil.efectivo - 1]);
-    const transferencia = toNumberCobro_(filaValores[perfil.transferencia - 1]);
+    const total = toNumberCobro_(getValorCobroEnColumna_(filaValores, perfil.total));
+    const tarjeta = toNumberCobro_(getValorCobroEnColumna_(filaValores, perfil.tarjeta));
+    const efectivo = toNumberCobro_(getValorCobroEnColumna_(filaValores, perfil.efectivo));
+    const transferencia = toNumberCobro_(getValorCobroEnColumna_(filaValores, perfil.transferencia));
 
     if (!numeroPedidoInterno && total <= 0 && tarjeta <= 0 && efectivo <= 0 && transferencia <= 0) {
       return;
@@ -332,6 +346,26 @@ function obtenerCobroSeleccionadoPorFilas_(hoja, filasSeleccionadas, perfil) {
   });
 
   return resultado;
+}
+
+function getUltimaColumnaLecturaCobro_(perfil) {
+  return Math.max(
+    1,
+    perfil.numeroPedidoInterno || 1,
+    perfil.estadoPago || 1,
+    perfil.total || 1,
+    perfil.tarjeta || 1,
+    perfil.efectivo || 1,
+    perfil.transferencia || 1
+  );
+}
+
+function getValorCobroEnColumna_(filaValores, columna) {
+  if (!Number.isFinite(columna) || columna < 1) {
+    return '';
+  }
+
+  return filaValores[columna - 1];
 }
 
 function obtenerFilasSeleccionadasCobro_(hoja, lastRow, perfil) {

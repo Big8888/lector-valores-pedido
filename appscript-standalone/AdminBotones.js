@@ -1,6 +1,6 @@
 const TARGET_SPREADSHEET_ID = '1b6thcjNOAbUPKRWSSvqhog2vp6TOk-wbo5GqokPH2hg';
 const HOJAS_REPARTIDORES = ['Mauro', 'Brisa', 'Diogo', 'GIAN', 'LIBRE1'];
-const HOJAS_COBRO = [...HOJAS_REPARTIDORES, 'Venta Mostrador'];
+const HOJAS_COBRO = [...HOJAS_REPARTIDORES, 'Venta Mostrador', 'Lector PedidosYa'];
 const HOJAS_ESTADO_AUTOMATICO = [...HOJAS_REPARTIDORES, 'Venta Mostrador'];
 const CELDA_BOTON = 'A5';
 const RANGO_LIMPIEZA_CONTROLES_VIEJOS = 'O1:P6';

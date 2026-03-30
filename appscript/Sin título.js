@@ -13,7 +13,8 @@ function onInstall() {
 
 function crearDesplegableMedioPago() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const hojasPermitidas = ['Mauro', 'Brisa', 'Diogo', 'GIAN', 'LIBRE1', 'Venta Mostrador'];
+  const hojasPermitidas = ['Mauro', 'Brisa', 'Diogo', 'GIAN', 'LIBRE1', 'Venta Mostrador', 'Lector PedidosYa'];
+  const hojasSoloCheckbox = ['Venta Mostrador', 'Lector PedidosYa'];
 
   hojasPermitidas.forEach((nombreHoja) => {
     const hoja = ss.getSheetByName(nombreHoja);
@@ -24,7 +25,7 @@ function crearDesplegableMedioPago() {
     const rangoAccion = hoja.getRange(8, 1, totalRows, 1);
     rangoAccion.insertCheckboxes();
 
-    if (nombreHoja === 'Venta Mostrador') {
+    if (hojasSoloCheckbox.includes(nombreHoja)) {
       return;
     }
 
