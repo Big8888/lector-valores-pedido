@@ -10,6 +10,9 @@ function ocultarColumnasAuxiliares() {
   });
 }
 
+const HOJAS_COBRO_PROTEGIDAS = ['Mauro', 'Brisa', 'Diogo', 'GIAN', 'LIBRE1', 'Venta Mostrador', 'Lector Pedidosya'];
+const RANGO_TICKS_COBRO_A1 = 'A8:A';
+
 function sincronizarNumeroPedidoVisibleEnVentaMostrador() {
   const hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Venta Mostrador');
   if (!hoja) return;
@@ -37,4 +40,108 @@ function sincronizarSalidaDineroAZEnHojasRepartidores() {
     const valoresSalidaDinero = hoja.getRange(8, 10, cantidadFilas, 1).getValues();
     hoja.getRange(8, 26, cantidadFilas, 1).setValues(valoresSalidaDinero);
   });
+}
+
+function inspeccionarProteccionesTicksCobro() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const resultado = [];
+
+  HOJAS_COBRO_PROTEGIDAS.forEach((nombreHoja) => {
+    const hoja = ss.getSheetByName(nombreHoja);
+    if (!hoja) {
+      resultado.push({ hoja: nombreHoja, ok: false, motivo: 'Hoja no encontrada' });
+      return;
+    }
+
+    const rangoTick = hoja.getRange(RANGO_TICKS_COBRO_A1);
+    const proteccionesHoja = hoja.getProtections(SpreadsheetApp.ProtectionType.SHEET);
+    const proteccionesRango = hoja.getProtections(SpreadsheetApp.ProtectionType.RANGE);
+
+    resultado.push({
+      hoja: nombreHoja,
+      ok: true,
+      sheetProtections: proteccionesHoja.length,
+      sheetProtectionsConTickLibre: proteccionesHoja.filter((protection) => {
+        return (protection.getUnprotectedRanges() || []).some((rango) => rangesIntersect_(rango, rangoTick));
+      }).length,
+      rangeProtectionsQueCruzanTick: proteccionesRango
+        .filter((protection) => rangesIntersect_(protection.getRange(), rangoTick))
+        .map((protection) => ({
+          description: protection.getDescription() || '',
+          warningOnly: protection.isWarningOnly(),
+          a1: protection.getRange().getA1Notation()
+        }))
+    });
+  });
+
+  return {
+    ok: true,
+    rangoTick: RANGO_TICKS_COBRO_A1,
+    resultado
+  };
+}
+
+function habilitarTicksCobroEnHojasProtegidas() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const resultado = [];
+
+  HOJAS_COBRO_PROTEGIDAS.forEach((nombreHoja) => {
+    const hoja = ss.getSheetByName(nombreHoja);
+    if (!hoja) {
+      resultado.push({ hoja: nombreHoja, ok: false, motivo: 'Hoja no encontrada' });
+      return;
+    }
+
+    const rangoTick = hoja.getRange(RANGO_TICKS_COBRO_A1);
+    const proteccionesHoja = hoja.getProtections(SpreadsheetApp.ProtectionType.SHEET);
+    const proteccionesRango = hoja.getProtections(SpreadsheetApp.ProtectionType.RANGE);
+    let actualizadas = 0;
+
+    proteccionesHoja.forEach((protection) => {
+      const actuales = protection.getUnprotectedRanges() || [];
+      const yaIncluido = actuales.some((rango) => rangesIntersect_(rango, rangoTick));
+      if (yaIncluido) return;
+
+      protection.setUnprotectedRanges([...actuales, rangoTick]);
+      actualizadas += 1;
+    });
+
+    resultado.push({
+      hoja: nombreHoja,
+      ok: true,
+      proteccionesHoja: proteccionesHoja.length,
+      proteccionesHojaActualizadas: actualizadas,
+      rangeProtectionsQueSiguenBloqueando: proteccionesRango
+        .filter((protection) => !protection.isWarningOnly() && rangesIntersect_(protection.getRange(), rangoTick))
+        .map((protection) => ({
+          description: protection.getDescription() || '',
+          a1: protection.getRange().getA1Notation()
+        }))
+    });
+  });
+
+  return {
+    ok: true,
+    rangoTick: RANGO_TICKS_COBRO_A1,
+    resultado
+  };
+}
+
+function rangesIntersect_(left, right) {
+  if (!left || !right) return false;
+  if (left.getSheet().getSheetId() !== right.getSheet().getSheetId()) return false;
+
+  const leftRowStart = left.getRow();
+  const leftRowEnd = leftRowStart + left.getNumRows() - 1;
+  const rightRowStart = right.getRow();
+  const rightRowEnd = rightRowStart + right.getNumRows() - 1;
+  const leftColumnStart = left.getColumn();
+  const leftColumnEnd = leftColumnStart + left.getNumColumns() - 1;
+  const rightColumnStart = right.getColumn();
+  const rightColumnEnd = rightColumnStart + right.getNumColumns() - 1;
+
+  const rowsOverlap = leftRowStart <= rightRowEnd && rightRowStart <= leftRowEnd;
+  const columnsOverlap = leftColumnStart <= rightColumnEnd && rightColumnStart <= leftColumnEnd;
+
+  return rowsOverlap && columnsOverlap;
 }
