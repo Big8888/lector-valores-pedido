@@ -22,11 +22,6 @@ function onEdit(e) {
   const cantidadFilas = e.range.getNumRows();
   const cantidadColumnas = e.range.getNumColumns();
 
-  if (fila >= 8 && columna === 1) {
-    const checked = e.range.getValue() === true;
-    actualizarFilasCobroSeleccionadas_(hoja, [fila], checked);
-  }
-
   if (
     nombreHoja === 'Venta Mostrador' &&
     fila >= FILA_INICIO_PEDIDOS_EDITABLES &&

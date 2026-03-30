@@ -369,13 +369,6 @@ function getValorCobroEnColumna_(filaValores, columna) {
 }
 
 function obtenerFilasSeleccionadasCobro_(hoja, lastRow, perfil) {
-  const filasCacheadas = getFilasCobroSeleccionadasCache_(hoja.getName())
-    .filter((fila) => fila >= FILA_INICIO_PEDIDOS && fila <= lastRow);
-
-  if (filasCacheadas.length > 0) {
-    return filasCacheadas;
-  }
-
   const totalRows = lastRow - FILA_INICIO_PEDIDOS + 1;
   const checks = hoja.getRange(FILA_INICIO_PEDIDOS, perfil.accion, totalRows, 1).getValues();
   const filasDetectadas = [];
