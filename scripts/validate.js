@@ -176,4 +176,76 @@ assert.strictEqual(
   'La fila escrita en repartidores debe respetar total 0 en pedidos bonificados.'
 );
 
+const tippedCashPayload = {
+  data: {
+    public_id: 'UY-TIP-1',
+    daily_id: '9',
+    total: '750',
+    payment_status: 'PAID',
+    service_type: 'DELIVERY',
+    meta_data: {
+      assigned_payment: {
+        payment_method_code: 'cash',
+        bill_amount: '750',
+        tip_value: '50'
+      }
+    },
+    payments: [
+      {
+        payment_method: { code: 'cash' },
+        bill_amount: '750',
+        tip_amount: '50'
+      }
+    ]
+  }
+};
+
+assert.strictEqual(
+  mapOrderToSheetRow(interpretOrder(tippedCashPayload), null, 'GIAN').efectivo,
+  800,
+  'Cuando la propina web viene aparte, el efectivo visible debe incluirla.'
+);
+
+const tippedCashAlreadyIncludedPayload = {
+  data: {
+    public_id: 'UY-TIP-2',
+    daily_id: '10',
+    total: '750',
+    payment_status: 'PAID',
+    service_type: 'DELIVERY',
+    meta_data: {
+      assigned_payment: {
+        payment_method_code: 'cash',
+        bill_amount: '800',
+        tip_value: '50'
+      }
+    },
+    payments: [
+      {
+        payment_method: { code: 'cash' },
+        bill_amount: '800',
+        tip_amount: '50'
+      }
+    ]
+  }
+};
+
+assert.strictEqual(
+  mapOrderToSheetRow(interpretOrder(tippedCashAlreadyIncludedPayload), null, 'GIAN').efectivo,
+  800,
+  'Si el importe ya incluye la propina web, no debe duplicarse.'
+);
+
+assert.strictEqual(
+  mapOrderToSheetRow({
+    numeroPedidoInterno: '11',
+    paymentStatus: 'NO PAGADO',
+    paymentMethod: 'no_especificado',
+    total: 750,
+    propinaWeb: 50
+  }, null, 'GIAN').total,
+  800,
+  'El total visible tambien debe incluir la propina web cuando no hay metodo asignado.'
+);
+
 console.log('VALIDACION_OK');

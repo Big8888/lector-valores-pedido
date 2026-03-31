@@ -75,6 +75,72 @@ function mergeText(incomingValue, fallbackValue, separator = ' | ') {
   return incoming || fallback || '';
 }
 
+function approxEqual(left, right, tolerance = 0.01) {
+  return Math.abs(Number(left || 0) - Number(right || 0)) <= tolerance;
+}
+
+function applyPropinaWebToDisplayedAmounts({
+  totalValue,
+  tarjetaValue,
+  efectivoValue,
+  transferenciaValue,
+  propinaWeb,
+  authoritativeAmount,
+  paymentMethod
+}) {
+  if (propinaWeb <= 0) {
+    return { totalValue, tarjetaValue, efectivoValue, transferenciaValue };
+  }
+
+  const currentVisibleTotal = totalValue + tarjetaValue + efectivoValue + transferenciaValue;
+  const targetVisibleTotal = authoritativeAmount + propinaWeb;
+
+  if (approxEqual(currentVisibleTotal, targetVisibleTotal) || currentVisibleTotal > targetVisibleTotal) {
+    return { totalValue, tarjetaValue, efectivoValue, transferenciaValue };
+  }
+
+  const positiveTargets = [
+    totalValue > 0 ? 'totalValue' : '',
+    tarjetaValue > 0 ? 'tarjetaValue' : '',
+    efectivoValue > 0 ? 'efectivoValue' : '',
+    transferenciaValue > 0 ? 'transferenciaValue' : ''
+  ].filter(Boolean);
+
+  const updated = {
+    totalValue,
+    tarjetaValue,
+    efectivoValue,
+    transferenciaValue
+  };
+
+  if (positiveTargets.length === 1) {
+    updated[positiveTargets[0]] += propinaWeb;
+    return updated;
+  }
+
+  if (paymentMethod === 'tarjeta' && tarjetaValue > 0) {
+    updated.tarjetaValue += propinaWeb;
+    return updated;
+  }
+
+  if (paymentMethod === 'efectivo' && efectivoValue > 0) {
+    updated.efectivoValue += propinaWeb;
+    return updated;
+  }
+
+  if (paymentMethod === 'transferencia' && transferenciaValue > 0) {
+    updated.transferenciaValue += propinaWeb;
+    return updated;
+  }
+
+  if (totalValue > 0) {
+    updated.totalValue += propinaWeb;
+    return updated;
+  }
+
+  return updated;
+}
+
 function isCounterSheet(sheetName) {
   return sheetName === sheetsConfig.counterSheetName;
 }
@@ -105,9 +171,7 @@ function mapOrderToSheetRow(order, existingRow = null, sheetName = '') {
   );
 
   const enviosLejanos = resolveNumber(order.enviosLejanos, existingRow?.enviosLejanos, 0);
-  const propinaWeb = existingRow
-    ? resolveNumber(existingRow?.propinaWeb, 0, 0)
-    : resolveNumber(order.propinaWeb, 0, 0);
+  const propinaWeb = resolveNumber(order.propinaWeb, existingRow?.propinaWeb, 0);
   const enCaminoFormatted = order.enCamino ? formatHora(order.enCamino) : '';
   const pedidoListoFormatted = order.pedidoListo ? formatHora(order.pedidoListo) : '';
   const enCamino = resolveText(
@@ -167,6 +231,21 @@ function mapOrderToSheetRow(order, existingRow = null, sheetName = '') {
     transferenciaValue = existingTransferencia;
   }
 
+  ({
+    totalValue,
+    tarjetaValue,
+    efectivoValue,
+    transferenciaValue
+  } = applyPropinaWebToDisplayedAmounts({
+    totalValue,
+    tarjetaValue,
+    efectivoValue,
+    transferenciaValue,
+    propinaWeb,
+    authoritativeAmount,
+    paymentMethod
+  }));
+
   if (isCounterSheet(sheetName)) {
     const numeroPedidoInterno = resolveText(
       order.numeroPedidoInterno,
@@ -213,6 +292,20 @@ function mapOrderToSheetRow(order, existingRow = null, sheetName = '') {
       pedidosYaEfectivo = existingEfectivo;
       pedidosYaTransferencia = existingTransferencia;
     }
+
+    ({
+      tarjetaValue: pedidosYaTarjeta,
+      efectivoValue: pedidosYaEfectivo,
+      transferenciaValue: pedidosYaTransferencia
+    } = applyPropinaWebToDisplayedAmounts({
+      totalValue: 0,
+      tarjetaValue: pedidosYaTarjeta,
+      efectivoValue: pedidosYaEfectivo,
+      transferenciaValue: pedidosYaTransferencia,
+      propinaWeb,
+      authoritativeAmount,
+      paymentMethod
+    }));
 
     const anotacionesValue = isPedidosYaPdfSheet(sheetName)
       ? ''
