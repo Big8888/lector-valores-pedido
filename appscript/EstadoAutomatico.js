@@ -8,6 +8,16 @@ const COLOR_ESTADO_PAGADO = '#fff2cc';
 const COLOR_ESTADO_PARCIAL = '#ea4335';
 const COLOR_ESTADO_PEDIDO_LOCAL = '#d9ead3';
 const COLOR_ESTADO_PEDIDO_DOMICILIO = '#cfe2f3';
+const COLOR_FILA_COBRADA = '#d9ead3';
+const CONFIG_COBRO_POR_HOJA = {
+  Mauro: { anotaciones: 27, visibleEndColumn: 27 },
+  Brisa: { anotaciones: 27, visibleEndColumn: 27 },
+  Diogo: { anotaciones: 27, visibleEndColumn: 27 },
+  GIAN: { anotaciones: 27, visibleEndColumn: 27 },
+  LIBRE1: { anotaciones: 27, visibleEndColumn: 27 },
+  'Venta Mostrador': { anotaciones: 11, visibleEndColumn: 11 },
+  'Lector Pedidosya': { anotaciones: 8, visibleEndColumn: 14 }
+};
 
 function configurarColoresEstadoAutomaticosEnHojas() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -22,6 +32,7 @@ function configurarColoresEstadoAutomaticosEnHojas() {
 
 function configurarColoresEstadoAutomaticosEnHoja_(hoja) {
   const columnasEstado = getColumnasEstadoAutomatico_(hoja);
+  const configCobro = getConfiguracionCobroEstado_(hoja.getName());
   const ultimaFila = Math.max(hoja.getMaxRows(), FILA_DATOS_ESTADO);
   const reglasActuales = hoja.getConditionalFormatRules() || [];
 
@@ -41,10 +52,28 @@ function configurarColoresEstadoAutomaticosEnHoja_(hoja) {
         columna === columnasEstado.pedidoListo ||
         columna === columnasEstado.finalizado ||
         columna === columnasEstado.estadoPedido;
+      const coincideRangoCobro =
+        !!configCobro &&
+        columna === 1 &&
+        fila === FILA_DATOS_ESTADO &&
+        filas === ultimaFila - FILA_DATOS_ESTADO + 1 &&
+        rango.getNumColumns() === configCobro.visibleEndColumn;
 
-      return coincideColumnaEstado && fila === FILA_DATOS_ESTADO && filas === ultimaFila - FILA_DATOS_ESTADO + 1;
+      return (coincideColumnaEstado && fila === FILA_DATOS_ESTADO && filas === ultimaFila - FILA_DATOS_ESTADO + 1)
+        || coincideRangoCobro;
     });
   });
+
+  if (configCobro) {
+    const letraAnotaciones = columnToLetterEstadoAutomatico_(configCobro.anotaciones);
+    reglasFiltradas.push(
+      SpreadsheetApp.newConditionalFormatRule()
+        .whenFormulaSatisfied(`=REGEXMATCH(UPPER(TO_TEXT($${letraAnotaciones}${FILA_DATOS_ESTADO})),"COBRADO")`)
+        .setBackground(COLOR_FILA_COBRADA)
+        .setRanges([hoja.getRange(FILA_DATOS_ESTADO, 1, ultimaFila - FILA_DATOS_ESTADO + 1, configCobro.visibleEndColumn)])
+        .build()
+    );
+  }
 
   if (columnasEstado.estadoPago > 0) {
     const rangoEstadoPago = hoja.getRange(
@@ -160,6 +189,10 @@ function normalizeHeaderEstadoAutomatico_(valor) {
     .replace(/\s+/g, ' ')
     .trim()
     .toUpperCase();
+}
+
+function getConfiguracionCobroEstado_(nombreHoja) {
+  return CONFIG_COBRO_POR_HOJA[nombreHoja] || null;
 }
 
 function columnToLetterEstadoAutomatico_(column) {

@@ -21,7 +21,8 @@ const RANGOS_EDITABLES_REPARTIDORES_A1 = [
   'J8:J88',
   'M8:M76',
   'O6:S6',
-  'O8:S96'
+  'O8:S96',
+  'AA:AC'
 ];
 
 function sincronizarNumeroPedidoVisibleEnVentaMostrador() {

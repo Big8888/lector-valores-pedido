@@ -169,7 +169,6 @@ function confirmarCobro(payload) {
   const hora = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'HH:mm:ss');
 
   filas.forEach((fila) => {
-    const rangoVisible = hoja.getRange(fila, 1, 1, perfil.visibleEndColumn);
     const anotacionCelda = hoja.getRange(fila, perfil.anotaciones);
     const backupAnotacionCelda = hoja.getRange(fila, perfil.backupAnotacion);
     const backupFondosCelda = hoja.getRange(fila, perfil.backupFondos);
@@ -178,10 +177,8 @@ function confirmarCobro(payload) {
 
     if (!yaCobrado) {
       backupAnotacionCelda.setValue(anotacionActual);
-      backupFondosCelda.setValue(JSON.stringify(rangoVisible.getBackgrounds()[0]));
+      backupFondosCelda.clearContent();
     }
-
-    rangoVisible.setBackground(COLOR_COBRADO);
 
     if (!yaCobrado) {
       const detalleCobro = totalEfectivo > 0
@@ -206,22 +203,14 @@ function quitarCobro(payload) {
   const hoja = getHojaCobroDesdePayload_(payload);
   const perfil = getPerfilCobro_(hoja.getName());
   const filas = getFilasCobroDesdePayload_(payload);
-  const fondosTemplate = obtenerFondosTemplate_(hoja, filas, perfil);
 
   filas.forEach((fila) => {
-    const rangoVisible = hoja.getRange(fila, 1, 1, perfil.visibleEndColumn);
     const anotacionCelda = hoja.getRange(fila, perfil.anotaciones);
     const backupAnotacionCelda = hoja.getRange(fila, perfil.backupAnotacion);
     const backupFondosCelda = hoja.getRange(fila, perfil.backupFondos);
 
     const backupAnotacion = String(backupAnotacionCelda.getValue() || '');
-    const backupFondosRaw = String(backupFondosCelda.getValue() || '').trim();
     const anotacionActual = String(anotacionCelda.getValue() || '');
-
-    const fondos = parseFondosBackup_(backupFondosRaw) || fondosTemplate;
-    if (fondos) {
-      rangoVisible.setBackgrounds([fondos]);
-    }
 
     anotacionCelda.setValue(
       backupAnotacion || limpiarDetalleCobro_(anotacionActual)
