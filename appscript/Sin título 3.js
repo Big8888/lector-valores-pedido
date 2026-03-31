@@ -13,6 +13,8 @@ function ocultarColumnasAuxiliares() {
 const HOJAS_COBRO_PROTEGIDAS = ['Mauro', 'Brisa', 'Diogo', 'GIAN', 'LIBRE1', 'Venta Mostrador', 'Lector Pedidosya'];
 const RANGO_TICKS_COBRO_A1 = 'A8:A';
 const HOJAS_REPARTIDORES_PROTECCION = ['Mauro', 'Brisa', 'Diogo', 'GIAN', 'LIBRE1'];
+const HOJAS_USUARIO_BIGOTTO_PROTEGIDAS = ['Brisa', 'Diogo', 'GIAN', 'Mauro', 'Venta Mostrador'];
+const USUARIO_BIGOTTO_EMAIL = 'usuariobigotto@gmail.com';
 const RANGOS_EDITABLES_REPARTIDORES_A1 = [
   'A8:A',
   'G2',
@@ -212,6 +214,52 @@ function aplicarProteccionEnHojasRepartidores() {
 
   return {
     ok: true,
+    resultado
+  };
+}
+
+function habilitarUsuariobigottoEnHojasProtegidas() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const resultado = [];
+
+  HOJAS_USUARIO_BIGOTTO_PROTEGIDAS.forEach((nombreHoja) => {
+    const hoja = ss.getSheetByName(nombreHoja);
+    if (!hoja) {
+      resultado.push({ hoja: nombreHoja, ok: false, motivo: 'Hoja no encontrada' });
+      return;
+    }
+
+    const proteccionesHoja = hoja.getProtections(SpreadsheetApp.ProtectionType.SHEET);
+    const proteccionesRango = hoja.getProtections(SpreadsheetApp.ProtectionType.RANGE);
+    let proteccionesHojaActualizadas = 0;
+    let proteccionesRangoActualizadas = 0;
+
+    proteccionesHoja.forEach((protection) => {
+      if (!protection.canEdit()) return;
+      protection.addEditor(USUARIO_BIGOTTO_EMAIL);
+      proteccionesHojaActualizadas += 1;
+    });
+
+    proteccionesRango.forEach((protection) => {
+      if (!protection.canEdit() || protection.isWarningOnly()) return;
+      protection.addEditor(USUARIO_BIGOTTO_EMAIL);
+      proteccionesRangoActualizadas += 1;
+    });
+
+    resultado.push({
+      hoja: nombreHoja,
+      ok: true,
+      proteccionesHoja: proteccionesHoja.length,
+      proteccionesHojaActualizadas,
+      proteccionesRango: proteccionesRango.length,
+      proteccionesRangoActualizadas,
+      usuario: USUARIO_BIGOTTO_EMAIL
+    });
+  });
+
+  return {
+    ok: true,
+    usuario: USUARIO_BIGOTTO_EMAIL,
     resultado
   };
 }
