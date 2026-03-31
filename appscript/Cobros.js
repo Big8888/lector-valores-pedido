@@ -192,6 +192,8 @@ function confirmarCobro(payload) {
   });
 
   actualizarFilasCobroSeleccionadas_(hoja, filas, false);
+  configurarColoresEstadoAutomaticosEnHoja_(hoja);
+  SpreadsheetApp.flush();
 
   return {
     ok: true,
@@ -222,6 +224,8 @@ function quitarCobro(payload) {
   });
 
   actualizarFilasCobroSeleccionadas_(hoja, filas, false);
+  configurarColoresEstadoAutomaticosEnHoja_(hoja);
+  SpreadsheetApp.flush();
 
   return {
     ok: true,
