@@ -10,13 +10,13 @@ const COLOR_ESTADO_PEDIDO_LOCAL = '#d9ead3';
 const COLOR_ESTADO_PEDIDO_DOMICILIO = '#cfe2f3';
 const COLOR_FILA_COBRADA = '#d9ead3';
 const CONFIG_COBRO_POR_HOJA = {
-  Mauro: { anotaciones: 27, visibleEndColumn: 27 },
-  Brisa: { anotaciones: 27, visibleEndColumn: 27 },
-  Diogo: { anotaciones: 27, visibleEndColumn: 27 },
-  GIAN: { anotaciones: 27, visibleEndColumn: 27 },
-  LIBRE1: { anotaciones: 27, visibleEndColumn: 27 },
-  'Venta Mostrador': { anotaciones: 11, visibleEndColumn: 11 },
-  'Lector Pedidosya': { anotaciones: 8, visibleEndColumn: 14 }
+  Mauro: { marcaCobrado: 29, visibleEndColumn: 27 },
+  Brisa: { marcaCobrado: 29, visibleEndColumn: 27 },
+  Diogo: { marcaCobrado: 29, visibleEndColumn: 27 },
+  GIAN: { marcaCobrado: 29, visibleEndColumn: 27 },
+  LIBRE1: { marcaCobrado: 29, visibleEndColumn: 27 },
+  'Venta Mostrador': { marcaCobrado: 29, visibleEndColumn: 11 },
+  'Lector Pedidosya': { marcaCobrado: 29, visibleEndColumn: 14 }
 };
 
 function configurarColoresEstadoAutomaticosEnHojas() {
@@ -65,10 +65,10 @@ function configurarColoresEstadoAutomaticosEnHoja_(hoja) {
   });
 
   if (configCobro) {
-    const letraAnotaciones = columnToLetterEstadoAutomatico_(configCobro.anotaciones);
+    const letraMarcaCobrado = columnToLetterEstadoAutomatico_(configCobro.marcaCobrado);
     reglasFiltradas.push(
       SpreadsheetApp.newConditionalFormatRule()
-        .whenFormulaSatisfied(`=REGEXMATCH(UPPER(TO_TEXT($${letraAnotaciones}${FILA_DATOS_ESTADO})),"COBRADO")`)
+        .whenFormulaSatisfied(`=$${letraMarcaCobrado}${FILA_DATOS_ESTADO}="COBRADO"`)
         .setBackground(COLOR_FILA_COBRADA)
         .setRanges([hoja.getRange(FILA_DATOS_ESTADO, 1, ultimaFila - FILA_DATOS_ESTADO + 1, configCobro.visibleEndColumn)])
         .build()

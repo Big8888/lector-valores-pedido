@@ -54,6 +54,52 @@ function sincronizarSalidaDineroAZEnHojasRepartidores() {
   });
 }
 
+function sincronizarMarcaCobroEnHojas() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const configuracion = {
+    Mauro: 27,
+    Brisa: 27,
+    Diogo: 27,
+    GIAN: 27,
+    LIBRE1: 27,
+    'Venta Mostrador': 11,
+    'Lector Pedidosya': 8
+  };
+
+  const resultado = [];
+
+  Object.keys(configuracion).forEach((nombreHoja) => {
+    const hoja = ss.getSheetByName(nombreHoja);
+    if (!hoja) {
+      resultado.push({ hoja: nombreHoja, ok: false, motivo: 'Hoja no encontrada' });
+      return;
+    }
+
+    const ultimaFila = hoja.getLastRow();
+    if (ultimaFila < 8) {
+      resultado.push({ hoja: nombreHoja, ok: true, actualizadas: 0 });
+      return;
+    }
+
+    const cantidadFilas = ultimaFila - 7;
+    const columnaAnotaciones = configuracion[nombreHoja];
+    const anotaciones = hoja.getRange(8, columnaAnotaciones, cantidadFilas, 1).getDisplayValues();
+    const marcas = anotaciones.map((fila) => [/COBRADO/i.test(String(fila[0] || '').trim()) ? 'COBRADO' : '']);
+
+    hoja.getRange(8, 29, cantidadFilas, 1).setValues(marcas);
+    resultado.push({
+      hoja: nombreHoja,
+      ok: true,
+      actualizadas: marcas.filter((fila) => fila[0] === 'COBRADO').length
+    });
+  });
+
+  return {
+    ok: true,
+    resultado
+  };
+}
+
 function inspeccionarProteccionesTicksCobro() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const resultado = [];

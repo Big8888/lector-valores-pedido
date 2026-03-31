@@ -22,7 +22,7 @@ const PERFILES_COBRO = {
     transferencia: 7, // G
     anotaciones: 27, // AA
     backupAnotacion: 28, // AB
-    backupFondos: 29, // AC
+    marcaCobrado: 29, // AC
     visibleEndColumn: 27
   },
   'Venta Mostrador': {
@@ -35,7 +35,7 @@ const PERFILES_COBRO = {
     transferencia: 7, // G
     anotaciones: 11, // K
     backupAnotacion: 28, // AB
-    backupFondos: 29, // AC
+    marcaCobrado: 29, // AC
     visibleEndColumn: 11
   },
   'Lector Pedidosya': {
@@ -48,7 +48,7 @@ const PERFILES_COBRO = {
     transferencia: 12, // L
     anotaciones: 8, // H
     backupAnotacion: 28, // AB
-    backupFondos: 29, // AC
+    marcaCobrado: 29, // AC
     visibleEndColumn: 14
   }
 };
@@ -171,13 +171,13 @@ function confirmarCobro(payload) {
   filas.forEach((fila) => {
     const anotacionCelda = hoja.getRange(fila, perfil.anotaciones);
     const backupAnotacionCelda = hoja.getRange(fila, perfil.backupAnotacion);
-    const backupFondosCelda = hoja.getRange(fila, perfil.backupFondos);
+    const marcaCobradoCelda = hoja.getRange(fila, perfil.marcaCobrado);
     const anotacionActual = String(anotacionCelda.getValue() || '').trim();
-    const yaCobrado = /COBRADO/i.test(anotacionActual);
+    const yaCobrado = isFilaCobrada_(hoja, fila, perfil, anotacionActual);
 
     if (!yaCobrado) {
       backupAnotacionCelda.setValue(anotacionActual);
-      backupFondosCelda.clearContent();
+      marcaCobradoCelda.setValue('COBRADO');
     }
 
     if (!yaCobrado) {
@@ -192,8 +192,6 @@ function confirmarCobro(payload) {
   });
 
   actualizarFilasCobroSeleccionadas_(hoja, filas, false);
-  configurarColoresEstadoAutomaticosEnHoja_(hoja);
-  SpreadsheetApp.flush();
 
   return {
     ok: true,
@@ -209,7 +207,7 @@ function quitarCobro(payload) {
   filas.forEach((fila) => {
     const anotacionCelda = hoja.getRange(fila, perfil.anotaciones);
     const backupAnotacionCelda = hoja.getRange(fila, perfil.backupAnotacion);
-    const backupFondosCelda = hoja.getRange(fila, perfil.backupFondos);
+    const marcaCobradoCelda = hoja.getRange(fila, perfil.marcaCobrado);
 
     const backupAnotacion = String(backupAnotacionCelda.getValue() || '');
     const anotacionActual = String(anotacionCelda.getValue() || '');
@@ -219,13 +217,11 @@ function quitarCobro(payload) {
     );
 
     backupAnotacionCelda.clearContent();
-    backupFondosCelda.clearContent();
+    marcaCobradoCelda.clearContent();
     hoja.getRange(fila, perfil.accion).setValue(false);
   });
 
   actualizarFilasCobroSeleccionadas_(hoja, filas, false);
-  configurarColoresEstadoAutomaticosEnHoja_(hoja);
-  SpreadsheetApp.flush();
 
   return {
     ok: true,
@@ -298,11 +294,15 @@ function obtenerCobroSeleccionadoPorFilas_(hoja, filasSeleccionadas, perfil) {
   const anotaciones = hoja
     .getRange(filaMinima, perfil.anotaciones, cantidadFilas, 1)
     .getValues();
+  const marcasCobrado = hoja
+    .getRange(filaMinima, perfil.marcaCobrado, cantidadFilas, 1)
+    .getValues();
 
   filasOrdenadas.forEach((fila) => {
     const indice = fila - filaMinima;
     const filaValores = valoresBase[indice] || [];
     const anotacionFila = String((anotaciones[indice] && anotaciones[indice][0]) || '').trim();
+    const marcaCobradoFila = String((marcasCobrado[indice] && marcasCobrado[indice][0]) || '').trim();
 
     const numeroPedidoInterno = String(
       getValorCobroEnColumna_(filaValores, perfil.numeroPedidoInterno) || ''
@@ -334,7 +334,7 @@ function obtenerCobroSeleccionadoPorFilas_(hoja, filasSeleccionadas, perfil) {
       efectivo,
       transferencia,
       totalFila,
-      cobrado: /COBRADO/i.test(anotacionFila)
+      cobrado: marcaCobradoFila === 'COBRADO' || /COBRADO/i.test(anotacionFila)
     });
   });
 
@@ -349,7 +349,8 @@ function getUltimaColumnaLecturaCobro_(perfil) {
     perfil.total || 1,
     perfil.tarjeta || 1,
     perfil.efectivo || 1,
-    perfil.transferencia || 1
+    perfil.transferencia || 1,
+    perfil.marcaCobrado || 1
   );
 }
 
@@ -359,6 +360,12 @@ function getValorCobroEnColumna_(filaValores, columna) {
   }
 
   return filaValores[columna - 1];
+}
+
+function isFilaCobrada_(hoja, fila, perfil, anotacionActual) {
+  const marcaCobrado = String(hoja.getRange(fila, perfil.marcaCobrado).getValue() || '').trim();
+  if (marcaCobrado === 'COBRADO') return true;
+  return /COBRADO/i.test(String(anotacionActual || '').trim());
 }
 
 function obtenerFilasSeleccionadasCobro_(hoja, lastRow, perfil) {
