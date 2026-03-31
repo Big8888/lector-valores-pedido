@@ -5,6 +5,7 @@ require('../src/pedidosya-pdf/config/pedidosYaPdfConfig');
 require('../src/services/courierAssigner');
 const googleSheetsService = require('../src/services/googleSheetsService');
 const { interpretOrder } = require('../src/services/orderInterpreter');
+const { mapOrderToSheetRow } = require('../src/services/orderToSheetMapper');
 require('../src/pedidosya/services/pedidosYaAuth');
 require('../src/pedidosya/services/pedidosYaInterpreter');
 const pedidosYaPdfParser = require('../src/pedidosya-pdf/services/pedidosYaPdfParser');
@@ -146,6 +147,33 @@ assert.strictEqual(
   Boolean(sheetsConfig.sheetProfiles['Venta Mostrador'].columns.serviceLabel),
   false,
   'Venta Mostrador no debe escribir datos en la columna A.'
+);
+
+const freeOrderPayload = {
+  data: {
+    public_id: 'UY-FREE-1',
+    daily_id: '33',
+    payment_status: 'UNPAID',
+    subtotal: '109',
+    total_discounts: '109',
+    total: '0',
+    delivery_price: '0',
+    service_type: 'DELIVERY'
+  }
+};
+
+const interpretedFreeOrder = interpretOrder(freeOrderPayload);
+
+assert.strictEqual(
+  interpretedFreeOrder.total,
+  0,
+  'Si OlaClick informa total 0, no debe reemplazarse por subtotal + delivery.'
+);
+
+assert.strictEqual(
+  mapOrderToSheetRow(interpretedFreeOrder, null, 'GIAN').total,
+  0,
+  'La fila escrita en repartidores debe respetar total 0 en pedidos bonificados.'
 );
 
 console.log('VALIDACION_OK');

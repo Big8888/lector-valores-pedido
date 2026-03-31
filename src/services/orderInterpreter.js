@@ -48,6 +48,17 @@ function findFirstPresent(source, paths) {
   return undefined;
 }
 
+function resolveOrderTotal(data) {
+  const explicitTotal = findFirstPresent(data, [['total']]);
+  if (hasValue(explicitTotal)) {
+    return toNumber(explicitTotal);
+  }
+
+  const subtotal = toNumber(findFirstPresent(data, [['combos_price'], ['subtotal']]));
+  const delivery = toNumber(findFirstPresent(data, [['delivery_price'], ['delivery_cost']]));
+  return subtotal + delivery;
+}
+
 function flattenScalarValues(value, result = []) {
   if (value === null || value === undefined) {
     return result;
@@ -626,8 +637,8 @@ function detectPropinaWeb(data, payload) {
 
   const subtotal = toNumber(findFirstPresent(data, [['combos_price'], ['subtotal']]));
   const delivery = toNumber(findFirstPresent(data, [['delivery_price'], ['delivery_cost']]));
-  const total = toNumber(findFirstPresent(data, [['total']]));
-  const baseOrderTotal = subtotal + delivery || total;
+  const total = resolveOrderTotal(data);
+  const baseOrderTotal = total;
 
   const paidAmountCandidates = [
     ['meta_data', 'assigned_payment', 'amount'],
@@ -986,7 +997,7 @@ function interpretOrder(payload = {}) {
   const productos = extractProductos(data);
   const subtotal = toNumber(findFirstPresent(data, [['combos_price'], ['subtotal']]));
   const delivery = toNumber(findFirstPresent(data, [['delivery_price'], ['delivery_cost']]));
-  const total = toNumber(findFirstPresent(data, [['total']])) || subtotal + delivery;
+  const total = resolveOrderTotal(data);
   const reportedTotalPaid = toNumber(findFirstPresent(data, [
     ['total_paid'],
     ['paid_amount'],
