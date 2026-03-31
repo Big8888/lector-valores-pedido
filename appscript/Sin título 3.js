@@ -12,18 +12,73 @@ function ocultarColumnasAuxiliares() {
 
 const HOJAS_COBRO_PROTEGIDAS = ['Mauro', 'Brisa', 'Diogo', 'GIAN', 'LIBRE1', 'Venta Mostrador', 'Lector Pedidosya'];
 const RANGO_TICKS_COBRO_A1 = 'A8:A';
-const HOJAS_REPARTIDORES_PROTECCION = ['Mauro', 'Brisa', 'Diogo', 'GIAN', 'LIBRE1'];
-const RANGOS_EDITABLES_REPARTIDORES_A1 = [
-  'A8:A',
-  'G2',
-  'K4:L4',
-  'M2',
-  'J8:J88',
-  'M8:M76',
-  'O6:S6',
-  'O8:S96',
-  'AA:AC'
-];
+const CONFIGURACION_PROTECCIONES_COBRO = {
+  Mauro: [
+    'A8:A',
+    'G2',
+    'K4:L4',
+    'M2',
+    'J8:J88',
+    'M8:M76',
+    'O6:S6',
+    'O8:S96',
+    'AA:AC'
+  ],
+  Brisa: [
+    'A8:A',
+    'G2',
+    'K4:L4',
+    'M2',
+    'J8:J88',
+    'M8:M76',
+    'O6:S6',
+    'O8:S96',
+    'AA:AC'
+  ],
+  Diogo: [
+    'A8:A',
+    'G2',
+    'K4:L4',
+    'M2',
+    'J8:J88',
+    'M8:M76',
+    'O6:S6',
+    'O8:S96',
+    'AA:AC'
+  ],
+  GIAN: [
+    'A8:A',
+    'G2',
+    'K4:L4',
+    'M2',
+    'J8:J88',
+    'M8:M76',
+    'O6:S6',
+    'O8:S96',
+    'AA:AC'
+  ],
+  LIBRE1: [
+    'A8:A',
+    'G2',
+    'K4:L4',
+    'M2',
+    'J8:J88',
+    'M8:M76',
+    'O6:S6',
+    'O8:S96',
+    'AA:AC'
+  ],
+  'Venta Mostrador': [
+    'A8:A',
+    'K8:K',
+    'AB:AC'
+  ],
+  'Lector Pedidosya': [
+    'A8:A',
+    'H8:H',
+    'AB:AC'
+  ]
+};
 
 function sincronizarNumeroPedidoVisibleEnVentaMostrador() {
   const hoja = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Venta Mostrador');
@@ -189,7 +244,7 @@ function aplicarProteccionEnHojasRepartidores() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const resultado = [];
 
-  HOJAS_REPARTIDORES_PROTECCION.forEach((nombreHoja) => {
+  Object.keys(CONFIGURACION_PROTECCIONES_COBRO).forEach((nombreHoja) => {
     const hoja = ss.getSheetByName(nombreHoja);
     if (!hoja) {
       resultado.push({ hoja: nombreHoja, ok: false, motivo: 'Hoja no encontrada' });
@@ -198,7 +253,8 @@ function aplicarProteccionEnHojasRepartidores() {
 
     const protecciones = hoja.getProtections(SpreadsheetApp.ProtectionType.SHEET);
     const protection = protecciones[0] || hoja.protect();
-    const rangosEditables = RANGOS_EDITABLES_REPARTIDORES_A1.map((a1) => hoja.getRange(a1));
+    const rangosEditablesA1 = CONFIGURACION_PROTECCIONES_COBRO[nombreHoja];
+    const rangosEditables = rangosEditablesA1.map((a1) => hoja.getRange(a1));
 
     protection.setUnprotectedRanges(rangosEditables);
 
@@ -206,7 +262,7 @@ function aplicarProteccionEnHojasRepartidores() {
       hoja: nombreHoja,
       ok: true,
       proteccionesHoja: protecciones.length || 1,
-      rangosEditables: RANGOS_EDITABLES_REPARTIDORES_A1
+      rangosEditables: rangosEditablesA1
     });
   });
 
