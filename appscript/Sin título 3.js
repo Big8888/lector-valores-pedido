@@ -21,7 +21,7 @@ const CONFIGURACION_PROTECCIONES_COBRO = {
     'J8:J88',
     'M8:M76',
     'O6:S6',
-    'O8:S96',
+    'O8:S98',
     'AA:AC'
   ],
   Brisa: [
@@ -32,7 +32,7 @@ const CONFIGURACION_PROTECCIONES_COBRO = {
     'J8:J88',
     'M8:M76',
     'O6:S6',
-    'O8:S96',
+    'O8:S98',
     'AA:AC'
   ],
   Diogo: [
@@ -43,7 +43,7 @@ const CONFIGURACION_PROTECCIONES_COBRO = {
     'J8:J88',
     'M8:M76',
     'O6:S6',
-    'O8:S96',
+    'O8:S98',
     'AA:AC'
   ],
   GIAN: [
@@ -54,7 +54,7 @@ const CONFIGURACION_PROTECCIONES_COBRO = {
     'J8:J88',
     'M8:M76',
     'O6:S6',
-    'O8:S96',
+    'O8:S98',
     'AA:AC'
   ],
   LIBRE1: [
@@ -65,7 +65,7 @@ const CONFIGURACION_PROTECCIONES_COBRO = {
     'J8:J88',
     'M8:M76',
     'O6:S6',
-    'O8:S96',
+    'O8:S98',
     'AA:AC'
   ],
   'Venta Mostrador': [
