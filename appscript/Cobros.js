@@ -470,18 +470,25 @@ function buildCobroVacio_() {
   };
 }
 
-function obtenerFondosTemplate_(hoja, filasExcluidas, perfil) {
-  const columnaRegistroCobro = getColumnaRegistroCobro_(perfil);
+function obtenerFondosTemplate_(hoja, filaObjetivo, filasExcluidas, perfil) {
   const excluidas = new Set((filasExcluidas || []).map((fila) => Number(fila)));
   const lastRow = hoja.getLastRow();
+  const filaBase = Math.max(FILA_INICIO_PEDIDOS, Number(filaObjetivo) || FILA_INICIO_PEDIDOS);
+  const maxDistancia = Math.max(filaBase - FILA_INICIO_PEDIDOS, lastRow - filaBase);
 
-  for (let fila = FILA_INICIO_PEDIDOS; fila <= lastRow; fila += 1) {
-    if (excluidas.has(fila)) continue;
+  for (let distancia = 0; distancia <= maxDistancia; distancia += 1) {
+    const candidatas = distancia === 0
+      ? [filaBase]
+      : [filaBase - distancia, filaBase + distancia];
 
-    const anotacion = String(hoja.getRange(fila, columnaRegistroCobro).getValue() || '').trim();
-    if (/COBRADO/i.test(anotacion)) continue;
+    for (let i = 0; i < candidatas.length; i += 1) {
+      const fila = candidatas[i];
+      if (fila < FILA_INICIO_PEDIDOS || fila > lastRow) continue;
+      if (excluidas.has(fila)) continue;
+      if (isFilaCobrada_(hoja, fila, perfil)) continue;
 
-    return hoja.getRange(fila, 1, 1, perfil.visibleEndColumn).getBackgrounds()[0];
+      return hoja.getRange(fila, 1, 1, perfil.visibleEndColumn).getBackgrounds()[0];
+    }
   }
 
   return null;
@@ -518,7 +525,7 @@ function restaurarFondosFilaLuegoDeQuitar_(hoja, fila, perfil, filasQuitadas) {
   const key = getKeyFondosCobro_(hoja.getName(), fila);
   const props = PropertiesService.getDocumentProperties();
   const fondosGuardados = parseFondosBackup_(props.getProperty(key));
-  const fondosTemplate = obtenerFondosTemplate_(hoja, filasQuitadas, perfil);
+  const fondosTemplate = obtenerFondosTemplate_(hoja, fila, filasQuitadas, perfil);
   const fondos = fondosGuardados || fondosTemplate;
 
   if (Array.isArray(fondos) && fondos.length > 0) {
