@@ -10,6 +10,7 @@ const OFFSET_Y_BOTON_COBRO = 3;
 const URL_BOTON_COBRO = 'https://raw.githubusercontent.com/Big8888/lector-valores-pedido/main/assets/abrir-cobro-button.png';
 const COLOR_COBRADO = '#d9ead3';
 const PREFIJO_CACHE_FILAS_COBRO = 'COBROS_FILAS_';
+const PREFIJO_CACHE_FONDOS_COBRO = 'COBROS_FONDOS_';
 let BOTON_COBRO_BLOB = null;
 const PERFILES_COBRO = {
   default: {
@@ -199,6 +200,7 @@ function confirmarCobro(payload) {
     });
 
     if (!yaCobrado) {
+      guardarFondosFilaAntesDeCobro_(hoja, fila, perfil);
       backupAnotacionCelda.setValue(anotacionActual);
       marcaCobradoCelda.setValue('COBRADO');
     }
@@ -270,9 +272,15 @@ function quitarCobro(payload) {
 
     backupAnotacionCelda.clearContent();
     marcaCobradoCelda.clearContent();
+    restaurarFondosFilaLuegoDeQuitar_(hoja, fila, perfil, filas);
     hoja.getRange(fila, perfil.accion).setValue(false);
   });
 
+  if (typeof configurarColoresEstadoAutomaticosEnHoja_ === 'function') {
+    configurarColoresEstadoAutomaticosEnHoja_(hoja);
+  }
+
+  SpreadsheetApp.flush();
   actualizarFilasCobroSeleccionadas_(hoja, filas, false);
 
   return {
@@ -494,6 +502,32 @@ function parseFondosBackup_(rawValue) {
   return null;
 }
 
+function guardarFondosFilaAntesDeCobro_(hoja, fila, perfil) {
+  const key = getKeyFondosCobro_(hoja.getName(), fila);
+  const props = PropertiesService.getDocumentProperties();
+
+  if (props.getProperty(key)) {
+    return;
+  }
+
+  const fondos = hoja.getRange(fila, 1, 1, perfil.visibleEndColumn).getBackgrounds()[0];
+  props.setProperty(key, JSON.stringify(fondos));
+}
+
+function restaurarFondosFilaLuegoDeQuitar_(hoja, fila, perfil, filasQuitadas) {
+  const key = getKeyFondosCobro_(hoja.getName(), fila);
+  const props = PropertiesService.getDocumentProperties();
+  const fondosGuardados = parseFondosBackup_(props.getProperty(key));
+  const fondosTemplate = obtenerFondosTemplate_(hoja, filasQuitadas, perfil);
+  const fondos = fondosGuardados || fondosTemplate;
+
+  if (Array.isArray(fondos) && fondos.length > 0) {
+    hoja.getRange(fila, 1, 1, perfil.visibleEndColumn).setBackgrounds([fondos]);
+  }
+
+  props.deleteProperty(key);
+}
+
 function actualizarFilasCobroSeleccionadas_(hoja, filas, checked) {
   const filasActuales = getFilasCobroSeleccionadasCache_(hoja.getName());
   const objetivo = new Set(filasActuales);
@@ -552,6 +586,15 @@ function setFilasCobroSeleccionadasCache_(sheetName, filas) {
 
 function getKeyFilasCobro_(sheetName) {
   return PREFIJO_CACHE_FILAS_COBRO + String(sheetName || '').trim().toUpperCase();
+}
+
+function getKeyFondosCobro_(sheetName, fila) {
+  return (
+    PREFIJO_CACHE_FONDOS_COBRO +
+    String(sheetName || '').trim().toUpperCase() +
+    '_' +
+    String(Number(fila) || '')
+  );
 }
 
 function limpiarDetalleCobro_(texto) {
