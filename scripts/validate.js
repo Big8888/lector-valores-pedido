@@ -15,7 +15,11 @@ require('../src/pedidosya/routes/pedidosYaWebhookRoutes');
 const webhookRoutes = require('../src/routes/webhookRoutes');
 require('../src/server');
 
-const { buildOrderLookup, getLookupMatch } = googleSheetsService.__internals;
+const {
+  buildOrderLookup,
+  getLookupMatch,
+  buildTransferLogEntry
+} = googleSheetsService.__internals;
 const {
   getOrderCacheKeys,
   shouldSearchRiderlessUpdate
@@ -246,6 +250,28 @@ assert.strictEqual(
   }, null, 'GIAN').total,
   800,
   'El total visible tambien debe incluir la propina web cuando no hay metodo asignado.'
+);
+
+assert.deepStrictEqual(
+  buildTransferLogEntry('Mauro', {
+    numeroPedidoVisible: '2',
+    importeTransferenciaVisible: 1019,
+    telefono: "'+598 92103510",
+    fecha: '02/04/2026, 20:17',
+    nroPedidoTracking: 'UY-4170853827',
+    anotaciones: ''
+  }),
+  {
+    mes: '4',
+    numeroPedido: '2',
+    importe: 1019,
+    telefono: '3510',
+    fecha: '2/04',
+    anotaciones: '',
+    syncKey: 'Mauro::UY-4170853827',
+    sourceSheet: 'Mauro'
+  },
+  'El log de transferencias debe quedar alineado con el bloque Datos (mes, pedido, importe, tel, fecha y clave oculta).'
 );
 
 console.log('VALIDACION_OK');

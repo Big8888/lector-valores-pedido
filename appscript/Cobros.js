@@ -34,9 +34,10 @@ const PERFILES_COBRO = {
     efectivo: 6, // F
     transferencia: 7, // G
     anotaciones: 11, // K
+    registroCobro: 18, // R
     backupAnotacion: 28, // AB
     marcaCobrado: 29, // AC
-    visibleEndColumn: 11
+    visibleEndColumn: 18
   },
   'Lector Pedidosya': {
     accion: 1, // A
@@ -55,6 +56,10 @@ const PERFILES_COBRO = {
 
 function getPerfilCobro_(sheetName) {
   return PERFILES_COBRO[sheetName] || PERFILES_COBRO.default;
+}
+
+function getColumnaRegistroCobro_(perfil) {
+  return perfil.registroCobro || perfil.anotaciones;
 }
 
 function crearMenuCobros() {
@@ -161,6 +166,7 @@ function obtenerDatosCobroModal(sheetName) {
 function confirmarCobro(payload) {
   const hoja = getHojaCobroDesdePayload_(payload);
   const perfil = getPerfilCobro_(hoja.getName());
+  const columnaRegistroCobro = getColumnaRegistroCobro_(perfil);
   const filas = getFilasCobroDesdePayload_(payload);
 
   const totalEfectivo = toNumberCobro_(payload && payload.totalEfectivo);
@@ -169,7 +175,7 @@ function confirmarCobro(payload) {
   const hora = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'HH:mm:ss');
 
   filas.forEach((fila) => {
-    const anotacionCelda = hoja.getRange(fila, perfil.anotaciones);
+    const anotacionCelda = hoja.getRange(fila, columnaRegistroCobro);
     const backupAnotacionCelda = hoja.getRange(fila, perfil.backupAnotacion);
     const marcaCobradoCelda = hoja.getRange(fila, perfil.marcaCobrado);
     const anotacionActual = String(anotacionCelda.getValue() || '').trim();
@@ -202,10 +208,11 @@ function confirmarCobro(payload) {
 function quitarCobro(payload) {
   const hoja = getHojaCobroDesdePayload_(payload);
   const perfil = getPerfilCobro_(hoja.getName());
+  const columnaRegistroCobro = getColumnaRegistroCobro_(perfil);
   const filas = getFilasCobroDesdePayload_(payload);
 
   filas.forEach((fila) => {
-    const anotacionCelda = hoja.getRange(fila, perfil.anotaciones);
+    const anotacionCelda = hoja.getRange(fila, columnaRegistroCobro);
     const backupAnotacionCelda = hoja.getRange(fila, perfil.backupAnotacion);
     const marcaCobradoCelda = hoja.getRange(fila, perfil.marcaCobrado);
 
@@ -272,6 +279,7 @@ function obtenerPedidosSeleccionados_(hoja) {
 
 function obtenerCobroSeleccionadoPorFilas_(hoja, filasSeleccionadas, perfil) {
   const resultado = buildCobroVacio_();
+  const columnaRegistroCobro = getColumnaRegistroCobro_(perfil);
   const filasOrdenadas = Array.from(
     new Set(
       (filasSeleccionadas || [])
@@ -292,7 +300,7 @@ function obtenerCobroSeleccionadoPorFilas_(hoja, filasSeleccionadas, perfil) {
     .getRange(filaMinima, 1, cantidadFilas, ultimaColumnaLectura)
     .getValues();
   const anotaciones = hoja
-    .getRange(filaMinima, perfil.anotaciones, cantidadFilas, 1)
+    .getRange(filaMinima, columnaRegistroCobro, cantidadFilas, 1)
     .getValues();
   const marcasCobrado = hoja
     .getRange(filaMinima, perfil.marcaCobrado, cantidadFilas, 1)
@@ -394,13 +402,14 @@ function buildCobroVacio_() {
 }
 
 function obtenerFondosTemplate_(hoja, filasExcluidas, perfil) {
+  const columnaRegistroCobro = getColumnaRegistroCobro_(perfil);
   const excluidas = new Set((filasExcluidas || []).map((fila) => Number(fila)));
   const lastRow = hoja.getLastRow();
 
   for (let fila = FILA_INICIO_PEDIDOS; fila <= lastRow; fila += 1) {
     if (excluidas.has(fila)) continue;
 
-    const anotacion = String(hoja.getRange(fila, perfil.anotaciones).getValue() || '').trim();
+    const anotacion = String(hoja.getRange(fila, columnaRegistroCobro).getValue() || '').trim();
     if (/COBRADO/i.test(anotacion)) continue;
 
     return hoja.getRange(fila, 1, 1, perfil.visibleEndColumn).getBackgrounds()[0];

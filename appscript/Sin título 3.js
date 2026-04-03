@@ -117,7 +117,7 @@ function sincronizarMarcaCobroEnHojas() {
     Diogo: 27,
     GIAN: 27,
     LIBRE1: 27,
-    'Venta Mostrador': 11,
+    'Venta Mostrador': 18,
     'Lector Pedidosya': 8
   };
 

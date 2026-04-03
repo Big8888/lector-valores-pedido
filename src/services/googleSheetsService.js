@@ -96,8 +96,276 @@ function getManagedColumnsForSheet(sheetName) {
   return Object.values(profile.columns).filter(Boolean);
 }
 
+function columnLetterToNumber(column) {
+  return String(column || '')
+    .trim()
+    .toUpperCase()
+    .split('')
+    .reduce((acc, char) => (acc * 26) + char.charCodeAt(0) - 64, 0);
+}
+
 function getColumnRange(sheetName, column, startRow) {
   return `${sheetName}!${column}${startRow}:${column}`;
+}
+
+function getTransferLogConfig() {
+  return sheetsConfig.transferLog || {
+    sheetName: '',
+    headerRow: 0,
+    dataStartRow: 0,
+    columns: {}
+  };
+}
+
+function parseDateValue(value) {
+  if (!value) return null;
+
+  const normalized = normalizeCell(value);
+  const localizedMatch = normalized.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  if (localizedMatch) {
+    const [, day, month, year] = localizedMatch;
+    return new Date(`${year}-${month}-${day}T00:00:00-03:00`);
+  }
+
+  const directDate = new Date(value);
+  if (!Number.isNaN(directDate.getTime())) {
+    return directDate;
+  }
+
+  return null;
+}
+
+function getDatePartsInSheetTimeZone(value) {
+  const date = parseDateValue(value);
+  if (!date) return null;
+
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: sheetsConfig.timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).formatToParts(date);
+
+  const map = {};
+  parts.forEach((part) => {
+    if (part.type !== 'literal') {
+      map[part.type] = part.value;
+    }
+  });
+
+  if (!map.year || !map.month || !map.day) {
+    return null;
+  }
+
+  return map;
+}
+
+function formatTransferLogMonth(value) {
+  const parts = getDatePartsInSheetTimeZone(value);
+  if (!parts) return '';
+
+  return String(Number(parts.month));
+}
+
+function formatTransferLogDate(value) {
+  const parts = getDatePartsInSheetTimeZone(value);
+  if (!parts) return '';
+
+  return `${Number(parts.day)}/${parts.month}`;
+}
+
+function formatTransferLogPhone(value) {
+  const digits = String(value || '').replace(/\D/g, '').trim();
+  if (!digits) return '';
+
+  const localDigits = digits.startsWith('598') && digits.length > 8
+    ? digits.slice(3)
+    : digits;
+
+  return localDigits.slice(-4);
+}
+
+function buildTransferLogKey(sheetName, data = {}) {
+  const tracking = normalizeCell(data.nroPedidoTracking);
+  if (tracking) {
+    return `${sheetName}::${tracking}`;
+  }
+
+  const numeroPedido = normalizeCell(data.numeroPedidoVisible || data.numeroPedidoInterno);
+  const dayKey = buildDayKey(data.fecha);
+  if (!numeroPedido && !dayKey) {
+    return '';
+  }
+
+  return `${sheetName}::${numeroPedido}::${dayKey}`;
+}
+
+function buildTransferLogEntry(sheetName, data = {}) {
+  const amount = toNumber(data.importeTransferenciaVisible || data.transferencia);
+  if (amount <= 0) {
+    return null;
+  }
+
+  return {
+    mes: formatTransferLogMonth(data.fecha),
+    numeroPedido: normalizeCell(data.numeroPedidoVisible || data.numeroPedidoInterno),
+    importe: amount,
+    telefono: formatTransferLogPhone(data.telefono),
+    fecha: formatTransferLogDate(data.fecha),
+    anotaciones: normalizeCell(data.anotaciones),
+    syncKey: buildTransferLogKey(sheetName, data),
+    sourceSheet: normalizeCell(sheetName)
+  };
+}
+
+async function getTransferLogRowState(sheets, transferConfig, syncKey) {
+  const { sheetName, dataStartRow, columns } = transferConfig;
+  const ranges = [
+    getColumnRange(sheetName, columns.syncKey, dataStartRow),
+    getColumnRange(sheetName, columns.numeroPedido, dataStartRow)
+  ];
+
+  const res = await sheets.spreadsheets.values.batchGet({
+    spreadsheetId: sheetsConfig.spreadsheetId,
+    ranges
+  });
+
+  const valueRanges = res.data.valueRanges || [];
+  const syncKeys = valueRanges[0]?.values || [];
+  const numeroPedidos = valueRanges[1]?.values || [];
+  const maxLength = Math.max(syncKeys.length, numeroPedidos.length);
+
+  let lastUsedIndex = -1;
+  let existingRow = null;
+
+  for (let index = 0; index < maxLength; index += 1) {
+    const currentKey = normalizeCell(syncKeys[index]?.[0]);
+    const currentNumero = normalizeCell(numeroPedidos[index]?.[0]);
+
+    if (currentKey || currentNumero) {
+      lastUsedIndex = index;
+    }
+
+    if (syncKey && currentKey === syncKey) {
+      existingRow = dataStartRow + index;
+    }
+  }
+
+  return {
+    existingRow,
+    nextRow: dataStartRow + lastUsedIndex + 1
+  };
+}
+
+async function writeTransferLogEntry(sheets, transferConfig, rowNumber, entry) {
+  const { sheetName, headerRow, columns } = transferConfig;
+
+  await sheets.spreadsheets.values.batchUpdate({
+    spreadsheetId: sheetsConfig.spreadsheetId,
+    requestBody: {
+      valueInputOption: 'RAW',
+      data: [
+        { range: `${sheetName}!${columns.mes}${rowNumber}`, values: [[entry.mes || '']] },
+        { range: `${sheetName}!${columns.numeroPedido}${rowNumber}`, values: [[entry.numeroPedido || '']] },
+        { range: `${sheetName}!${columns.importe}${rowNumber}`, values: [[entry.importe || '']] },
+        { range: `${sheetName}!${columns.telefono}${rowNumber}`, values: [[entry.telefono || '']] },
+        { range: `${sheetName}!${columns.fecha}${rowNumber}`, values: [[entry.fecha || '']] },
+        { range: `${sheetName}!${columns.anotaciones}${rowNumber}`, values: [[entry.anotaciones || '']] },
+        { range: `${sheetName}!${columns.syncKey}${headerRow}`, values: [['__SYNC_KEY']] },
+        { range: `${sheetName}!${columns.sourceSheet}${headerRow}`, values: [['__SOURCE_SHEET']] },
+        { range: `${sheetName}!${columns.syncKey}${rowNumber}`, values: [[entry.syncKey || '']] },
+        { range: `${sheetName}!${columns.sourceSheet}${rowNumber}`, values: [[entry.sourceSheet || '']] }
+      ]
+    }
+  });
+}
+
+async function syncTransferLogEntry(sheetName, data = {}) {
+  const transferConfig = getTransferLogConfig();
+  if (!transferConfig.sheetName || normalizeCell(sheetName) === normalizeCell(transferConfig.sheetName)) {
+    return null;
+  }
+
+  const entry = buildTransferLogEntry(sheetName, data);
+  if (!entry) {
+    return null;
+  }
+
+  const sheets = await getSheetsClient();
+  const state = await getTransferLogRowState(sheets, transferConfig, entry.syncKey);
+  const rowNumber = state.existingRow || state.nextRow;
+
+  await writeTransferLogEntry(sheets, transferConfig, rowNumber, entry);
+
+  return {
+    sheetName: transferConfig.sheetName,
+    rowNumber,
+    syncKey: entry.syncKey,
+    updated: Boolean(state.existingRow)
+  };
+}
+
+async function syncAllCurrentTransferRowsToDatos() {
+  const sheets = await getSheetsClient();
+  const sourceSheets = [
+    ...getRiderSheetNames(),
+    sheetsConfig.counterSheetName,
+    sheetsConfig.pedidosYaSheetName,
+    sheetsConfig.pedidosYaPdfSheetName
+  ].filter(Boolean);
+  const uniqueSheetNames = [...new Set(sourceSheets)];
+  const results = [];
+
+  for (const sheetName of uniqueSheetNames) {
+    if (sheetName === getTransferLogConfig().sheetName) {
+      continue;
+    }
+
+    const profile = getSheetProfile(sheetName);
+    const maxColumn = Math.max(...Object.values(profile.columns).filter(Boolean).map(columnLetterToNumber));
+    const endColumnLetter = Object.entries(profile.columns)
+      .find(([, letter]) => columnLetterToNumber(letter) === maxColumn)?.[1] || 'A';
+
+    let res;
+    try {
+      res = await sheets.spreadsheets.values.get({
+        spreadsheetId: sheetsConfig.spreadsheetId,
+        range: `${sheetName}!A${profile.dataStartRow}:${endColumnLetter}`
+      });
+    } catch (error) {
+      if (/Unable to parse range/i.test(String(error.message || ''))) {
+        results.push({ sheetName, synced: 0, skipped: true });
+        continue;
+      }
+
+      throw error;
+    }
+
+    const rows = res.data.values || [];
+    let synced = 0;
+
+    for (const row of rows) {
+      const valueByField = {};
+
+      Object.entries(profile.columns).forEach(([field, letter]) => {
+        if (!letter) return;
+        valueByField[field] = row[columnLetterToNumber(letter) - 1] ?? '';
+      });
+
+      const entry = buildTransferLogEntry(sheetName, valueByField);
+      if (!entry) continue;
+
+      await syncTransferLogEntry(sheetName, valueByField);
+      synced += 1;
+    }
+
+    results.push({ sheetName, synced });
+  }
+
+  return {
+    ok: true,
+    results
+  };
 }
 
 function buildDayKey(value) {
@@ -416,6 +684,8 @@ async function writeOrderToSheet(sheetName, row, data) {
       data: updates
     }
   });
+
+  await syncTransferLogEntry(sheetName, data);
 }
 
 async function getOrderRowSnapshot(sheetName, row) {
@@ -489,8 +759,15 @@ module.exports = {
   clearOrderRow,
   getOrderRowSnapshot,
   buildDayKey,
+  syncTransferLogEntry,
+  syncAllCurrentTransferRowsToDatos,
   __internals: {
     buildOrderLookup,
-    getLookupMatch
+    getLookupMatch,
+    buildTransferLogEntry,
+    formatTransferLogDate,
+    formatTransferLogMonth,
+    formatTransferLogPhone,
+    buildTransferLogKey
   }
 };

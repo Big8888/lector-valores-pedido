@@ -58,6 +58,9 @@
       "menuName": "Borrar Celdas",
       "functionName": "BorrarCeldas",
       "defaultShortcut": "Ctrl+Alt+Shift+8"
+    }, {
+      "menuName": "Borrar Datos del Dia",
+      "functionName": "BORRAR_DATOS_DEL_DIA"
     }]
   }
 }

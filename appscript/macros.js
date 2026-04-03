@@ -1,3 +1,28 @@
+function BORRAR_DATOS_DEL_DIA() {
+  const ss = SpreadsheetApp.getActive();
+  const configuracion = {
+    Mauro: [[8, 1, 400, 30]],
+    Brisa: [[8, 1, 400, 30]],
+    Diogo: [[8, 1, 400, 30]],
+    GIAN: [[8, 1, 400, 30]],
+    LIBRE1: [[8, 1, 400, 30]],
+    'Venta Mostrador': [[8, 1, 400, 18], [8, 28, 400, 3]],
+    'Lector Pedidosya': [[8, 1, 400, 14], [8, 28, 400, 3]],
+    'Pedidos Ya': [[8, 1, 400, 14], [8, 28, 400, 3]]
+  };
+
+  Object.keys(configuracion).forEach((nombreHoja) => {
+    const hoja = ss.getSheetByName(nombreHoja);
+    if (!hoja) return;
+
+    configuracion[nombreHoja].forEach(([fila, columna, cantidadFilas, cantidadColumnas]) => {
+      hoja
+        .getRange(fila, columna, cantidadFilas, cantidadColumnas)
+        .clear({ contentsOnly: true, skipFilteredRows: true });
+    });
+  });
+}
+
 function BORRARDATOSPLANILLAS() { 
   var spreadsheet = SpreadsheetApp.getActive();
   

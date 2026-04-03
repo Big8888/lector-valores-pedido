@@ -15,7 +15,7 @@ const CONFIG_COBRO_POR_HOJA = {
   Diogo: { marcaCobrado: 29, visibleEndColumn: 27 },
   GIAN: { marcaCobrado: 29, visibleEndColumn: 27 },
   LIBRE1: { marcaCobrado: 29, visibleEndColumn: 27 },
-  'Venta Mostrador': { marcaCobrado: 29, visibleEndColumn: 11 },
+  'Venta Mostrador': { marcaCobrado: 29, visibleEndColumn: 18 },
   'Lector Pedidosya': { marcaCobrado: 29, visibleEndColumn: 14 }
 };
 

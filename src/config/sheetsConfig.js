@@ -3,7 +3,22 @@ module.exports = {
   timeZone: process.env.ORDER_TIMEZONE || 'America/Montevideo',
   counterSheetName: 'Venta Mostrador',
   pedidosYaSheetName: 'Pedidos Ya',
-  pedidosYaPdfSheetName: 'Lector PedidosYa',
+  pedidosYaPdfSheetName: 'Lector Pedidosya',
+  transferLog: {
+    sheetName: 'Datos',
+    headerRow: 66,
+    dataStartRow: 67,
+    columns: {
+      mes: 'AU',
+      numeroPedido: 'AV',
+      importe: 'AW',
+      telefono: 'AX',
+      fecha: 'AY',
+      anotaciones: 'AZ',
+      syncKey: 'BA',
+      sourceSheet: 'BB'
+    }
+  },
   riderSheets: {
     MAURO: 'Mauro',
     MAURICIO: 'Mauro',
@@ -83,7 +98,7 @@ module.exports = {
         nroPedidoTracking: 'AD'
       }
     },
-    'Lector PedidosYa': {
+    'Lector Pedidosya': {
       dataStartRow: 8,
       sheetBounds: {
         startColumn: 'A',
