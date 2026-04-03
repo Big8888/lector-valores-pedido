@@ -1,8 +1,11 @@
+const HOJAS_REPARTIDORES = ['Mauro', 'Brisa', 'Diogo', 'GIAN', 'LIBRE1'];
+
 function onOpen() {
   crearDesplegableMedioPago();
   configurarColoresEstadoAutomaticosEnHojas();
   ocultarColumnasAuxiliares();
   sincronizarNombreHojaEnEncabezados();
+  sincronizarContadorPedidosEnHojas();
   crearMenuCobros();
   SpreadsheetApp.getActiveSpreadsheet().toast('Marca en A los pedidos a cobrar y usa el boton en A5.', 'COBROS', 5);
 }
@@ -43,7 +46,7 @@ function crearDesplegableMedioPago() {
 
 function sincronizarNombreHojaEnEncabezados() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const hojasPermitidas = ['Mauro', 'Brisa', 'Diogo', 'GIAN', 'LIBRE1'];
+  const hojasPermitidas = HOJAS_REPARTIDORES;
 
   hojasPermitidas.forEach((nombreHoja) => {
     const hoja = ss.getSheetByName(nombreHoja);
@@ -53,6 +56,18 @@ function sincronizarNombreHojaEnEncabezados() {
     hoja.getRange(7, 2).setValue(hoja.getName());
     const columnaNombre = detectarColumnaNombreHoja_(hoja, hojasPermitidas);
     hoja.getRange(7, columnaNombre).setValue(hoja.getName());
+  });
+}
+
+function sincronizarContadorPedidosEnHojas() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+
+  HOJAS_REPARTIDORES.forEach((nombreHoja) => {
+    const hoja = ss.getSheetByName(nombreHoja);
+    if (!hoja) return;
+
+    // Cuenta todos los pedidos cargados desde la fila 8, aunque el numero llegue como texto.
+    hoja.getRange('D2').setFormula('=COUNTA(B8:B)');
   });
 }
 
