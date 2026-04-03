@@ -112,13 +112,13 @@ function sincronizarSalidaDineroAZEnHojasRepartidores() {
 function sincronizarMarcaCobroEnHojas() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const configuracion = {
-    Mauro: 27,
-    Brisa: 27,
-    Diogo: 27,
-    GIAN: 27,
-    LIBRE1: 27,
-    'Venta Mostrador': 18,
-    'Lector Pedidosya': 8
+    Mauro: { principal: 27, legacy: 13 },
+    Brisa: { principal: 27, legacy: 13 },
+    Diogo: { principal: 27, legacy: 13 },
+    GIAN: { principal: 27, legacy: 13 },
+    LIBRE1: { principal: 27, legacy: 13 },
+    'Venta Mostrador': { principal: 18, legacy: 11 },
+    'Lector Pedidosya': { principal: 8, legacy: 8 }
   };
 
   const resultado = [];
@@ -137,9 +137,16 @@ function sincronizarMarcaCobroEnHojas() {
     }
 
     const cantidadFilas = ultimaFila - 7;
-    const columnaAnotaciones = configuracion[nombreHoja];
-    const anotaciones = hoja.getRange(8, columnaAnotaciones, cantidadFilas, 1).getDisplayValues();
-    const marcas = anotaciones.map((fila) => [/COBRADO/i.test(String(fila[0] || '').trim()) ? 'COBRADO' : '']);
+    const configHoja = configuracion[nombreHoja];
+    const anotacionesPrincipal = hoja.getRange(8, configHoja.principal, cantidadFilas, 1).getDisplayValues();
+    const anotacionesLegacy = configHoja.legacy !== configHoja.principal
+      ? hoja.getRange(8, configHoja.legacy, cantidadFilas, 1).getDisplayValues()
+      : [];
+    const marcas = anotacionesPrincipal.map((fila, index) => {
+      const principal = String(fila[0] || '').trim();
+      const legacy = anotacionesLegacy.length ? String((anotacionesLegacy[index] && anotacionesLegacy[index][0]) || '').trim() : '';
+      return [(/COBRADO/i.test(principal) || /COBRADO/i.test(legacy)) ? 'COBRADO' : ''];
+    });
 
     hoja.getRange(8, 29, cantidadFilas, 1).setValues(marcas);
     resultado.push({

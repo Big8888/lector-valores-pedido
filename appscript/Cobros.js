@@ -20,6 +20,7 @@ const PERFILES_COBRO = {
     tarjeta: 5, // E
     efectivo: 6, // F
     transferencia: 7, // G
+    legacyRegistroCobro: 13, // M
     anotaciones: 27, // AA
     backupAnotacion: 28, // AB
     marcaCobrado: 29, // AC
@@ -33,6 +34,7 @@ const PERFILES_COBRO = {
     tarjeta: 5, // E
     efectivo: 6, // F
     transferencia: 7, // G
+    legacyRegistroCobro: 11, // K
     anotaciones: 11, // K
     registroCobro: 18, // R
     backupAnotacion: 28, // AB
@@ -47,6 +49,7 @@ const PERFILES_COBRO = {
     tarjeta: 4, // D
     efectivo: 5, // E
     transferencia: 12, // L
+    legacyRegistroCobro: 8, // H
     anotaciones: 8, // H
     backupAnotacion: 28, // AB
     marcaCobrado: 29, // AC
@@ -60,6 +63,10 @@ function getPerfilCobro_(sheetName) {
 
 function getColumnaRegistroCobro_(perfil) {
   return perfil.registroCobro || perfil.anotaciones;
+}
+
+function getColumnaRegistroCobroLegacy_(perfil) {
+  return perfil.legacyRegistroCobro || getColumnaRegistroCobro_(perfil);
 }
 
 function crearMenuCobros() {
@@ -167,6 +174,7 @@ function confirmarCobro(payload) {
   const hoja = getHojaCobroDesdePayload_(payload);
   const perfil = getPerfilCobro_(hoja.getName());
   const columnaRegistroCobro = getColumnaRegistroCobro_(perfil);
+  const columnaRegistroCobroLegacy = getColumnaRegistroCobroLegacy_(perfil);
   const filas = getFilasCobroDesdePayload_(payload);
 
   const totalEfectivo = toNumberCobro_(payload && payload.totalEfectivo);
@@ -176,10 +184,19 @@ function confirmarCobro(payload) {
 
   filas.forEach((fila) => {
     const anotacionCelda = hoja.getRange(fila, columnaRegistroCobro);
+    const anotacionLegacyCelda = columnaRegistroCobroLegacy !== columnaRegistroCobro
+      ? hoja.getRange(fila, columnaRegistroCobroLegacy)
+      : null;
     const backupAnotacionCelda = hoja.getRange(fila, perfil.backupAnotacion);
     const marcaCobradoCelda = hoja.getRange(fila, perfil.marcaCobrado);
     const anotacionActual = String(anotacionCelda.getValue() || '').trim();
-    const yaCobrado = isFilaCobrada_(hoja, fila, perfil, anotacionActual);
+    const anotacionLegacyActual = anotacionLegacyCelda
+      ? String(anotacionLegacyCelda.getValue() || '').trim()
+      : '';
+    const yaCobrado = isFilaCobrada_(hoja, fila, perfil, {
+      registroActual: anotacionActual,
+      legacyActual: anotacionLegacyActual
+    });
 
     if (!yaCobrado) {
       backupAnotacionCelda.setValue(anotacionActual);
@@ -192,6 +209,15 @@ function confirmarCobro(payload) {
         : 'COBRADO ' + hora;
       const nuevaAnotacion = anotacionActual ? anotacionActual + ' | ' + detalleCobro : detalleCobro;
       anotacionCelda.setValue(nuevaAnotacion);
+    }
+
+    if (anotacionLegacyCelda && /COBRADO/i.test(anotacionLegacyActual)) {
+      const textoLimpio = limpiarDetalleCobro_(anotacionLegacyActual);
+      if (textoLimpio) {
+        anotacionLegacyCelda.setValue(textoLimpio);
+      } else {
+        anotacionLegacyCelda.clearContent();
+      }
     }
 
     hoja.getRange(fila, perfil.accion).setValue(false);
@@ -209,19 +235,38 @@ function quitarCobro(payload) {
   const hoja = getHojaCobroDesdePayload_(payload);
   const perfil = getPerfilCobro_(hoja.getName());
   const columnaRegistroCobro = getColumnaRegistroCobro_(perfil);
+  const columnaRegistroCobroLegacy = getColumnaRegistroCobroLegacy_(perfil);
   const filas = getFilasCobroDesdePayload_(payload);
 
   filas.forEach((fila) => {
     const anotacionCelda = hoja.getRange(fila, columnaRegistroCobro);
+    const anotacionLegacyCelda = columnaRegistroCobroLegacy !== columnaRegistroCobro
+      ? hoja.getRange(fila, columnaRegistroCobroLegacy)
+      : null;
     const backupAnotacionCelda = hoja.getRange(fila, perfil.backupAnotacion);
     const marcaCobradoCelda = hoja.getRange(fila, perfil.marcaCobrado);
 
     const backupAnotacion = String(backupAnotacionCelda.getValue() || '');
     const anotacionActual = String(anotacionCelda.getValue() || '');
+    const anotacionLegacyActual = anotacionLegacyCelda
+      ? String(anotacionLegacyCelda.getValue() || '')
+      : '';
 
-    anotacionCelda.setValue(
-      backupAnotacion || limpiarDetalleCobro_(anotacionActual)
-    );
+    const textoRegistroFinal = backupAnotacion || limpiarDetalleCobro_(anotacionActual);
+    if (textoRegistroFinal) {
+      anotacionCelda.setValue(textoRegistroFinal);
+    } else {
+      anotacionCelda.clearContent();
+    }
+
+    if (anotacionLegacyCelda) {
+      const textoLegacyFinal = limpiarDetalleCobro_(anotacionLegacyActual);
+      if (textoLegacyFinal) {
+        anotacionLegacyCelda.setValue(textoLegacyFinal);
+      } else {
+        anotacionLegacyCelda.clearContent();
+      }
+    }
 
     backupAnotacionCelda.clearContent();
     marcaCobradoCelda.clearContent();
@@ -302,6 +347,9 @@ function obtenerCobroSeleccionadoPorFilas_(hoja, filasSeleccionadas, perfil) {
   const anotaciones = hoja
     .getRange(filaMinima, columnaRegistroCobro, cantidadFilas, 1)
     .getValues();
+  const legacyAnotaciones = (getColumnaRegistroCobroLegacy_(perfil) !== columnaRegistroCobro)
+    ? hoja.getRange(filaMinima, getColumnaRegistroCobroLegacy_(perfil), cantidadFilas, 1).getValues()
+    : [];
   const marcasCobrado = hoja
     .getRange(filaMinima, perfil.marcaCobrado, cantidadFilas, 1)
     .getValues();
@@ -310,6 +358,9 @@ function obtenerCobroSeleccionadoPorFilas_(hoja, filasSeleccionadas, perfil) {
     const indice = fila - filaMinima;
     const filaValores = valoresBase[indice] || [];
     const anotacionFila = String((anotaciones[indice] && anotaciones[indice][0]) || '').trim();
+    const legacyAnotacionFila = legacyAnotaciones.length
+      ? String((legacyAnotaciones[indice] && legacyAnotaciones[indice][0]) || '').trim()
+      : '';
     const marcaCobradoFila = String((marcasCobrado[indice] && marcasCobrado[indice][0]) || '').trim();
 
     const numeroPedidoInterno = String(
@@ -342,7 +393,10 @@ function obtenerCobroSeleccionadoPorFilas_(hoja, filasSeleccionadas, perfil) {
       efectivo,
       transferencia,
       totalFila,
-      cobrado: marcaCobradoFila === 'COBRADO' || /COBRADO/i.test(anotacionFila)
+      cobrado:
+        marcaCobradoFila === 'COBRADO' ||
+        /COBRADO/i.test(anotacionFila) ||
+        /COBRADO/i.test(legacyAnotacionFila)
     });
   });
 
@@ -370,10 +424,17 @@ function getValorCobroEnColumna_(filaValores, columna) {
   return filaValores[columna - 1];
 }
 
-function isFilaCobrada_(hoja, fila, perfil, anotacionActual) {
+function isFilaCobrada_(hoja, fila, perfil, opciones) {
+  const registroActual = typeof opciones === 'string'
+    ? String(opciones || '').trim()
+    : String((opciones && opciones.registroActual) || '').trim();
+  const legacyActual = typeof opciones === 'object'
+    ? String((opciones && opciones.legacyActual) || '').trim()
+    : '';
   const marcaCobrado = String(hoja.getRange(fila, perfil.marcaCobrado).getValue() || '').trim();
   if (marcaCobrado === 'COBRADO') return true;
-  return /COBRADO/i.test(String(anotacionActual || '').trim());
+  if (/COBRADO/i.test(registroActual)) return true;
+  return /COBRADO/i.test(legacyActual);
 }
 
 function obtenerFilasSeleccionadasCobro_(hoja, lastRow, perfil) {
