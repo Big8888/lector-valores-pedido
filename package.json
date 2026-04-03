@@ -7,6 +7,7 @@
     "validate": "node scripts/validate.js",
     "pedidosya:pdf": "node scripts/importPedidosYaPdf.js",
     "pedidosya:pdf:watch": "node scripts/watchPedidosYaPdf.js",
+    "datos:resumen-repartidores": "node scripts/configurarResumenDatosRepartidores.js",
     "sync:datos-transferencias": "node scripts/syncTransferLogToDatos.js",
     "venta-mostrador:ajustar-cobro": "node scripts/ajustarVentaMostradorCobroAR.js"
   },

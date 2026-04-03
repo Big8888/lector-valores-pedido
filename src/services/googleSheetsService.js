@@ -82,7 +82,22 @@ function normalizePhone(value) {
 }
 
 function toNumber(value) {
-  const normalized = normalizeCell(value).replace(/\./g, '').replace(',', '.');
+  if (value === null || value === undefined || value === '') {
+    return 0;
+  }
+
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : 0;
+  }
+
+  let normalized = normalizeCell(value).replace(/\$/g, '').replace(/\s/g, '');
+
+  if (normalized.includes(',') && normalized.includes('.')) {
+    normalized = normalized.replace(/\./g, '').replace(',', '.');
+  } else if (normalized.includes(',')) {
+    normalized = normalized.replace(/\./g, '').replace(',', '.');
+  }
+
   const parsed = Number(normalized);
   return Number.isFinite(parsed) ? parsed : 0;
 }
@@ -115,6 +130,107 @@ function getTransferLogConfig() {
     dataStartRow: 0,
     columns: {}
   };
+}
+
+function getDatosRiderSummaryConfig() {
+  return {
+    sheetName: 'Datos',
+    blocks: {
+      Diogo: {
+        titleCell: 'A4',
+        title: 'DIOGO',
+        dataRange: 'A6:O6'
+      },
+      Mauro: {
+        titleCell: 'S4',
+        title: 'Mauro',
+        dataRange: 'S6:AG6'
+      },
+      Brisa: {
+        titleCell: 'A27',
+        title: 'Brisa',
+        dataRange: 'A29:O29'
+      },
+      GIAN: {
+        titleCell: 'S27',
+        title: 'GIAN',
+        dataRange: 'S29:AG29'
+      },
+      LIBRE1: {
+        titleCell: 'A54',
+        title: 'LIBRE1',
+        dataRange: 'B55:P55'
+      }
+    }
+  };
+}
+
+function getMatrixValue(matrix, rowIndex, columnIndex) {
+  return matrix?.[rowIndex]?.[columnIndex] ?? '';
+}
+
+function formatDatosDay() {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: sheetsConfig.timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: 'numeric'
+  }).formatToParts(new Date());
+
+  const map = {};
+  parts.forEach((part) => {
+    if (part.type !== 'literal') {
+      map[part.type] = part.value;
+    }
+  });
+
+  if (!map.day || !map.month || !map.year) {
+    return '';
+  }
+
+  return `${Number(map.day)}/${map.month}/${map.year}`;
+}
+
+function formatDatosMoney(value, options = {}) {
+  const { blankWhenZero = false } = options;
+  const amount = toNumber(value);
+
+  if (!amount && blankWhenZero) {
+    return '';
+  }
+
+  return `$${Math.trunc(amount)}`;
+}
+
+function formatDatosPlainNumber(value) {
+  return String(Math.trunc(toNumber(value)));
+}
+
+function buildDatosRiderSummaryRow(formattedMatrix = [], rawMatrix = []) {
+  const totalPedidos = toNumber(getMatrixValue(rawMatrix, 0, 3));
+  if (totalPedidos <= 0) {
+    return new Array(15).fill('');
+  }
+
+  const totalHoras = toNumber(getMatrixValue(rawMatrix, 0, 10)) + toNumber(getMatrixValue(rawMatrix, 0, 11));
+
+  return [
+    formatDatosDay(),
+    formatDatosMoney(getMatrixValue(rawMatrix, 0, 6)),
+    formatDatosMoney(getMatrixValue(rawMatrix, 0, 8)),
+    formatDatosMoney(getMatrixValue(rawMatrix, 0, 9)),
+    formatDatosMoney(totalHoras),
+    formatDatosMoney(getMatrixValue(rawMatrix, 2, 13)),
+    formatDatosMoney(getMatrixValue(rawMatrix, 0, 12), { blankWhenZero: true }),
+    formatDatosMoney(getMatrixValue(rawMatrix, 0, 13)),
+    formatDatosPlainNumber(getMatrixValue(rawMatrix, 0, 0)),
+    formatDatosPlainNumber(getMatrixValue(rawMatrix, 0, 1)),
+    formatDatosPlainNumber(getMatrixValue(rawMatrix, 0, 2)),
+    formatDatosPlainNumber(getMatrixValue(rawMatrix, 0, 3)),
+    '',
+    normalizeCell(getMatrixValue(formattedMatrix, 2, 10)),
+    normalizeCell(getMatrixValue(formattedMatrix, 2, 11))
+  ];
 }
 
 function parseDateValue(value) {
@@ -365,6 +481,67 @@ async function syncAllCurrentTransferRowsToDatos() {
   return {
     ok: true,
     results
+  };
+}
+
+async function syncDatosRiderSummaries() {
+  const datosConfig = getDatosRiderSummaryConfig();
+  const riderSheets = Object.keys(datosConfig.blocks);
+  const sheets = await getSheetsClient();
+  const summaryRanges = riderSheets.map((sheetName) => `${sheetName}!A2:N4`);
+
+  const [formattedRes, rawRes] = await Promise.all([
+    sheets.spreadsheets.values.batchGet({
+      spreadsheetId: sheetsConfig.spreadsheetId,
+      ranges: summaryRanges
+    }),
+    sheets.spreadsheets.values.batchGet({
+      spreadsheetId: sheetsConfig.spreadsheetId,
+      ranges: summaryRanges,
+      valueRenderOption: 'UNFORMATTED_VALUE'
+    })
+  ]);
+
+  const formattedRanges = formattedRes.data.valueRanges || [];
+  const rawRanges = rawRes.data.valueRanges || [];
+  const updates = [];
+
+  riderSheets.forEach((sheetName, index) => {
+    const block = datosConfig.blocks[sheetName];
+    if (!block) return;
+
+    const formattedMatrix = formattedRanges[index]?.values || [];
+    const rawMatrix = rawRanges[index]?.values || [];
+    const rowValues = buildDatosRiderSummaryRow(formattedMatrix, rawMatrix);
+
+    if (block.titleCell && block.title) {
+      updates.push({
+        range: `${datosConfig.sheetName}!${block.titleCell}`,
+        values: [[block.title]]
+      });
+    }
+
+    updates.push({
+      range: `${datosConfig.sheetName}!${block.dataRange}`,
+      values: [rowValues]
+    });
+  });
+
+  if (!updates.length) {
+    return { ok: true, updatedRanges: [] };
+  }
+
+  await sheets.spreadsheets.values.batchUpdate({
+    spreadsheetId: sheetsConfig.spreadsheetId,
+    requestBody: {
+      valueInputOption: 'RAW',
+      data: updates
+    }
+  });
+
+  return {
+    ok: true,
+    updatedRanges: updates.map((update) => update.range)
   };
 }
 
@@ -686,6 +863,10 @@ async function writeOrderToSheet(sheetName, row, data) {
   });
 
   await syncTransferLogEntry(sheetName, data);
+
+  if (getRiderSheetNames().includes(sheetName)) {
+    await syncDatosRiderSummaries();
+  }
 }
 
 async function getOrderRowSnapshot(sheetName, row) {
@@ -761,6 +942,7 @@ module.exports = {
   buildDayKey,
   syncTransferLogEntry,
   syncAllCurrentTransferRowsToDatos,
+  syncDatosRiderSummaries,
   __internals: {
     buildOrderLookup,
     getLookupMatch,
@@ -768,6 +950,9 @@ module.exports = {
     formatTransferLogDate,
     formatTransferLogMonth,
     formatTransferLogPhone,
-    buildTransferLogKey
+    buildTransferLogKey,
+    buildDatosRiderSummaryRow,
+    formatDatosDay,
+    formatDatosMoney
   }
 };
