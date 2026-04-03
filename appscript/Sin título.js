@@ -5,7 +5,6 @@ function onOpen() {
   configurarColoresEstadoAutomaticosEnHojas();
   ocultarColumnasAuxiliares();
   sincronizarNombreHojaEnEncabezados();
-  sincronizarContadorPedidosEnHojas();
   crearMenuCobros();
   SpreadsheetApp.getActiveSpreadsheet().toast('Marca en A los pedidos a cobrar y usa el boton en A5.', 'COBROS', 5);
 }
