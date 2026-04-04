@@ -189,7 +189,15 @@ function formatDatosDay() {
     return '';
   }
 
-  return `${Number(map.day)}/${map.month}/${map.year}`;
+  const referenceDate = new Date(
+    Date.UTC(Number(map.year), Number(map.month) - 1, Number(map.day)) - (24 * 60 * 60 * 1000)
+  );
+
+  const referenceDay = String(referenceDate.getUTCDate()).padStart(2, '0');
+  const referenceMonth = String(referenceDate.getUTCMonth() + 1).padStart(2, '0');
+  const referenceYear = String(referenceDate.getUTCFullYear());
+
+  return `${Number(referenceDay)}/${referenceMonth}/${referenceYear}`;
 }
 
 function formatDatosMoney(value, options = {}) {
@@ -740,6 +748,16 @@ function parseSheetDayKey(value) {
   }
 
   return '';
+}
+
+function getSortKeyFecha(value) {
+  const dayKey = parseSheetDayKey(value);
+  if (!dayKey) {
+    return Number.MAX_SAFE_INTEGER;
+  }
+
+  const parsed = new Date(`${dayKey}T00:00:00Z`);
+  return Number.isNaN(parsed.getTime()) ? Number.MAX_SAFE_INTEGER : parsed.getTime();
 }
 
 function buildOrderLookup(orderOrId) {
