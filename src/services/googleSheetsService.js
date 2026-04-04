@@ -250,6 +250,24 @@ function normalizeRowWidth(row = [], width = 0) {
   return values;
 }
 
+function normalizeDatosRiderHistoryCell(value, index) {
+  if (index === 0 || index === 12 || index === 13 || index === 14) {
+    return value;
+  }
+
+  if (normalizeCell(value) === '') {
+    return '';
+  }
+
+  return toNumber(value);
+}
+
+function normalizeDatosRiderHistoryRow(row = [], width = 0) {
+  return normalizeRowWidth(row, width).map((value, index) =>
+    normalizeDatosRiderHistoryCell(value, index)
+  );
+}
+
 function isBlankRow(row = []) {
   return normalizeRowWidth(row, row.length).every((cell) => normalizeCell(cell) === '');
 }
@@ -263,10 +281,10 @@ function upsertDatosHistoryRows(existingRows = [], rowValues = []) {
   }
 
   const normalizedRows = (existingRows || [])
-    .map((row) => normalizeRowWidth(row, width))
+    .map((row) => normalizeDatosRiderHistoryRow(row, width))
     .filter((row) => !isBlankRow(row));
 
-  const nextRow = normalizeRowWidth(rowValues, width);
+  const nextRow = normalizeDatosRiderHistoryRow(rowValues, width);
   const existingIndex = normalizedRows.findIndex((row) => parseSheetDayKey(row[0]) === currentDayKey);
 
   if (existingIndex >= 0) {
