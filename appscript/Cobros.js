@@ -11,6 +11,9 @@ const URL_BOTON_COBRO = 'https://raw.githubusercontent.com/Big8888/lector-valore
 const COLOR_COBRADO = '#d9ead3';
 const PREFIJO_CACHE_FILAS_COBRO = 'COBROS_FILAS_';
 const PREFIJO_CACHE_FONDOS_COBRO = 'COBROS_FONDOS_';
+const BACKEND_OPERATIVO_BASE_URL_DEFAULT = 'https://lector-valores-pedido-final.onrender.com';
+const BACKEND_OPERATIVO_SECRET_PROPERTY = 'BACKEND_OPERATIVO_SECRET';
+const BACKEND_OPERATIVO_BASE_URL_PROPERTY = 'BACKEND_OPERATIVO_BASE_URL';
 let BOTON_COBRO_BLOB = null;
 const PERFILES_COBRO = {
   default: {
@@ -75,6 +78,7 @@ function crearMenuCobros() {
     .createMenu('COBROS')
     .addItem('Abrir calculadora de cobro', 'abrirVentanaCobro')
     .addItem('Recrear boton en hojas', 'crearBotonCobrosEnHojas')
+    .addItem('Configurar secret backend', 'configurarSecretBackendOperativo')
     .addToUi();
 }
 
@@ -156,8 +160,6 @@ function obtenerDatosCobroModal(sheetName) {
     throw new Error('No se encontro la hoja del cobro.');
   }
 
-  normalizarEstadosPagoCobradosEnLectorPedidosya_(hoja);
-
   const datos = obtenerPedidosSeleccionados_(hoja);
   if (datos.items.length === 0) {
     throw new Error('Marca en A los pedidos que queres cobrar y despues toca ABRIR COBROS.');
@@ -175,62 +177,18 @@ function obtenerDatosCobroModal(sheetName) {
 
 function confirmarCobro(payload) {
   const hoja = getHojaCobroDesdePayload_(payload);
-  const perfil = getPerfilCobro_(hoja.getName());
-  const columnaRegistroCobro = getColumnaRegistroCobro_(perfil);
-  const columnaRegistroCobroLegacy = getColumnaRegistroCobroLegacy_(perfil);
   const filas = getFilasCobroDesdePayload_(payload);
-
-  const totalEfectivo = toNumberCobro_(payload && payload.totalEfectivo);
-  const montoPago = toNumberCobro_(payload && payload.montoPago);
-  const vuelto = toNumberCobro_(payload && payload.vuelto);
-  const hora = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'HH:mm:ss');
-
-  filas.forEach((fila) => {
-    const anotacionCelda = hoja.getRange(fila, columnaRegistroCobro);
-    const anotacionLegacyCelda = columnaRegistroCobroLegacy !== columnaRegistroCobro
-      ? hoja.getRange(fila, columnaRegistroCobroLegacy)
-      : null;
-    const backupAnotacionCelda = hoja.getRange(fila, perfil.backupAnotacion);
-    const marcaCobradoCelda = hoja.getRange(fila, perfil.marcaCobrado);
-    const anotacionActual = String(anotacionCelda.getValue() || '').trim();
-    const anotacionLegacyActual = anotacionLegacyCelda
-      ? String(anotacionLegacyCelda.getValue() || '').trim()
-      : '';
-    const yaCobrado = isFilaCobrada_(hoja, fila, perfil, {
-      registroActual: anotacionActual,
-      legacyActual: anotacionLegacyActual
-    });
-
-    if (!yaCobrado) {
-      guardarFondosFilaAntesDeCobro_(hoja, fila, perfil);
-      backupAnotacionCelda.setValue(anotacionActual);
-      marcaCobradoCelda.setValue('COBRADO');
-    }
-
-    if (!yaCobrado) {
-      const detalleCobro = totalEfectivo > 0
-        ? 'COBRADO ' + hora + ' | Efectivo ' + totalEfectivo + ' | Pago ' + montoPago + ' | Vuelto ' + vuelto
-        : 'COBRADO ' + hora;
-      const nuevaAnotacion = anotacionActual ? anotacionActual + ' | ' + detalleCobro : detalleCobro;
-      anotacionCelda.setValue(nuevaAnotacion);
-    }
-
-    if (anotacionLegacyCelda && /COBRADO/i.test(anotacionLegacyActual)) {
-      const textoLimpio = limpiarDetalleCobro_(anotacionLegacyActual);
-      if (textoLimpio) {
-        anotacionLegacyCelda.setValue(textoLimpio);
-      } else {
-        anotacionLegacyCelda.clearContent();
-      }
-    }
-
-    hoja.getRange(fila, perfil.accion).setValue(false);
-    sincronizarEstadoPagoCobro_(hoja, fila, perfil);
+  const response = llamarBackendOperativo_('/admin/actions/cobro/confirmar', {
+    sheetName: hoja.getName(),
+    filas,
+    montoPago: toNumberCobro_(payload && payload.montoPago),
+    totalEfectivo: toNumberCobro_(payload && payload.totalEfectivo),
+    vuelto: toNumberCobro_(payload && payload.vuelto)
   });
 
   actualizarFilasCobroSeleccionadas_(hoja, filas, false);
 
-  return {
+  return response || {
     ok: true,
     mensaje: 'Cobro registrado correctamente.'
   };
@@ -238,26 +196,86 @@ function confirmarCobro(payload) {
 
 function quitarCobro(payload) {
   const hoja = getHojaCobroDesdePayload_(payload);
-  const perfil = getPerfilCobro_(hoja.getName());
   const filas = getFilasCobroDesdePayload_(payload);
-
-  filas.forEach((fila) => {
-    limpiarDatosFilaLuegoDeQuitar_(hoja, fila, perfil);
-    restaurarFondosFilaLuegoDeQuitar_(hoja, fila, perfil, filas);
-    hoja.getRange(fila, perfil.accion).setValue(false);
+  const response = llamarBackendOperativo_('/admin/actions/cobro/quitar', {
+    sheetName: hoja.getName(),
+    filas
   });
-
-  if (typeof configurarColoresEstadoAutomaticosEnHoja_ === 'function') {
-    configurarColoresEstadoAutomaticosEnHoja_(hoja);
-  }
-
-  SpreadsheetApp.flush();
   actualizarFilasCobroSeleccionadas_(hoja, filas, false);
 
-  return {
+  return response || {
     ok: true,
     mensaje: 'Cobro quitado correctamente.'
   };
+}
+
+function configurarSecretBackendOperativo() {
+  const ui = SpreadsheetApp.getUi();
+  const actual = PropertiesService.getDocumentProperties().getProperty(BACKEND_OPERATIVO_SECRET_PROPERTY) || '';
+  const respuesta = ui.prompt(
+    'Configurar secret backend',
+    actual
+      ? 'Pegá el secret del backend. Si querés reemplazar el actual, escribilo abajo.'
+      : 'Pegá el mismo secret que usas en Render como ADMIN_ACTION_SECRET o WEBHOOK_SECRET.',
+    ui.ButtonSet.OK_CANCEL
+  );
+
+  if (respuesta.getSelectedButton() !== ui.Button.OK) {
+    return;
+  }
+
+  const nuevoSecret = String(respuesta.getResponseText() || '').trim();
+  if (!nuevoSecret) {
+    throw new Error('No se ingreso ningun secret.');
+  }
+
+  const props = PropertiesService.getDocumentProperties();
+  props.setProperty(BACKEND_OPERATIVO_SECRET_PROPERTY, nuevoSecret);
+  props.setProperty(BACKEND_OPERATIVO_BASE_URL_PROPERTY, BACKEND_OPERATIVO_BASE_URL_DEFAULT);
+  SpreadsheetApp.getActiveSpreadsheet().toast('Secret backend guardado.', 'COBROS', 4);
+}
+
+function getBackendOperativoBaseUrl_() {
+  const configured = PropertiesService.getDocumentProperties().getProperty(BACKEND_OPERATIVO_BASE_URL_PROPERTY);
+  return String(configured || BACKEND_OPERATIVO_BASE_URL_DEFAULT || '').trim().replace(/\/+$/, '');
+}
+
+function getBackendOperativoSecret_() {
+  const secret = PropertiesService.getDocumentProperties().getProperty(BACKEND_OPERATIVO_SECRET_PROPERTY);
+  const normalized = String(secret || '').trim();
+  if (!normalized) {
+    throw new Error('Falta configurar el secret backend. Usa COBROS > Configurar secret backend.');
+  }
+
+  return normalized;
+}
+
+function llamarBackendOperativo_(path, payload) {
+  const baseUrl = getBackendOperativoBaseUrl_();
+  const secret = getBackendOperativoSecret_();
+  const response = UrlFetchApp.fetch(baseUrl + path, {
+    method: 'post',
+    contentType: 'application/json',
+    muteHttpExceptions: true,
+    headers: {
+      'x-admin-secret': secret
+    },
+    payload: JSON.stringify(payload || {})
+  });
+
+  const bodyText = response.getContentText() || '';
+  let body = {};
+  try {
+    body = bodyText ? JSON.parse(bodyText) : {};
+  } catch (error) {
+    throw new Error('El backend devolvio una respuesta invalida.');
+  }
+
+  if (response.getResponseCode() >= 400) {
+    throw new Error(body && body.error ? body.error : 'No se pudo completar la accion en el backend.');
+  }
+
+  return body;
 }
 
 function getHojaCobroDesdePayload_(payload) {

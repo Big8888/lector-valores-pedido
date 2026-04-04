@@ -17,6 +17,7 @@ function crearMenuCierreDia() {
     .createMenu('CIERRE')
     .addItem('Procesar cierre del dia', 'procesarCierreDelDia')
     .addItem('Recrear boton cierre del dia', 'asegurarBotonCierreDelDiaEnHoja')
+    .addItem('Configurar secret backend', 'configurarSecretBackendOperativo')
     .addToUi();
 }
 
@@ -62,27 +63,12 @@ function procesarCierreDelDia() {
   }
 
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const hojaDatos = ss.getSheetByName(HOJA_DATOS_CIERRE);
-  const hojaCierre = ss.getSheetByName(HOJA_CIERRE_CAJA);
-
-  if (!hojaDatos) {
-    throw new Error('No se encontro la hoja Datos.');
-  }
-
-  if (!hojaCierre) {
-    throw new Error('No se encontro la hoja Cierre de caja.');
-  }
-
-  const archivo = archivarFilaResumenDatos_(hojaDatos);
-  copiarValoresCierreCaja_(hojaCierre);
-  limpiarCobrosOperativos_(ss);
-  limpiarHojasOperativasDelDia_(ss);
-  SpreadsheetApp.flush();
+  const resultado = llamarBackendOperativo_('/admin/actions/cierre-dia', {});
   ss.toast('Cierre del dia procesado correctamente.', 'CIERRE', 6);
 
   return {
     ok: true,
-    archivo
+    archivo: resultado && resultado.archivo ? resultado.archivo : null
   };
 }
 

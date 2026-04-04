@@ -935,6 +935,9 @@ async function clearOrderRow(sheetName, row) {
 }
 
 module.exports = {
+  getSheetsClient,
+  getSheetProfile,
+  getRiderSheetNames,
   getNextEmptyRow,
   writeOrderToSheet,
   findOrderAcrossSheets,
