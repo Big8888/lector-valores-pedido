@@ -38,14 +38,7 @@ function crearDesplegableMedioPago() {
     }
 
     hoja.getRange(8, 12, totalRows, 1).clearDataValidations();
-
-    const rango = hoja.getRange(8, 10, totalRows, 1);
-    const regla = SpreadsheetApp.newDataValidation()
-      .requireValueInList(['Tarjeta', 'Efectivo', 'Transferencia'], true)
-      .setAllowInvalid(false)
-      .build();
-
-    rango.setDataValidation(regla);
+    hoja.getRange(8, 10, totalRows, 1).clearDataValidations();
   });
 }
 
