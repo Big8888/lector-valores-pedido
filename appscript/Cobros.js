@@ -236,42 +236,10 @@ function confirmarCobro(payload) {
 function quitarCobro(payload) {
   const hoja = getHojaCobroDesdePayload_(payload);
   const perfil = getPerfilCobro_(hoja.getName());
-  const columnaRegistroCobro = getColumnaRegistroCobro_(perfil);
-  const columnaRegistroCobroLegacy = getColumnaRegistroCobroLegacy_(perfil);
   const filas = getFilasCobroDesdePayload_(payload);
 
   filas.forEach((fila) => {
-    const anotacionCelda = hoja.getRange(fila, columnaRegistroCobro);
-    const anotacionLegacyCelda = columnaRegistroCobroLegacy !== columnaRegistroCobro
-      ? hoja.getRange(fila, columnaRegistroCobroLegacy)
-      : null;
-    const backupAnotacionCelda = hoja.getRange(fila, perfil.backupAnotacion);
-    const marcaCobradoCelda = hoja.getRange(fila, perfil.marcaCobrado);
-
-    const backupAnotacion = String(backupAnotacionCelda.getValue() || '');
-    const anotacionActual = String(anotacionCelda.getValue() || '');
-    const anotacionLegacyActual = anotacionLegacyCelda
-      ? String(anotacionLegacyCelda.getValue() || '')
-      : '';
-
-    const textoRegistroFinal = backupAnotacion || limpiarDetalleCobro_(anotacionActual);
-    if (textoRegistroFinal) {
-      anotacionCelda.setValue(textoRegistroFinal);
-    } else {
-      anotacionCelda.clearContent();
-    }
-
-    if (anotacionLegacyCelda) {
-      const textoLegacyFinal = limpiarDetalleCobro_(anotacionLegacyActual);
-      if (textoLegacyFinal) {
-        anotacionLegacyCelda.setValue(textoLegacyFinal);
-      } else {
-        anotacionLegacyCelda.clearContent();
-      }
-    }
-
-    backupAnotacionCelda.clearContent();
-    marcaCobradoCelda.clearContent();
+    limpiarDatosFilaLuegoDeQuitar_(hoja, fila, perfil);
     restaurarFondosFilaLuegoDeQuitar_(hoja, fila, perfil, filas);
     hoja.getRange(fila, perfil.accion).setValue(false);
   });
@@ -602,6 +570,33 @@ function getKeyFondosCobro_(sheetName, fila) {
     '_' +
     String(Number(fila) || '')
   );
+}
+
+function limpiarDatosFilaLuegoDeQuitar_(hoja, fila, perfil) {
+  const rangos = getRangosFilaPedidoParaLimpiar_(hoja.getName(), fila, perfil);
+  rangos.forEach((a1) => hoja.getRange(a1).clearContent());
+}
+
+function getRangosFilaPedidoParaLimpiar_(sheetName, fila, perfil) {
+  if (sheetName === 'Venta Mostrador') {
+    return [
+      `${sheetName}!B${fila}:R${fila}`,
+      `${sheetName}!AB${fila}:AD${fila}`
+    ];
+  }
+
+  if (sheetName === 'Lector Pedidosya') {
+    return [
+      `${sheetName}!B${fila}:N${fila}`,
+      `${sheetName}!AB${fila}:AD${fila}`
+    ];
+  }
+
+  return [
+    `${sheetName}!B${fila}:M${fila}`,
+    `${sheetName}!V${fila}:Y${fila}`,
+    `${sheetName}!AA${fila}:AD${fila}`
+  ];
 }
 
 function limpiarDetalleCobro_(texto) {
