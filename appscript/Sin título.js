@@ -6,6 +6,12 @@ function onOpen() {
   ocultarColumnasAuxiliares();
   sincronizarNombreHojaEnEncabezados();
   crearMenuCobros();
+  crearMenuCierreDia();
+  try {
+    asegurarBotonCierreDelDiaEnHoja();
+  } catch (error) {
+    Logger.log('No se pudo asegurar el boton de cierre del dia: ' + error);
+  }
   SpreadsheetApp.getActiveSpreadsheet().toast('Marca en A los pedidos a cobrar y usa el boton en A5.', 'COBROS', 5);
 }
 
