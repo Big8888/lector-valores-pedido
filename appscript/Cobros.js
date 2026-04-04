@@ -156,6 +156,8 @@ function obtenerDatosCobroModal(sheetName) {
     throw new Error('No se encontro la hoja del cobro.');
   }
 
+  normalizarEstadosPagoCobradosEnLectorPedidosya_(hoja);
+
   const datos = obtenerPedidosSeleccionados_(hoja);
   if (datos.items.length === 0) {
     throw new Error('Marca en A los pedidos que queres cobrar y despues toca ABRIR COBROS.');
@@ -598,6 +600,55 @@ function sincronizarEstadoPagoCobro_(hoja, fila, perfil) {
 
   if (efectivo > 0 && isEstadoPendienteCobro_(estadoActual)) {
     estadoPagoCelda.setValue('PAGADO');
+  }
+}
+
+function normalizarEstadosPagoCobradosEnLectorPedidosya_(hoja) {
+  if (!hoja || hoja.getName() !== 'Lector Pedidosya') {
+    return;
+  }
+
+  const perfil = getPerfilCobro_(hoja.getName());
+  const lastRow = hoja.getLastRow();
+  if (lastRow < FILA_INICIO_PEDIDOS) {
+    return;
+  }
+
+  const totalRows = lastRow - FILA_INICIO_PEDIDOS + 1;
+  const columnaRegistroCobro = getColumnaRegistroCobro_(perfil);
+  const columnaRegistroCobroLegacy = getColumnaRegistroCobroLegacy_(perfil);
+  const efectivoValues = hoja.getRange(FILA_INICIO_PEDIDOS, perfil.efectivo, totalRows, 1).getValues();
+  const estadoValues = hoja.getRange(FILA_INICIO_PEDIDOS, perfil.estadoPago, totalRows, 1).getValues();
+  const registroValues = hoja.getRange(FILA_INICIO_PEDIDOS, columnaRegistroCobro, totalRows, 1).getValues();
+  const legacyValues = columnaRegistroCobroLegacy !== columnaRegistroCobro
+    ? hoja.getRange(FILA_INICIO_PEDIDOS, columnaRegistroCobroLegacy, totalRows, 1).getValues()
+    : [];
+  const marcaValues = hoja.getRange(FILA_INICIO_PEDIDOS, perfil.marcaCobrado, totalRows, 1).getValues();
+
+  let touched = false;
+  for (let index = 0; index < totalRows; index += 1) {
+    const fila = FILA_INICIO_PEDIDOS + index;
+    const efectivo = toNumberCobro_(efectivoValues[index] && efectivoValues[index][0]);
+    const estadoActual = String((estadoValues[index] && estadoValues[index][0]) || '').trim().toUpperCase();
+    const registroActual = String((registroValues[index] && registroValues[index][0]) || '').trim();
+    const legacyActual = legacyValues.length
+      ? String((legacyValues[index] && legacyValues[index][0]) || '').trim()
+      : '';
+    const marcaActual = String((marcaValues[index] && marcaValues[index][0]) || '').trim();
+
+    const estaCobrado =
+      marcaActual === 'COBRADO' ||
+      /COBRADO/i.test(registroActual) ||
+      /COBRADO/i.test(legacyActual);
+
+    if (efectivo > 0 && estaCobrado && isEstadoPendienteCobro_(estadoActual)) {
+      estadoValues[index][0] = 'PAGADO';
+      touched = true;
+    }
+  }
+
+  if (touched) {
+    hoja.getRange(FILA_INICIO_PEDIDOS, perfil.estadoPago, totalRows, 1).setValues(estadoValues);
   }
 }
 
