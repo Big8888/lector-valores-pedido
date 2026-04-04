@@ -265,12 +265,12 @@ assert.deepStrictEqual(
     propinaTransferencia: 75
   }),
   {
-    mes: '4',
+    mes: 'ABRIL',
     fecha: '2/04',
     numeroPedido: '2',
     cliente: 'Martin Perez',
     importe: 1019,
-    telefono: '+598 92103510',
+    telefono: "'+598 92103510",
     anotaciones: 'Sin timbre',
     repartidor: 'Mauro',
     propinaTransferencia: 75,

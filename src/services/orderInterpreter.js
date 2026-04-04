@@ -740,6 +740,27 @@ function buildNotas(data) {
   return notes.join(' | ');
 }
 
+function buildFullName(firstName, lastName) {
+  return [asString(firstName), asString(lastName)].filter(Boolean).join(' ').trim();
+}
+
+function detectCliente(data, payload) {
+  const directCandidates = [
+    asString(data.client && data.client.name),
+    buildFullName(data.client && data.client.first_name, data.client && data.client.last_name),
+    asString(data.customer && data.customer.name),
+    buildFullName(data.customer && data.customer.first_name, data.customer && data.customer.last_name),
+    asString(data.buyer && data.buyer.name),
+    buildFullName(data.buyer && data.buyer.first_name, data.buyer && data.buyer.last_name),
+    asString(data.contact && data.contact.name),
+    asString(data.user && data.user.name),
+    asString(payload && payload.client && payload.client.name),
+    asString(payload && payload.customer && payload.customer.name)
+  ].filter(Boolean);
+
+  return directCandidates[0] || '';
+}
+
 function normalizeStatusText(value) {
   return asString(value).toLowerCase().trim();
 }
@@ -986,7 +1007,7 @@ function detectFinalizadoTimestamp(data, payload) {
 function interpretOrder(payload = {}) {
   const data = getOrderData(payload);
 
-  const cliente = asString(data.client && data.client.name);
+  const cliente = detectCliente(data, payload);
   const countryCode = asString(data.client && data.client.country_calling_code);
   const phoneNumber = asString(data.client && data.client.phone_number);
   const telefono = countryCode && phoneNumber ? `+${countryCode} ${phoneNumber}` : phoneNumber;

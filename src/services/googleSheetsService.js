@@ -278,10 +278,13 @@ function getDatePartsInSheetTimeZone(value) {
 }
 
 function formatTransferLogMonth(value) {
-  const parts = getDatePartsInSheetTimeZone(value);
-  if (!parts) return '';
+  const date = parseDateValue(value);
+  if (!date) return '';
 
-  return String(Number(parts.month));
+  return new Intl.DateTimeFormat('es-UY', {
+    timeZone: sheetsConfig.timeZone,
+    month: 'long'
+  }).format(date).toUpperCase();
 }
 
 function formatTransferLogDate(value) {
@@ -292,7 +295,10 @@ function formatTransferLogDate(value) {
 }
 
 function formatTransferLogPhone(value) {
-  return normalizeCell(value);
+  const normalized = normalizeCell(value);
+  if (!normalized) return '';
+
+  return normalized.startsWith("'") ? normalized : `'${normalized}`;
 }
 
 function getTransferLogCourier(sheetName, data = {}) {
