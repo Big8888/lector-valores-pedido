@@ -128,6 +128,7 @@ function getTransferLogConfig() {
     sheetName: '',
     headerRow: 0,
     dataStartRow: 0,
+    dataEndRow: 0,
     columns: {}
   };
 }
@@ -291,29 +292,23 @@ function formatTransferLogDate(value) {
 }
 
 function formatTransferLogPhone(value) {
-  const digits = String(value || '').replace(/\D/g, '').trim();
-  if (!digits) return '';
+  return normalizeCell(value);
+}
 
-  const localDigits = digits.startsWith('598') && digits.length > 8
-    ? digits.slice(3)
-    : digits;
-
-  return localDigits.slice(-4);
+function getTransferLogCourier(sheetName, data = {}) {
+  return normalizeCell(data.repartidor || data.riderHint || sheetName);
 }
 
 function buildTransferLogKey(sheetName, data = {}) {
-  const tracking = normalizeCell(data.nroPedidoTracking);
-  if (tracking) {
-    return `${sheetName}::${tracking}`;
-  }
-
   const numeroPedido = normalizeCell(data.numeroPedidoVisible || data.numeroPedidoInterno);
-  const dayKey = buildDayKey(data.fecha);
-  if (!numeroPedido && !dayKey) {
+  const fecha = formatTransferLogDate(data.fecha);
+  const repartidor = getTransferLogCourier(sheetName, data);
+
+  if (!numeroPedido && !fecha && !repartidor) {
     return '';
   }
 
-  return `${sheetName}::${numeroPedido}::${dayKey}`;
+  return `${numeroPedido}::${fecha}::${repartidor}`;
 }
 
 function buildTransferLogEntry(sheetName, data = {}) {
@@ -324,21 +319,24 @@ function buildTransferLogEntry(sheetName, data = {}) {
 
   return {
     mes: formatTransferLogMonth(data.fecha),
+    fecha: formatTransferLogDate(data.fecha),
     numeroPedido: normalizeCell(data.numeroPedidoVisible || data.numeroPedidoInterno),
+    cliente: normalizeCell(data.cliente),
     importe: amount,
     telefono: formatTransferLogPhone(data.telefono),
-    fecha: formatTransferLogDate(data.fecha),
     anotaciones: normalizeCell(data.anotaciones),
-    syncKey: buildTransferLogKey(sheetName, data),
-    sourceSheet: normalizeCell(sheetName)
+    repartidor: getTransferLogCourier(sheetName, data),
+    syncKey: buildTransferLogKey(sheetName, data)
   };
 }
 
 async function getTransferLogRowState(sheets, transferConfig, syncKey) {
-  const { sheetName, dataStartRow, columns } = transferConfig;
+  const { sheetName, dataStartRow, dataEndRow, columns } = transferConfig;
+  const totalRows = Math.max((dataEndRow || dataStartRow) - dataStartRow + 1, 1);
   const ranges = [
-    getColumnRange(sheetName, columns.syncKey, dataStartRow),
-    getColumnRange(sheetName, columns.numeroPedido, dataStartRow)
+    `${sheetName}!${columns.numeroPedido}${dataStartRow}:${columns.numeroPedido}${dataEndRow}`,
+    `${sheetName}!${columns.fecha}${dataStartRow}:${columns.fecha}${dataEndRow}`,
+    `${sheetName}!${columns.repartidor}${dataStartRow}:${columns.repartidor}${dataEndRow}`
   ];
 
   const res = await sheets.spreadsheets.values.batchGet({
@@ -347,18 +345,21 @@ async function getTransferLogRowState(sheets, transferConfig, syncKey) {
   });
 
   const valueRanges = res.data.valueRanges || [];
-  const syncKeys = valueRanges[0]?.values || [];
-  const numeroPedidos = valueRanges[1]?.values || [];
-  const maxLength = Math.max(syncKeys.length, numeroPedidos.length);
+  const numeroPedidos = valueRanges[0]?.values || [];
+  const fechas = valueRanges[1]?.values || [];
+  const repartidores = valueRanges[2]?.values || [];
+  const maxLength = Math.max(totalRows, numeroPedidos.length, fechas.length, repartidores.length);
 
   let lastUsedIndex = -1;
   let existingRow = null;
 
   for (let index = 0; index < maxLength; index += 1) {
-    const currentKey = normalizeCell(syncKeys[index]?.[0]);
     const currentNumero = normalizeCell(numeroPedidos[index]?.[0]);
+    const currentFecha = normalizeCell(fechas[index]?.[0]);
+    const currentRepartidor = normalizeCell(repartidores[index]?.[0]);
+    const currentKey = `${currentNumero}::${currentFecha}::${currentRepartidor}`;
 
-    if (currentKey || currentNumero) {
+    if (currentNumero || currentFecha || currentRepartidor) {
       lastUsedIndex = index;
     }
 
@@ -369,12 +370,13 @@ async function getTransferLogRowState(sheets, transferConfig, syncKey) {
 
   return {
     existingRow,
-    nextRow: dataStartRow + lastUsedIndex + 1
+    nextRow: dataStartRow + lastUsedIndex + 1,
+    isFull: dataStartRow + lastUsedIndex + 1 > dataEndRow
   };
 }
 
 async function writeTransferLogEntry(sheets, transferConfig, rowNumber, entry) {
-  const { sheetName, headerRow, columns } = transferConfig;
+  const { sheetName, columns } = transferConfig;
 
   await sheets.spreadsheets.values.batchUpdate({
     spreadsheetId: sheetsConfig.spreadsheetId,
@@ -382,15 +384,13 @@ async function writeTransferLogEntry(sheets, transferConfig, rowNumber, entry) {
       valueInputOption: 'RAW',
       data: [
         { range: `${sheetName}!${columns.mes}${rowNumber}`, values: [[entry.mes || '']] },
+        { range: `${sheetName}!${columns.fecha}${rowNumber}`, values: [[entry.fecha || '']] },
         { range: `${sheetName}!${columns.numeroPedido}${rowNumber}`, values: [[entry.numeroPedido || '']] },
+        { range: `${sheetName}!${columns.cliente}${rowNumber}`, values: [[entry.cliente || '']] },
         { range: `${sheetName}!${columns.importe}${rowNumber}`, values: [[entry.importe || '']] },
         { range: `${sheetName}!${columns.telefono}${rowNumber}`, values: [[entry.telefono || '']] },
-        { range: `${sheetName}!${columns.fecha}${rowNumber}`, values: [[entry.fecha || '']] },
         { range: `${sheetName}!${columns.anotaciones}${rowNumber}`, values: [[entry.anotaciones || '']] },
-        { range: `${sheetName}!${columns.syncKey}${headerRow}`, values: [['__SYNC_KEY']] },
-        { range: `${sheetName}!${columns.sourceSheet}${headerRow}`, values: [['__SOURCE_SHEET']] },
-        { range: `${sheetName}!${columns.syncKey}${rowNumber}`, values: [[entry.syncKey || '']] },
-        { range: `${sheetName}!${columns.sourceSheet}${rowNumber}`, values: [[entry.sourceSheet || '']] }
+        { range: `${sheetName}!${columns.repartidor}${rowNumber}`, values: [[entry.repartidor || '']] }
       ]
     }
   });
@@ -409,6 +409,9 @@ async function syncTransferLogEntry(sheetName, data = {}) {
 
   const sheets = await getSheetsClient();
   const state = await getTransferLogRowState(sheets, transferConfig, entry.syncKey);
+  if (!state.existingRow && state.isFull) {
+    throw new Error(`La tabla de transferencias ${transferConfig.sheetName}!${transferConfig.columns.mes}${transferConfig.dataStartRow}:${transferConfig.columns.repartidor}${transferConfig.dataEndRow} ya no tiene filas libres.`);
+  }
   const rowNumber = state.existingRow || state.nextRow;
 
   await writeTransferLogEntry(sheets, transferConfig, rowNumber, entry);
@@ -907,6 +910,8 @@ async function getOrderRowSnapshot(sheetName, row) {
     numeroPedidoVisible: normalizeCell(valueByField.numeroPedidoVisible),
     nroPedidoTracking: normalizeCell(valueByField.nroPedidoTracking),
     importeTransferenciaVisible: toNumber(valueByField.importeTransferenciaVisible),
+    cliente: normalizeCell(valueByField.cliente),
+    repartidor: normalizeCell(valueByField.repartidor),
     telefono: normalizeCell(valueByField.telefono),
     fecha: normalizeCell(valueByField.fecha)
   };

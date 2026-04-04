@@ -266,6 +266,8 @@ function mapOrderToSheetRow(order, existingRow = null, sheetName = '') {
       anotaciones: resolveText(order.notas, existingRow?.anotaciones, ''),
       numeroPedidoVisible: numeroPedidoInterno,
       nroPedidoTracking: resolveText(order.nroPedido, existingRow?.nroPedidoTracking, ''),
+      cliente: resolveText(order.cliente, existingRow?.cliente, ''),
+      repartidor: resolveText(order.repartidor, existingRow?.repartidor, sheetName),
       importeTransferenciaVisible: transferenciaValue > 0 ? transferenciaValue : '',
       telefono: asPlainText(order.telefono),
       fecha: formatFecha(order.fecha)
@@ -330,6 +332,8 @@ function mapOrderToSheetRow(order, existingRow = null, sheetName = '') {
         order.numeroPedidoInterno || existingRow?.numeroPedidoInterno || ''
       ),
       nroPedidoTracking: resolveText(order.nroPedido, existingRow?.nroPedidoTracking, ''),
+      cliente: resolveText(order.cliente, existingRow?.cliente, ''),
+      repartidor: resolveText(order.repartidor, existingRow?.repartidor, sheetName),
       importeTransferenciaVisible: pedidosYaTransferencia > 0 ? pedidosYaTransferencia : '',
       telefono: resolveText(asPlainText(order.telefono), existingRow?.telefono, ''),
       fecha: resolveText(order.fecha ? formatFecha(order.fecha) : '', existingRow?.fecha, '')
@@ -350,6 +354,8 @@ function mapOrderToSheetRow(order, existingRow = null, sheetName = '') {
     finalizado,
     numeroPedidoVisible: order.numeroPedidoInterno || existingRow?.numeroPedidoInterno || '',
     nroPedidoTracking: resolveText(order.nroPedido, existingRow?.nroPedidoTracking, ''),
+    cliente: resolveText(order.cliente, existingRow?.cliente, ''),
+    repartidor: resolveText(order.repartidor, existingRow?.repartidor, sheetName),
     importeTransferenciaVisible: transferenciaValue > 0 ? transferenciaValue : '',
     telefono: asPlainText(order.telefono),
     fecha: formatFecha(order.fecha)

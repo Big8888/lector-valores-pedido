@@ -259,19 +259,22 @@ assert.deepStrictEqual(
     telefono: "'+598 92103510",
     fecha: '02/04/2026, 20:17',
     nroPedidoTracking: 'UY-4170853827',
-    anotaciones: ''
+    cliente: 'Martin Perez',
+    anotaciones: 'Sin timbre',
+    repartidor: 'Mauro'
   }),
   {
     mes: '4',
-    numeroPedido: '2',
-    importe: 1019,
-    telefono: '3510',
     fecha: '2/04',
-    anotaciones: '',
-    syncKey: 'Mauro::UY-4170853827',
-    sourceSheet: 'Mauro'
+    numeroPedido: '2',
+    cliente: 'Martin Perez',
+    importe: 1019,
+    telefono: '+598 92103510',
+    anotaciones: 'Sin timbre',
+    repartidor: 'Mauro',
+    syncKey: '2::2/04::Mauro'
   },
-  'El log de transferencias debe quedar alineado con el bloque Datos (mes, pedido, importe, tel, fecha y clave oculta).'
+  'El log de transferencias debe quedar alineado con la tabla AV:BC (mes, fecha, pedido, cliente, importe, telefono completo, anotaciones y repartidor).'
 );
 
 console.log('VALIDACION_OK');

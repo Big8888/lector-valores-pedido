@@ -8,15 +8,16 @@ module.exports = {
     sheetName: 'Datos',
     headerRow: 66,
     dataStartRow: 67,
+    dataEndRow: 212,
     columns: {
-      mes: 'AU',
-      numeroPedido: 'AV',
-      importe: 'AW',
-      telefono: 'AX',
-      fecha: 'AY',
-      anotaciones: 'AZ',
-      syncKey: 'BA',
-      sourceSheet: 'BB'
+      mes: 'AV',
+      fecha: 'AW',
+      numeroPedido: 'AX',
+      cliente: 'AY',
+      importe: 'AZ',
+      telefono: 'BA',
+      anotaciones: 'BB',
+      repartidor: 'BC'
     }
   },
   riderSheets: {

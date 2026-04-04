@@ -10,6 +10,7 @@ const ALTO_BOTON_CIERRE_DIA = 52;
 const OFFSET_X_BOTON_CIERRE_DIA = 2;
 const OFFSET_Y_BOTON_CIERRE_DIA = 3;
 const URL_BOTON_CIERRE_DIA = 'https://raw.githubusercontent.com/Big8888/lector-valores-pedido/main/assets/cerrar-dia-button.png';
+const FILA_MAX_ARCHIVO_DATOS = 65;
 
 function crearMenuCierreDia() {
   SpreadsheetApp.getUi()
@@ -101,7 +102,7 @@ function archivarFilaResumenDatos_(hojaDatos) {
   const startRow = 2;
   const startColumn = columnToNumberCierre_('AU');
   const width = sourceValues.length;
-  const maxRows = Math.max(hojaDatos.getMaxRows() - startRow + 1, 1);
+  const maxRows = Math.max(FILA_MAX_ARCHIVO_DATOS - startRow + 1, 1);
   const targetRange = hojaDatos.getRange(startRow, startColumn, maxRows, width);
   const existingValues = targetRange.getValues();
   const existingDisplays = targetRange.getDisplayValues();
@@ -126,6 +127,10 @@ function archivarFilaResumenDatos_(hojaDatos) {
   const sourceFingerprint = JSON.stringify(sourceDisplayValues);
   const alreadyExists = registros.some((registro) => JSON.stringify(registro.displayValues) === sourceFingerprint);
   if (!alreadyExists) {
+    if (registros.length >= maxRows) {
+      throw new Error(`No hay lugar libre en Datos!AU2:CM${FILA_MAX_ARCHIVO_DATOS} para guardar otro cierre.`);
+    }
+
     registros.push({
       values: sourceValues.slice(0, width),
       displayValues: sourceDisplayValues.slice(0, width),
