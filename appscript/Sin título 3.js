@@ -12,6 +12,7 @@ function ocultarColumnasAuxiliares() {
 
 const HOJAS_COBRO_PROTEGIDAS = ['Mauro', 'Brisa', 'Diogo', 'GIAN', 'LIBRE1', 'Venta Mostrador', 'Lector Pedidosya'];
 const RANGO_TICKS_COBRO_A1 = 'A8:A';
+const USUARIO_BIGOTTO_EMAIL = 'usuariobigotto@gmail.com';
 const CONFIGURACION_PROTECCIONES_COBRO = {
   Mauro: [
     'A8:A',
@@ -21,8 +22,7 @@ const CONFIGURACION_PROTECCIONES_COBRO = {
     'J8:J187',
     'M8:M76',
     'O6:S6',
-    'O8:S98',
-    'AA:AC'
+    'O8:S98'
   ],
   Brisa: [
     'A8:A',
@@ -32,8 +32,7 @@ const CONFIGURACION_PROTECCIONES_COBRO = {
     'J8:J187',
     'M8:M76',
     'O6:S6',
-    'O8:S98',
-    'AA:AC'
+    'O8:S98'
   ],
   Diogo: [
     'A8:A',
@@ -43,8 +42,7 @@ const CONFIGURACION_PROTECCIONES_COBRO = {
     'J8:J187',
     'M8:M76',
     'O6:S6',
-    'O8:S98',
-    'AA:AC'
+    'O8:S98'
   ],
   GIAN: [
     'A8:A',
@@ -54,8 +52,7 @@ const CONFIGURACION_PROTECCIONES_COBRO = {
     'J8:J187',
     'M8:M76',
     'O6:S6',
-    'O8:S98',
-    'AA:AC'
+    'O8:S98'
   ],
   LIBRE1: [
     'A8:A',
@@ -65,18 +62,14 @@ const CONFIGURACION_PROTECCIONES_COBRO = {
     'J8:J187',
     'M8:M76',
     'O6:S6',
-    'O8:S98',
-    'AA:AC'
+    'O8:S98'
   ],
   'Venta Mostrador': [
     'A8:A',
-    'K8:K',
-    'AB:AC'
+    'K8:K'
   ],
   'Lector Pedidosya': [
-    'A8:A',
-    'H8:H',
-    'AB:AC'
+    'A8:A'
   ]
 };
 
@@ -277,6 +270,58 @@ function aplicarProteccionEnHojasRepartidores() {
     ok: true,
     resultado
   };
+}
+
+function restringirPermisosOperativosUsuariobigotto() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const resultado = [];
+
+  Object.keys(CONFIGURACION_PROTECCIONES_COBRO).forEach((nombreHoja) => {
+    const hoja = ss.getSheetByName(nombreHoja);
+    if (!hoja) {
+      resultado.push({ hoja: nombreHoja, ok: false, motivo: 'Hoja no encontrada' });
+      return;
+    }
+
+    const rangosEditables = CONFIGURACION_PROTECCIONES_COBRO[nombreHoja].map((a1) => hoja.getRange(a1));
+    const proteccionesHoja = hoja.getProtections(SpreadsheetApp.ProtectionType.SHEET);
+    const proteccionesRango = hoja.getProtections(SpreadsheetApp.ProtectionType.RANGE);
+
+    proteccionesHoja.forEach((protection) => {
+      protection.setUnprotectedRanges(rangosEditables);
+      removerEditorSiExiste_(protection, USUARIO_BIGOTTO_EMAIL);
+    });
+
+    proteccionesRango.forEach((protection) => {
+      removerEditorSiExiste_(protection, USUARIO_BIGOTTO_EMAIL);
+    });
+
+    resultado.push({
+      hoja: nombreHoja,
+      ok: true,
+      proteccionesHoja: proteccionesHoja.length,
+      proteccionesRango: proteccionesRango.length,
+      rangosEditables: CONFIGURACION_PROTECCIONES_COBRO[nombreHoja]
+    });
+  });
+
+  return {
+    ok: true,
+    usuario: USUARIO_BIGOTTO_EMAIL,
+    resultado
+  };
+}
+
+function removerEditorSiExiste_(protection, email) {
+  if (!protection || !email) return;
+
+  const editores = protection.getEditors ? protection.getEditors() : [];
+  const encontrado = editores.some((editor) => {
+    return String(editor.getEmail ? editor.getEmail() : '').toLowerCase() === String(email).toLowerCase();
+  });
+
+  if (!encontrado) return;
+  protection.removeEditor(email);
 }
 
 function rangesIntersect_(left, right) {
