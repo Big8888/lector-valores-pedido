@@ -159,6 +159,25 @@ function isEstadoPendienteCobro(estado) {
   );
 }
 
+function limpiarDetalleCobro(texto) {
+  if (!texto) return '';
+
+  const partes = String(texto)
+    .split('|')
+    .map((parte) => parte.trim())
+    .filter(Boolean);
+
+  const partesLimpias = partes.filter((parte) => {
+    if (/^COBRADO\b/i.test(parte)) return false;
+    if (/^Efectivo\b/i.test(parte)) return false;
+    if (/^Pago\b/i.test(parte)) return false;
+    if (/^Vuelto\b/i.test(parte)) return false;
+    return true;
+  });
+
+  return partesLimpias.join(' | ');
+}
+
 function parseFechaLocal(value) {
   const normalized = normalizeText(value);
   if (!normalized) return null;
@@ -183,6 +202,8 @@ async function getSingleCellValues(sheets, sheetName, row, profile) {
   const ranges = [
     getA1(sheetName, profile.estadoPago, row),
     getA1(sheetName, profile.efectivo, row),
+    getA1(sheetName, profile.tarjeta, row),
+    getA1(sheetName, profile.transferencia, row),
     getA1(sheetName, profile.registroCobro, row),
     getA1(sheetName, profile.registroCobroLegacy, row),
     getA1(sheetName, profile.marcaCobrado, row)
@@ -197,9 +218,11 @@ async function getSingleCellValues(sheets, sheetName, row, profile) {
   return {
     estadoPago: valueRanges[0]?.values?.[0]?.[0] ?? '',
     efectivo: valueRanges[1]?.values?.[0]?.[0] ?? '',
-    registroActual: valueRanges[2]?.values?.[0]?.[0] ?? '',
-    legacyActual: valueRanges[3]?.values?.[0]?.[0] ?? '',
-    marcaCobrado: valueRanges[4]?.values?.[0]?.[0] ?? ''
+    tarjeta: valueRanges[2]?.values?.[0]?.[0] ?? '',
+    transferencia: valueRanges[3]?.values?.[0]?.[0] ?? '',
+    registroActual: valueRanges[4]?.values?.[0]?.[0] ?? '',
+    legacyActual: valueRanges[5]?.values?.[0]?.[0] ?? '',
+    marcaCobrado: valueRanges[6]?.values?.[0]?.[0] ?? ''
   };
 }
 
@@ -290,26 +313,53 @@ async function quitarCobrosOperativos(payload = {}) {
 
   const profile = getCobroProfile(sheetName);
   const sheets = await getSheetsClient();
-  const clearRanges = rows.flatMap((row) =>
-    profile.clearRanges(row).map((range) => getRangeA1(sheetName, range))
-  );
-  const uncheckUpdates = rows.map((row) => ({
-    range: getA1(sheetName, profile.accion, row),
-    values: [[false]]
-  }));
+  const updates = [];
 
-  if (clearRanges.length > 0) {
-    await sheets.spreadsheets.values.batchClear({
-      spreadsheetId: sheetsConfig.spreadsheetId,
-      requestBody: { ranges: clearRanges }
-    });
+  for (const row of rows) {
+    const current = await getSingleCellValues(sheets, sheetName, row, profile);
+    const registroLimpio = limpiarDetalleCobro(current.registroActual);
+    const legacyLimpio = limpiarDetalleCobro(current.legacyActual);
+
+    updates.push(
+      {
+        range: getA1(sheetName, profile.registroCobro, row),
+        values: [[registroLimpio]]
+      },
+      {
+        range: getA1(sheetName, profile.marcaCobrado, row),
+        values: [['']]
+      },
+      {
+        range: getA1(sheetName, profile.accion, row),
+        values: [[false]]
+      }
+    );
+
+    if (profile.registroCobroLegacy && profile.registroCobroLegacy !== profile.registroCobro) {
+      updates.push({
+        range: getA1(sheetName, profile.registroCobroLegacy, row),
+        values: [[legacyLimpio]]
+      });
+    }
+
+    if (
+      sheetName === sheetsConfig.pedidosYaPdfSheetName &&
+      toNumber(current.efectivo) > 0 &&
+      toNumber(current.tarjeta) <= 0 &&
+      toNumber(current.transferencia) <= 0
+    ) {
+      updates.push({
+        range: getA1(sheetName, profile.estadoPago, row),
+        values: [['NO PAGADO']]
+      });
+    }
   }
 
   await sheets.spreadsheets.values.batchUpdate({
     spreadsheetId: sheetsConfig.spreadsheetId,
     requestBody: {
       valueInputOption: 'RAW',
-      data: uncheckUpdates
+      data: updates
     }
   });
 
