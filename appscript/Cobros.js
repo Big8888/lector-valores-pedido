@@ -454,6 +454,7 @@ function obtenerFondosTemplate_(hoja, filaObjetivo, filasExcluidas, perfil) {
       if (fila < FILA_INICIO_PEDIDOS || fila > lastRow) continue;
       if (excluidas.has(fila)) continue;
       if (isFilaCobrada_(hoja, fila, perfil)) continue;
+      if (!isFilaLibreParaTemplate_(hoja, fila, perfil)) continue;
 
       return hoja.getRange(fila, 1, 1, perfil.visibleEndColumn).getBackgrounds()[0];
     }
@@ -492,15 +493,22 @@ function guardarFondosFilaAntesDeCobro_(hoja, fila, perfil) {
 function restaurarFondosFilaLuegoDeQuitar_(hoja, fila, perfil, filasQuitadas) {
   const key = getKeyFondosCobro_(hoja.getName(), fila);
   const props = PropertiesService.getDocumentProperties();
-  const fondosGuardados = parseFondosBackup_(props.getProperty(key));
   const fondosTemplate = obtenerFondosTemplate_(hoja, fila, filasQuitadas, perfil);
-  const fondos = fondosGuardados || fondosTemplate;
 
-  if (Array.isArray(fondos) && fondos.length > 0) {
-    hoja.getRange(fila, 1, 1, perfil.visibleEndColumn).setBackgrounds([fondos]);
+  if (Array.isArray(fondosTemplate) && fondosTemplate.length > 0) {
+    hoja.getRange(fila, 1, 1, perfil.visibleEndColumn).setBackgrounds([fondosTemplate]);
   }
 
   props.deleteProperty(key);
+}
+
+function isFilaLibreParaTemplate_(hoja, fila, perfil) {
+  const rangos = getRangosFilaPedidoParaLimpiar_(hoja.getName(), fila, perfil);
+
+  return rangos.every((a1) => {
+    const valores = hoja.getRange(a1).getDisplayValues();
+    return valores.every((row) => row.every((cell) => String(cell || '').trim() === ''));
+  });
 }
 
 function actualizarFilasCobroSeleccionadas_(hoja, filas, checked) {
