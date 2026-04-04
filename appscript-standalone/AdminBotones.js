@@ -2,15 +2,20 @@ const TARGET_SPREADSHEET_ID = '1b6thcjNOAbUPKRWSSvqhog2vp6TOk-wbo5GqokPH2hg';
 const HOJAS_REPARTIDORES = ['Mauro', 'Brisa', 'Diogo', 'GIAN', 'LIBRE1'];
 const HOJAS_COBRO = [...HOJAS_REPARTIDORES, 'Venta Mostrador', 'Lector Pedidosya'];
 const HOJAS_ESTADO_AUTOMATICO = [...HOJAS_REPARTIDORES, 'Venta Mostrador'];
+const HOJA_CIERRE_CAJA = 'Cierre de caja';
 const CELDA_BOTON = 'A5';
+const CELDA_BOTON_CIERRE_DIA = 'J5';
 const RANGO_LIMPIEZA_CONTROLES_VIEJOS = 'O1:P6';
 const TITULO_IMAGEN_COBRO = 'COBROS_BUTTON';
+const TITULO_IMAGEN_CIERRE_DIA = 'CIERRE_DIA_BUTTON';
 const ANCHO_BOTON_COBRO = 185;
 const ALTO_BOTON_COBRO = 55;
 const OFFSET_X_BOTON_COBRO = 2;
 const OFFSET_Y_BOTON_COBRO = 3;
 const FUNCION_BOTON_EN_HOJA = 'abrirPedidosSeleccionados';
+const FUNCION_BOTON_CIERRE_DIA = 'procesarCierreDelDia';
 const URL_BOTON_COBRO = 'https://raw.githubusercontent.com/Big8888/lector-valores-pedido/main/assets/abrir-cobro-button.png';
+const URL_BOTON_CIERRE_DIA = 'https://raw.githubusercontent.com/Big8888/lector-valores-pedido/main/assets/cerrar-dia-button.png';
 const FILA_BOTONES_VUELTAS = 4;
 const FILA_NOMBRES_VUELTAS = 6;
 const FILA_TITULOS_VUELTAS = 7;
@@ -78,6 +83,22 @@ function recrearBotonCobroEnHoja(nombreHoja) {
   return {
     ok: true,
     hoja: hojaBuscada
+  };
+}
+
+function recrearBotonCierreDelDiaEnHoja() {
+  const spreadsheet = SpreadsheetApp.openById(TARGET_SPREADSHEET_ID);
+  const hoja = spreadsheet.getSheetByName(HOJA_CIERRE_CAJA);
+  if (!hoja) {
+    throw new Error('No se encontro la hoja ' + HOJA_CIERRE_CAJA + '.');
+  }
+
+  asegurarBotonCierreDelDiaEnHoja_(hoja);
+
+  return {
+    ok: true,
+    hoja: HOJA_CIERRE_CAJA,
+    celda: CELDA_BOTON_CIERRE_DIA
   };
 }
 
@@ -613,6 +634,10 @@ function limpiarBotonesCobro_(hoja) {
   getBotonesCobro_(hoja).forEach((image) => image.remove());
 }
 
+function limpiarBotonesCierreDelDia_(hoja) {
+  getBotonesCierreDelDia_(hoja).forEach((image) => image.remove());
+}
+
 function limpiarBotonesCobroEnPosicion_(hoja, fila, columna) {
   if (!hoja.getImages) return;
 
@@ -635,6 +660,16 @@ function getBotonesCobro_(hoja) {
   });
 }
 
+function getBotonesCierreDelDia_(hoja) {
+  if (!hoja.getImages) return [];
+
+  return hoja.getImages().filter((image) => {
+    if (isBotonCierreDelDiaEnZona_(image)) return true;
+    const altTitle = image.getAltTextTitle ? image.getAltTextTitle() : '';
+    return altTitle === TITULO_IMAGEN_CIERRE_DIA;
+  });
+}
+
 function colocarBotonCobroEnHoja_(hoja, celdaBoton) {
   const image = hoja.insertImage(
     getBotonCobroBlob_(),
@@ -647,6 +682,25 @@ function colocarBotonCobroEnHoja_(hoja, celdaBoton) {
   image.assignScript(FUNCION_BOTON_EN_HOJA);
   image.setAltTextTitle(TITULO_IMAGEN_COBRO);
   image.setAltTextDescription('Abre la calculadora de cobro de esta hoja');
+  image.setWidth(ANCHO_BOTON_COBRO);
+  image.setHeight(ALTO_BOTON_COBRO);
+}
+
+function asegurarBotonCierreDelDiaEnHoja_(hoja) {
+  limpiarBotonesCierreDelDia_(hoja);
+
+  const celdaBoton = hoja.getRange(CELDA_BOTON_CIERRE_DIA);
+  const image = hoja.insertImage(
+    URL_BOTON_CIERRE_DIA,
+    celdaBoton.getColumn(),
+    celdaBoton.getRow(),
+    OFFSET_X_BOTON_COBRO,
+    OFFSET_Y_BOTON_COBRO
+  );
+
+  image.assignScript(FUNCION_BOTON_CIERRE_DIA);
+  image.setAltTextTitle(TITULO_IMAGEN_CIERRE_DIA);
+  image.setAltTextDescription('Procesa el cierre del dia y limpia las hojas operativas');
   image.setWidth(ANCHO_BOTON_COBRO);
   image.setHeight(ALTO_BOTON_COBRO);
 }
@@ -757,4 +811,13 @@ function isBotonCobroEnZona_(image) {
   if (!anchor) return false;
 
   return anchor.getColumn() <= 2 && anchor.getRow() >= 5 && anchor.getRow() <= 7;
+}
+
+function isBotonCierreDelDiaEnZona_(image) {
+  if (!image || !image.getAnchorCell) return false;
+
+  const anchor = image.getAnchorCell();
+  if (!anchor) return false;
+
+  return anchor.getColumn() === 10 && anchor.getRow() === 5;
 }

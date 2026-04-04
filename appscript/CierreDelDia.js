@@ -10,7 +10,6 @@ const ALTO_BOTON_CIERRE_DIA = 52;
 const OFFSET_X_BOTON_CIERRE_DIA = 2;
 const OFFSET_Y_BOTON_CIERRE_DIA = 3;
 const URL_BOTON_CIERRE_DIA = 'https://raw.githubusercontent.com/Big8888/lector-valores-pedido/main/assets/cerrar-dia-button.png';
-let BOTON_CIERRE_DIA_BLOB = null;
 
 function crearMenuCierreDia() {
   SpreadsheetApp.getUi()
@@ -32,7 +31,7 @@ function asegurarBotonCierreDelDiaEnHoja() {
   limpiarBotonCierreDelDia_(hoja);
   const celda = hoja.getRange(CELDA_BOTON_CIERRE_DIA);
   const image = hoja.insertImage(
-    getBotonCierreDiaBlob_(),
+    URL_BOTON_CIERRE_DIA,
     celda.getColumn(),
     celda.getRow(),
     OFFSET_X_BOTON_CIERRE_DIA,
@@ -50,7 +49,7 @@ function procesarCierreDelDia() {
   const ui = SpreadsheetApp.getUi();
   const respuesta = ui.alert(
     'Cerrar dia',
-    'Se van a guardar los datos del dia en la hoja Datos y luego se van a limpiar las planillas operativas. ¿Queres continuar?',
+    'Se van a guardar los datos del dia en la hoja Datos y luego se van a limpiar las planillas operativas. Queres continuar?',
     ui.ButtonSet.YES_NO
   );
 
@@ -250,14 +249,6 @@ function columnToNumberCierre_(column) {
 
 function limpiarBotonCierreDelDia_(hoja) {
   getBotonesCierreDelDia_(hoja).forEach((image) => image.remove());
-}
-
-function getBotonCierreDiaBlob_() {
-  if (!BOTON_CIERRE_DIA_BLOB) {
-    BOTON_CIERRE_DIA_BLOB = UrlFetchApp.fetch(URL_BOTON_CIERRE_DIA).getBlob().setName('cerrar-dia-button.png');
-  }
-
-  return BOTON_CIERRE_DIA_BLOB.copyBlob();
 }
 
 function getBotonesCierreDelDia_(hoja) {
