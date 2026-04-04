@@ -261,7 +261,8 @@ assert.deepStrictEqual(
     nroPedidoTracking: 'UY-4170853827',
     cliente: 'Martin Perez',
     anotaciones: 'Sin timbre',
-    repartidor: 'Mauro'
+    repartidor: 'Mauro',
+    propinaTransferencia: 75
   }),
   {
     mes: '4',
@@ -272,9 +273,10 @@ assert.deepStrictEqual(
     telefono: '+598 92103510',
     anotaciones: 'Sin timbre',
     repartidor: 'Mauro',
+    propinaTransferencia: 75,
     syncKey: '2::2/04::Mauro'
   },
-  'El log de transferencias debe quedar alineado con la tabla AV:BC (mes, fecha, pedido, cliente, importe, telefono completo, anotaciones y repartidor).'
+  'El log de transferencias debe quedar alineado con la tabla AV:BD (mes, fecha, pedido, cliente, importe, telefono completo, anotaciones, repartidor y propina transferencia).'
 );
 
 console.log('VALIDACION_OK');

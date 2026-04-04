@@ -299,6 +299,31 @@ function getTransferLogCourier(sheetName, data = {}) {
   return normalizeCell(data.repartidor || data.riderHint || sheetName);
 }
 
+function isRiderSheetName(sheetName) {
+  return getRiderSheetNames().includes(sheetName);
+}
+
+function getRowCell(row, columnLetter) {
+  if (!Array.isArray(row) || !columnLetter) return '';
+  return row[columnLetterToNumber(columnLetter) - 1] ?? '';
+}
+
+function enrichTransferLogDataFromSheetRow(sheetName, data = {}, row = []) {
+  if (!isRiderSheetName(sheetName)) {
+    return {
+      ...data,
+      propinaTransferencia: data.propinaTransferencia ?? ''
+    };
+  }
+
+  return {
+    ...data,
+    anotaciones: normalizeCell(getRowCell(row, 'M')) || data.anotaciones || '',
+    telefono: normalizeCell(getRowCell(row, 'X')) || data.telefono || '',
+    propinaTransferencia: getRowCell(row, 'J') || data.propinaTransferencia || ''
+  };
+}
+
 function buildTransferLogKey(sheetName, data = {}) {
   const numeroPedido = normalizeCell(data.numeroPedidoVisible || data.numeroPedidoInterno);
   const fecha = formatTransferLogDate(data.fecha);
@@ -326,6 +351,7 @@ function buildTransferLogEntry(sheetName, data = {}) {
     telefono: formatTransferLogPhone(data.telefono),
     anotaciones: normalizeCell(data.anotaciones),
     repartidor: getTransferLogCourier(sheetName, data),
+    propinaTransferencia: toNumber(data.propinaTransferencia),
     syncKey: buildTransferLogKey(sheetName, data)
   };
 }
@@ -390,19 +416,50 @@ async function writeTransferLogEntry(sheets, transferConfig, rowNumber, entry) {
         { range: `${sheetName}!${columns.importe}${rowNumber}`, values: [[entry.importe || '']] },
         { range: `${sheetName}!${columns.telefono}${rowNumber}`, values: [[entry.telefono || '']] },
         { range: `${sheetName}!${columns.anotaciones}${rowNumber}`, values: [[entry.anotaciones || '']] },
-        { range: `${sheetName}!${columns.repartidor}${rowNumber}`, values: [[entry.repartidor || '']] }
+        { range: `${sheetName}!${columns.repartidor}${rowNumber}`, values: [[entry.repartidor || '']] },
+        { range: `${sheetName}!${columns.propinaTransferencia}${rowNumber}`, values: [[entry.propinaTransferencia || '']] }
       ]
     }
   });
 }
 
-async function syncTransferLogEntry(sheetName, data = {}) {
+async function syncTransferLogEntry(sheetName, data = {}, rowNumber = null) {
   const transferConfig = getTransferLogConfig();
   if (!transferConfig.sheetName || normalizeCell(sheetName) === normalizeCell(transferConfig.sheetName)) {
     return null;
   }
 
-  const entry = buildTransferLogEntry(sheetName, data);
+  let sourceData = data;
+  if (rowNumber && isRiderSheetName(sheetName)) {
+    const sheets = await getSheetsClient();
+    const rowRes = await sheets.spreadsheets.values.get({
+      spreadsheetId: sheetsConfig.spreadsheetId,
+      range: `${sheetName}!A${rowNumber}:AD${rowNumber}`
+    });
+    const rowValues = rowRes.data.values?.[0] || [];
+    sourceData = enrichTransferLogDataFromSheetRow(sheetName, data, rowValues);
+    const entry = buildTransferLogEntry(sheetName, sourceData);
+    if (!entry) {
+      return null;
+    }
+
+    const state = await getTransferLogRowState(sheets, transferConfig, entry.syncKey);
+    if (!state.existingRow && state.isFull) {
+      throw new Error(`La tabla de transferencias ${transferConfig.sheetName}!${transferConfig.columns.mes}${transferConfig.dataStartRow}:${transferConfig.columns.repartidor}${transferConfig.dataEndRow} ya no tiene filas libres.`);
+    }
+    const targetRowNumber = state.existingRow || state.nextRow;
+
+    await writeTransferLogEntry(sheets, transferConfig, targetRowNumber, entry);
+
+    return {
+      sheetName: transferConfig.sheetName,
+      rowNumber: targetRowNumber,
+      syncKey: entry.syncKey,
+      updated: Boolean(state.existingRow)
+    };
+  }
+
+  const entry = buildTransferLogEntry(sheetName, sourceData);
   if (!entry) {
     return null;
   }
@@ -412,13 +469,13 @@ async function syncTransferLogEntry(sheetName, data = {}) {
   if (!state.existingRow && state.isFull) {
     throw new Error(`La tabla de transferencias ${transferConfig.sheetName}!${transferConfig.columns.mes}${transferConfig.dataStartRow}:${transferConfig.columns.repartidor}${transferConfig.dataEndRow} ya no tiene filas libres.`);
   }
-  const rowNumber = state.existingRow || state.nextRow;
+  const targetRowNumber = state.existingRow || state.nextRow;
 
-  await writeTransferLogEntry(sheets, transferConfig, rowNumber, entry);
+  await writeTransferLogEntry(sheets, transferConfig, targetRowNumber, entry);
 
   return {
     sheetName: transferConfig.sheetName,
-    rowNumber,
+    rowNumber: targetRowNumber,
     syncKey: entry.syncKey,
     updated: Boolean(state.existingRow)
   };
@@ -463,7 +520,8 @@ async function syncAllCurrentTransferRowsToDatos() {
     const rows = res.data.values || [];
     let synced = 0;
 
-    for (const row of rows) {
+    for (let index = 0; index < rows.length; index += 1) {
+      const row = rows[index];
       const valueByField = {};
 
       Object.entries(profile.columns).forEach(([field, letter]) => {
@@ -471,10 +529,19 @@ async function syncAllCurrentTransferRowsToDatos() {
         valueByField[field] = row[columnLetterToNumber(letter) - 1] ?? '';
       });
 
-      const entry = buildTransferLogEntry(sheetName, valueByField);
+      const enrichedValueByField = enrichTransferLogDataFromSheetRow(
+        sheetName,
+        valueByField,
+        row
+      );
+      const entry = buildTransferLogEntry(sheetName, enrichedValueByField);
       if (!entry) continue;
 
-      await syncTransferLogEntry(sheetName, valueByField);
+      await syncTransferLogEntry(
+        sheetName,
+        enrichedValueByField,
+        profile.dataStartRow + index
+      );
       synced += 1;
     }
 
@@ -865,7 +932,7 @@ async function writeOrderToSheet(sheetName, row, data) {
     }
   });
 
-  await syncTransferLogEntry(sheetName, data);
+  await syncTransferLogEntry(sheetName, data, row);
 
   if (getRiderSheetNames().includes(sheetName)) {
     await syncDatosRiderSummaries();

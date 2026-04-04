@@ -17,7 +17,8 @@ module.exports = {
       importe: 'AZ',
       telefono: 'BA',
       anotaciones: 'BB',
-      repartidor: 'BC'
+      repartidor: 'BC',
+      propinaTransferencia: 'BD'
     }
   },
   riderSheets: {
