@@ -208,7 +208,7 @@ function formatDatosMoney(value, options = {}) {
     return '';
   }
 
-  return `$${Math.trunc(amount)}`;
+  return Math.trunc(amount);
 }
 
 function formatDatosPlainNumber(value) {

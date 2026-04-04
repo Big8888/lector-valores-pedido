@@ -112,6 +112,35 @@ function toNumber(value) {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function isNumericLike(value) {
+  const normalized = normalizeText(value);
+  if (!normalized) {
+    return false;
+  }
+
+  return /\d/.test(normalized) && /^[$\d\s.,-]+$/.test(normalized);
+}
+
+function normalizeDatosArchiveCell(value, index) {
+  if (index === 0) {
+    return value;
+  }
+
+  if (typeof value === 'number') {
+    return value;
+  }
+
+  if (isNumericLike(value)) {
+    return toNumber(value);
+  }
+
+  return value;
+}
+
+function normalizeDatosArchiveRow(row = []) {
+  return (Array.isArray(row) ? row : []).map((value, index) => normalizeDatosArchiveCell(value, index));
+}
+
 function formatHoraActual() {
   return new Intl.DateTimeFormat('es-UY', {
     timeZone: sheetsConfig.timeZone,
@@ -401,16 +430,18 @@ async function archivarResumenDatosCierre(sheets) {
     };
   }
 
+  const normalizedSourceRow = normalizeDatosArchiveRow(sourceRow);
+
   const existingRows = (targetRes.data.values || []).filter((row) =>
     row.some((cell) => normalizeText(cell) !== '')
   );
   const width = sourceRow.length;
-  const fingerprint = JSON.stringify(sourceRow);
-  const alreadyExists = existingRows.some((row) => JSON.stringify(row.slice(0, width)) === fingerprint);
+  const fingerprint = JSON.stringify(normalizedSourceRow);
+  const alreadyExists = existingRows.some((row) => JSON.stringify(normalizeDatosArchiveRow(row.slice(0, width))) === fingerprint);
 
   const registros = alreadyExists
     ? existingRows.slice()
-    : [...existingRows, sourceRow.slice(0, width)];
+    : [...existingRows, normalizedSourceRow.slice(0, width)];
 
   if (registros.length > (CIERRE_DEL_DIA_CONFIG.resumenDestino.endRow - CIERRE_DEL_DIA_CONFIG.resumenDestino.startRow + 1)) {
     throw new Error(`No hay lugar libre en Datos!${targetRangeA1} para guardar otro cierre.`);
