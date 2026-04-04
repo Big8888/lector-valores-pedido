@@ -223,6 +223,7 @@ function confirmarCobro(payload) {
     }
 
     hoja.getRange(fila, perfil.accion).setValue(false);
+    sincronizarEstadoPagoCobro_(hoja, fila, perfil);
   });
 
   actualizarFilasCobroSeleccionadas_(hoja, filas, false);
@@ -578,6 +579,30 @@ function getKeyFondosCobro_(sheetName, fila) {
     '_' +
     String(Number(fila) || '')
   );
+}
+
+function sincronizarEstadoPagoCobro_(hoja, fila, perfil) {
+  if (hoja.getName() !== 'Lector Pedidosya') {
+    return;
+  }
+
+  const columnaEstadoPago = perfil.estadoPago;
+  const columnaEfectivo = perfil.efectivo;
+  if (!columnaEstadoPago || !columnaEfectivo) {
+    return;
+  }
+
+  const estadoPagoCelda = hoja.getRange(fila, columnaEstadoPago);
+  const efectivo = toNumberCobro_(hoja.getRange(fila, columnaEfectivo).getValue());
+  const estadoActual = String(estadoPagoCelda.getValue() || '').trim().toUpperCase();
+
+  if (efectivo > 0 && isEstadoPendienteCobro_(estadoActual)) {
+    estadoPagoCelda.setValue('PAGADO');
+  }
+}
+
+function isEstadoPendienteCobro_(estado) {
+  return ['NO PAGADO', 'UNPAID', 'PENDIENTE', 'PENDING', ''].includes(String(estado || '').trim().toUpperCase());
 }
 
 function limpiarDatosFilaLuegoDeQuitar_(hoja, fila, perfil) {
