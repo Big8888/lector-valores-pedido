@@ -140,27 +140,27 @@ function getDatosRiderSummaryConfig() {
       Diogo: {
         titleCell: 'A4',
         title: 'DIOGO',
-        dataRange: 'A6:O6'
+        dataRange: 'A6:O24'
       },
       Mauro: {
         titleCell: 'S4',
         title: 'Mauro',
-        dataRange: 'S6:AG6'
+        dataRange: 'S6:AG24'
       },
       Brisa: {
         titleCell: 'A27',
         title: 'Brisa',
-        dataRange: 'A29:O29'
+        dataRange: 'A29:O53'
       },
       GIAN: {
         titleCell: 'S27',
         title: 'GIAN',
-        dataRange: 'S29:AG29'
+        dataRange: 'S29:AG53'
       },
       LIBRE1: {
         titleCell: 'A54',
         title: 'LIBRE1',
-        dataRange: 'B55:P55'
+        dataRange: 'B55:P187'
       }
     }
   };
@@ -232,6 +232,58 @@ function buildDatosRiderSummaryRow(formattedMatrix = [], rawMatrix = []) {
     normalizeCell(getMatrixValue(formattedMatrix, 2, 10)),
     normalizeCell(getMatrixValue(formattedMatrix, 2, 11))
   ];
+}
+
+function normalizeRowWidth(row = [], width = 0) {
+  const values = Array.isArray(row) ? row.slice(0, width) : [];
+  while (values.length < width) {
+    values.push('');
+  }
+  return values;
+}
+
+function isBlankRow(row = []) {
+  return normalizeRowWidth(row, row.length).every((cell) => normalizeCell(cell) === '');
+}
+
+function upsertDatosHistoryRows(existingRows = [], rowValues = []) {
+  const width = rowValues.length;
+  const currentDayKey = parseSheetDayKey(rowValues[0]);
+
+  if (!currentDayKey || isBlankRow(rowValues)) {
+    return null;
+  }
+
+  const normalizedRows = (existingRows || [])
+    .map((row) => normalizeRowWidth(row, width))
+    .filter((row) => !isBlankRow(row));
+
+  const nextRow = normalizeRowWidth(rowValues, width);
+  const existingIndex = normalizedRows.findIndex((row) => parseSheetDayKey(row[0]) === currentDayKey);
+
+  if (existingIndex >= 0) {
+    normalizedRows[existingIndex] = nextRow;
+  } else {
+    normalizedRows.push(nextRow);
+  }
+
+  normalizedRows.sort((left, right) => getSortKeyFecha(left[0]) - getSortKeyFecha(right[0]));
+  return normalizedRows;
+}
+
+function getRangeRowBounds(a1Range) {
+  const matches = String(a1Range || '').match(/(\d+):[A-Z]+(\d+)/i);
+  if (!matches) {
+    return { startRow: 0, endRow: -1, totalRows: 0 };
+  }
+
+  const startRow = Number(matches[1]);
+  const endRow = Number(matches[2]);
+  return {
+    startRow,
+    endRow,
+    totalRows: Math.max(endRow - startRow + 1, 0)
+  };
 }
 
 function parseDateValue(value) {
@@ -560,13 +612,20 @@ async function syncAllCurrentTransferRowsToDatos() {
   };
 }
 
-async function syncDatosRiderSummaries() {
+async function syncDatosRiderSummaries(targetSheetNames = null) {
   const datosConfig = getDatosRiderSummaryConfig();
-  const riderSheets = Object.keys(datosConfig.blocks);
+  const allRiderSheets = Object.keys(datosConfig.blocks);
+  const riderSheets = Array.isArray(targetSheetNames) && targetSheetNames.length > 0
+    ? allRiderSheets.filter((sheetName) => targetSheetNames.includes(sheetName))
+    : allRiderSheets;
   const sheets = await getSheetsClient();
   const summaryRanges = riderSheets.map((sheetName) => `${sheetName}!A2:N4`);
+  const historyRanges = riderSheets.map((sheetName) => {
+    const block = datosConfig.blocks[sheetName];
+    return `${datosConfig.sheetName}!${block.dataRange}`;
+  });
 
-  const [formattedRes, rawRes] = await Promise.all([
+  const [formattedRes, rawRes, historyRes] = await Promise.all([
     sheets.spreadsheets.values.batchGet({
       spreadsheetId: sheetsConfig.spreadsheetId,
       ranges: summaryRanges
@@ -575,11 +634,16 @@ async function syncDatosRiderSummaries() {
       spreadsheetId: sheetsConfig.spreadsheetId,
       ranges: summaryRanges,
       valueRenderOption: 'UNFORMATTED_VALUE'
+    }),
+    sheets.spreadsheets.values.batchGet({
+      spreadsheetId: sheetsConfig.spreadsheetId,
+      ranges: historyRanges
     })
   ]);
 
   const formattedRanges = formattedRes.data.valueRanges || [];
   const rawRanges = rawRes.data.valueRanges || [];
+  const historyValueRanges = historyRes.data.valueRanges || [];
   const updates = [];
 
   riderSheets.forEach((sheetName, index) => {
@@ -589,6 +653,8 @@ async function syncDatosRiderSummaries() {
     const formattedMatrix = formattedRanges[index]?.values || [];
     const rawMatrix = rawRanges[index]?.values || [];
     const rowValues = buildDatosRiderSummaryRow(formattedMatrix, rawMatrix);
+    const existingRows = historyValueRanges[index]?.values || [];
+    const nextRows = upsertDatosHistoryRows(existingRows, rowValues);
 
     if (block.titleCell && block.title) {
       updates.push({
@@ -597,10 +663,24 @@ async function syncDatosRiderSummaries() {
       });
     }
 
-    updates.push({
-      range: `${datosConfig.sheetName}!${block.dataRange}`,
-      values: [rowValues]
-    });
+    if (nextRows) {
+      const width = rowValues.length;
+      const { totalRows } = getRangeRowBounds(block.dataRange);
+
+      if (nextRows.length > totalRows) {
+        throw new Error(`No hay lugar libre en ${datosConfig.sheetName}!${block.dataRange} para guardar más jornadas de ${sheetName}.`);
+      }
+
+      const paddedRows = nextRows.slice();
+      while (paddedRows.length < totalRows) {
+        paddedRows.push(new Array(width).fill(''));
+      }
+
+      updates.push({
+        range: `${datosConfig.sheetName}!${block.dataRange}`,
+        values: paddedRows
+      });
+    }
   });
 
   if (!updates.length) {

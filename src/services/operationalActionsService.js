@@ -293,6 +293,10 @@ async function confirmarCobrosOperativos(payload = {}) {
     });
   }
 
+  if (getRiderSheetNames().includes(sheetName)) {
+    await syncDatosRiderSummaries([sheetName]);
+  }
+
   return {
     ok: true,
     updatedRows: rows
@@ -364,7 +368,7 @@ async function quitarCobrosOperativos(payload = {}) {
   });
 
   if (getRiderSheetNames().includes(sheetName)) {
-    await syncDatosRiderSummaries();
+    await syncDatosRiderSummaries([sheetName]);
   }
 
   return {
