@@ -507,6 +507,56 @@ async function writeTransferLogEntry(sheets, transferConfig, rowNumber, entry) {
   });
 }
 
+async function readTransferLogEntry(sheets, transferConfig, rowNumber) {
+  const { sheetName, columns } = transferConfig;
+  const ranges = [
+    `${sheetName}!${columns.mes}${rowNumber}`,
+    `${sheetName}!${columns.fecha}${rowNumber}`,
+    `${sheetName}!${columns.numeroPedido}${rowNumber}`,
+    `${sheetName}!${columns.cliente}${rowNumber}`,
+    `${sheetName}!${columns.importe}${rowNumber}`,
+    `${sheetName}!${columns.telefono}${rowNumber}`,
+    `${sheetName}!${columns.anotaciones}${rowNumber}`,
+    `${sheetName}!${columns.repartidor}${rowNumber}`,
+    `${sheetName}!${columns.propinaTransferencia}${rowNumber}`
+  ];
+
+  const res = await sheets.spreadsheets.values.batchGet({
+    spreadsheetId: sheetsConfig.spreadsheetId,
+    ranges
+  });
+
+  const valueRanges = res.data.valueRanges || [];
+  return {
+    mes: valueRanges[0]?.values?.[0]?.[0] ?? '',
+    fecha: valueRanges[1]?.values?.[0]?.[0] ?? '',
+    numeroPedido: valueRanges[2]?.values?.[0]?.[0] ?? '',
+    cliente: valueRanges[3]?.values?.[0]?.[0] ?? '',
+    importe: valueRanges[4]?.values?.[0]?.[0] ?? '',
+    telefono: valueRanges[5]?.values?.[0]?.[0] ?? '',
+    anotaciones: valueRanges[6]?.values?.[0]?.[0] ?? '',
+    repartidor: valueRanges[7]?.values?.[0]?.[0] ?? '',
+    propinaTransferencia: valueRanges[8]?.values?.[0]?.[0] ?? ''
+  };
+}
+
+function mergeTransferLogEntries(incomingEntry = {}, existingEntry = {}) {
+  return {
+    mes: normalizeCell(incomingEntry.mes) || normalizeCell(existingEntry.mes),
+    fecha: normalizeCell(incomingEntry.fecha) || normalizeCell(existingEntry.fecha),
+    numeroPedido: normalizeCell(incomingEntry.numeroPedido) || normalizeCell(existingEntry.numeroPedido),
+    cliente: normalizeCell(incomingEntry.cliente) || normalizeCell(existingEntry.cliente),
+    importe: toNumber(incomingEntry.importe) > 0 ? toNumber(incomingEntry.importe) : toNumber(existingEntry.importe),
+    telefono: normalizeCell(incomingEntry.telefono) || normalizeCell(existingEntry.telefono),
+    anotaciones: normalizeCell(incomingEntry.anotaciones) || normalizeCell(existingEntry.anotaciones),
+    repartidor: normalizeCell(incomingEntry.repartidor) || normalizeCell(existingEntry.repartidor),
+    propinaTransferencia: toNumber(incomingEntry.propinaTransferencia) > 0
+      ? toNumber(incomingEntry.propinaTransferencia)
+      : toNumber(existingEntry.propinaTransferencia),
+    syncKey: normalizeCell(incomingEntry.syncKey) || normalizeCell(existingEntry.syncKey)
+  };
+}
+
 async function syncTransferLogEntry(sheetName, data = {}, rowNumber = null) {
   const transferConfig = getTransferLogConfig();
   if (!transferConfig.sheetName || normalizeCell(sheetName) === normalizeCell(transferConfig.sheetName)) {
@@ -532,8 +582,11 @@ async function syncTransferLogEntry(sheetName, data = {}, rowNumber = null) {
       throw new Error(`La tabla de transferencias ${transferConfig.sheetName}!${transferConfig.columns.mes}${transferConfig.dataStartRow}:${transferConfig.columns.repartidor}${transferConfig.dataEndRow} ya no tiene filas libres.`);
     }
     const targetRowNumber = state.existingRow || state.nextRow;
+    const mergedEntry = state.existingRow
+      ? mergeTransferLogEntries(entry, await readTransferLogEntry(sheets, transferConfig, targetRowNumber))
+      : entry;
 
-    await writeTransferLogEntry(sheets, transferConfig, targetRowNumber, entry);
+    await writeTransferLogEntry(sheets, transferConfig, targetRowNumber, mergedEntry);
 
     return {
       sheetName: transferConfig.sheetName,
@@ -554,8 +607,11 @@ async function syncTransferLogEntry(sheetName, data = {}, rowNumber = null) {
     throw new Error(`La tabla de transferencias ${transferConfig.sheetName}!${transferConfig.columns.mes}${transferConfig.dataStartRow}:${transferConfig.columns.repartidor}${transferConfig.dataEndRow} ya no tiene filas libres.`);
   }
   const targetRowNumber = state.existingRow || state.nextRow;
+  const mergedEntry = state.existingRow
+    ? mergeTransferLogEntries(entry, await readTransferLogEntry(sheets, transferConfig, targetRowNumber))
+    : entry;
 
-  await writeTransferLogEntry(sheets, transferConfig, targetRowNumber, entry);
+  await writeTransferLogEntry(sheets, transferConfig, targetRowNumber, mergedEntry);
 
   return {
     sheetName: transferConfig.sheetName,
@@ -567,6 +623,7 @@ async function syncTransferLogEntry(sheetName, data = {}, rowNumber = null) {
 
 async function syncAllCurrentTransferRowsToDatos() {
   const sheets = await getSheetsClient();
+  const syncReferenceDate = new Date();
   const sourceSheets = [
     ...getRiderSheetNames(),
     sheetsConfig.counterSheetName,
@@ -618,6 +675,9 @@ async function syncAllCurrentTransferRowsToDatos() {
         valueByField,
         row
       );
+      if (!enrichedValueByField.fecha) {
+        enrichedValueByField.fecha = syncReferenceDate;
+      }
       const entry = buildTransferLogEntry(sheetName, enrichedValueByField);
       if (!entry) continue;
 
