@@ -574,11 +574,14 @@ async function limpiarHojasOperativasDelDia(sheets) {
 
 async function procesarCierreDelDiaOperativo() {
   const sheets = await getSheetsClient();
+
+  // El bloque de repartidores en Datos tiene que capturar los totales del dia
+  // antes de vaciar las hojas operativas del cierre.
+  await syncDatosRiderSummaries();
   const archivo = await archivarResumenDatosCierre(sheets);
   await copiarValoresCierreCaja(sheets);
   await limpiarCobrosOperativosCierre(sheets);
   await limpiarHojasOperativasDelDia(sheets);
-  await syncDatosRiderSummaries();
 
   return {
     ok: true,
