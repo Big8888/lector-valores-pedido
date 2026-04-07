@@ -2,7 +2,8 @@ const sheetsConfig = require('../config/sheetsConfig');
 const {
   getSheetsClient,
   getRiderSheetNames,
-  syncDatosRiderSummaries
+  syncDatosRiderSummaries,
+  syncAllCurrentTransferRowsToDatos
 } = require('./googleSheetsService');
 
 const SHEET_ALLOWED_FOR_COBRO = new Set([
@@ -578,6 +579,7 @@ async function procesarCierreDelDiaOperativo() {
   // El bloque de repartidores en Datos tiene que capturar los totales del dia
   // antes de vaciar las hojas operativas del cierre.
   await syncDatosRiderSummaries();
+  await syncAllCurrentTransferRowsToDatos();
   const archivo = await archivarResumenDatosCierre(sheets);
   await copiarValoresCierreCaja(sheets);
   await limpiarCobrosOperativosCierre(sheets);
