@@ -81,6 +81,16 @@ const CIERRE_DEL_DIA_CONFIG = {
   ].filter(Boolean)
 };
 
+const FONDOS_OPERATIVOS_CIERRE = {
+  Mauro: { startRow: 8, endRow: 114, startColumn: 'A', endColumn: 'AA', templateRow: 114 },
+  Brisa: { startRow: 8, endRow: 114, startColumn: 'A', endColumn: 'AA', templateRow: 114 },
+  Diogo: { startRow: 8, endRow: 114, startColumn: 'A', endColumn: 'AA', templateRow: 114 },
+  GIAN: { startRow: 8, endRow: 114, startColumn: 'A', endColumn: 'AA', templateRow: 114 },
+  LIBRE1: { startRow: 8, endRow: 114, startColumn: 'A', endColumn: 'AA', templateRow: 114 },
+  'Venta Mostrador': { startRow: 8, endRow: 114, startColumn: 'A', endColumn: 'R', templateRow: 114 },
+  'Lector Pedidosya': { startRow: 8, endRow: 114, startColumn: 'A', endColumn: 'N', templateRow: 114 }
+};
+
 function normalizeText(value) {
   return String(value || '').trim();
 }
@@ -166,6 +176,48 @@ function getA1(sheetName, column, row) {
 
 function getRangeA1(sheetName, range) {
   return `${sheetName}!${range}`;
+}
+
+function columnLetterToNumber(column) {
+  return String(column || '')
+    .trim()
+    .toUpperCase()
+    .split('')
+    .reduce((acc, char) => (acc * 26) + char.charCodeAt(0) - 64, 0);
+}
+
+function normalizeRgbColor(color = {}) {
+  return {
+    red: Number.isFinite(color.red) ? color.red : 1,
+    green: Number.isFinite(color.green) ? color.green : 1,
+    blue: Number.isFinite(color.blue) ? color.blue : 1
+  };
+}
+
+function getBackgroundResetFormat(cell = {}) {
+  const style = cell.userEnteredFormat?.backgroundColorStyle || cell.effectiveFormat?.backgroundColorStyle;
+  if (style?.rgbColor) {
+    return {
+      cell: {
+        userEnteredFormat: {
+          backgroundColorStyle: {
+            rgbColor: normalizeRgbColor(style.rgbColor)
+          }
+        }
+      },
+      fields: 'userEnteredFormat.backgroundColorStyle'
+    };
+  }
+
+  const color = cell.userEnteredFormat?.backgroundColor || cell.effectiveFormat?.backgroundColor;
+  return {
+    cell: {
+      userEnteredFormat: {
+        backgroundColor: normalizeRgbColor(color)
+      }
+    },
+    fields: 'userEnteredFormat.backgroundColor'
+  };
 }
 
 function buildCobroDetalle(totalEfectivo, montoPago, vuelto) {
@@ -573,6 +625,62 @@ async function limpiarHojasOperativasDelDia(sheets) {
   });
 }
 
+async function restablecerFondosOperativosTrasCierre(sheets) {
+  const entries = Object.entries(FONDOS_OPERATIVOS_CIERRE);
+  if (entries.length === 0) return;
+
+  const response = await sheets.spreadsheets.get({
+    spreadsheetId: sheetsConfig.spreadsheetId,
+    includeGridData: true,
+    ranges: entries.map(([sheetName, config]) =>
+      `${sheetName}!${config.startColumn}${config.templateRow}:${config.endColumn}${config.templateRow}`
+    ),
+    fields: 'sheets(properties(sheetId,title),data(rowData(values(userEnteredFormat(backgroundColor,backgroundColorStyle),effectiveFormat(backgroundColor,backgroundColorStyle)))))'
+  });
+
+  const requests = [];
+  const sheetsData = response.data.sheets || [];
+
+  sheetsData.forEach((sheet) => {
+    const sheetName = sheet.properties?.title;
+    const config = FONDOS_OPERATIVOS_CIERRE[sheetName];
+    if (!config) return;
+
+    const sheetId = sheet.properties?.sheetId;
+    if (!Number.isInteger(sheetId)) return;
+
+    const startColumnIndex = columnLetterToNumber(config.startColumn) - 1;
+    const endColumnIndex = columnLetterToNumber(config.endColumn) - 1;
+    const values = sheet.data?.[0]?.rowData?.[0]?.values || [];
+
+    for (let columnIndex = startColumnIndex; columnIndex <= endColumnIndex; columnIndex += 1) {
+      const templateCell = values[columnIndex - startColumnIndex] || {};
+      const formatReset = getBackgroundResetFormat(templateCell);
+
+      requests.push({
+        repeatCell: {
+          range: {
+            sheetId,
+            startRowIndex: config.startRow - 1,
+            endRowIndex: config.endRow,
+            startColumnIndex: columnIndex,
+            endColumnIndex: columnIndex + 1
+          },
+          cell: formatReset.cell,
+          fields: formatReset.fields
+        }
+      });
+    }
+  });
+
+  if (requests.length === 0) return;
+
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId: sheetsConfig.spreadsheetId,
+    requestBody: { requests }
+  });
+}
+
 async function procesarCierreDelDiaOperativo() {
   const sheets = await getSheetsClient();
 
@@ -584,6 +692,7 @@ async function procesarCierreDelDiaOperativo() {
   await copiarValoresCierreCaja(sheets);
   await limpiarCobrosOperativosCierre(sheets);
   await limpiarHojasOperativasDelDia(sheets);
+  await restablecerFondosOperativosTrasCierre(sheets);
 
   return {
     ok: true,
