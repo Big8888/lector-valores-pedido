@@ -53,11 +53,11 @@ const COBRO_PROFILES = {
     tarjeta: 'D',
     efectivo: 'E',
     transferencia: 'L',
-    registroCobro: 'H',
+    registroCobro: 'O',
     registroCobroLegacy: 'H',
     marcaCobrado: 'AC',
     clearRanges: (row) => [
-      `B${row}:N${row}`,
+      `B${row}:O${row}`,
       `AB${row}:AD${row}`
     ]
   }
